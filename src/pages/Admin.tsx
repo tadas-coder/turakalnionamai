@@ -51,7 +51,7 @@ export default function Admin() {
         <div className="container mx-auto px-4">
           <div className="mb-8 animate-fade-in">
             <h1 className="text-3xl font-bold font-display text-foreground mb-2">
-              Administratoriaus skydelis
+              Administratoriaus skiltis
             </h1>
             <p className="text-muted-foreground">
               Valdykite pranešimus, naujienas, apklausas ir vartotojus
