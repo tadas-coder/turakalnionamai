@@ -86,6 +86,33 @@ export type Database = {
         }
         Relationships: []
       }
+      linked_accounts: {
+        Row: {
+          created_at: string
+          id: string
+          linked_email: string
+          linked_name: string | null
+          primary_user_id: string
+          relationship: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          linked_email: string
+          linked_name?: string | null
+          primary_user_id: string
+          relationship?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          linked_email?: string
+          linked_name?: string | null
+          primary_user_id?: string
+          relationship?: string | null
+        }
+        Relationships: []
+      }
       news: {
         Row: {
           author_id: string | null
@@ -185,6 +212,7 @@ export type Database = {
           email: string
           full_name: string | null
           id: string
+          phone: string | null
         }
         Insert: {
           apartment_number?: string | null
@@ -192,6 +220,7 @@ export type Database = {
           email: string
           full_name?: string | null
           id: string
+          phone?: string | null
         }
         Update: {
           apartment_number?: string | null
@@ -199,6 +228,7 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
+          phone?: string | null
         }
         Relationships: []
       }
