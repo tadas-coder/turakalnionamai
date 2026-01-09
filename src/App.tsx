@@ -13,6 +13,7 @@ import Rules from "./pages/Rules";
 import Documents from "./pages/Documents";
 import Reports from "./pages/Reports";
 import FinancialReport from "./pages/FinancialReport";
+import TicketStatistics from "./pages/TicketStatistics";
 import Profile from "./pages/Profile";
 import PendingApproval from "./pages/PendingApproval";
 import Auth from "./pages/Auth";
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/documents" element={<Documents />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/financial-report" element={<FinancialReport />} />
+            <Route path="/ticket-statistics" element={<TicketStatistics />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/pending-approval" element={<PendingApproval />} />
             <Route path="/auth" element={<Auth />} />

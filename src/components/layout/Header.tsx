@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Ticket, Menu, X, LogIn, LogOut, Settings, ChevronDown, Vote, Newspaper, Receipt, FileText, ScrollText, User, ClipboardList, PieChart } from "lucide-react";
+import { Home, Ticket, Menu, X, LogIn, LogOut, Settings, ChevronDown, Vote, Newspaper, Receipt, FileText, ScrollText, User, ClipboardList, PieChart, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -23,6 +23,7 @@ const moreItems = [
   { path: "/documents", label: "Dokumentai", icon: FileText },
   { path: "/reports", label: "Ataskaitos", icon: ClipboardList },
   { path: "/financial-report", label: "Finansinė ataskaita", icon: PieChart },
+  { path: "/ticket-statistics", label: "Problemų statistika", icon: BarChart3, adminOnly: true },
   { path: "/rules", label: "Taisyklės", icon: ScrollText },
 ];
 
@@ -83,24 +84,26 @@ export function Header() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48 bg-background border z-50">
-                    {moreItems.map((item) => {
-                      const Icon = item.icon;
-                      const isActive = location.pathname === item.path;
-                      return (
-                        <DropdownMenuItem key={item.path} asChild>
-                          <Link
-                            to={item.path}
-                            className={cn(
-                              "flex items-center gap-2 cursor-pointer",
-                              isActive && "bg-accent text-accent-foreground font-medium"
-                            )}
-                          >
-                            <Icon className="h-4 w-4" />
-                            {item.label}
-                          </Link>
-                        </DropdownMenuItem>
-                      );
-                    })}
+                    {moreItems
+                      .filter((item) => !item.adminOnly || isAdmin)
+                      .map((item) => {
+                        const Icon = item.icon;
+                        const isActive = location.pathname === item.path;
+                        return (
+                          <DropdownMenuItem key={item.path} asChild>
+                            <Link
+                              to={item.path}
+                              className={cn(
+                                "flex items-center gap-2 cursor-pointer",
+                                isActive && "bg-accent text-accent-foreground font-medium"
+                              )}
+                            >
+                              <Icon className="h-4 w-4" />
+                              {item.label}
+                            </Link>
+                          </DropdownMenuItem>
+                        );
+                      })}
                   </DropdownMenuContent>
                 </DropdownMenu>
 
@@ -180,25 +183,27 @@ export function Header() {
                   {/* More items in mobile */}
                   <div className="border-t border-border pt-2 mt-2">
                     <p className="text-xs text-muted-foreground px-4 mb-2">Daugiau</p>
-                    {moreItems.map((item) => {
-                      const Icon = item.icon;
-                      const isActive = location.pathname === item.path;
-                      return (
-                        <Link
-                          key={item.path}
-                          to={item.path}
-                          onClick={() => setMobileMenuOpen(false)}
-                        >
-                          <Button
-                            variant={isActive ? "default" : "ghost"}
-                            className="w-full justify-start gap-3"
+                    {moreItems
+                      .filter((item) => !item.adminOnly || isAdmin)
+                      .map((item) => {
+                        const Icon = item.icon;
+                        const isActive = location.pathname === item.path;
+                        return (
+                          <Link
+                            key={item.path}
+                            to={item.path}
+                            onClick={() => setMobileMenuOpen(false)}
                           >
-                            <Icon className="h-4 w-4" />
-                            {item.label}
-                          </Button>
-                        </Link>
-                      );
-                    })}
+                            <Button
+                              variant={isActive ? "default" : "ghost"}
+                              className="w-full justify-start gap-3"
+                            >
+                              <Icon className="h-4 w-4" />
+                              {item.label}
+                            </Button>
+                          </Link>
+                        );
+                      })}
                   </div>
 
                   {isAdmin && (
