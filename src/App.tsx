@@ -11,6 +11,7 @@ import News from "./pages/News";
 import Invoices from "./pages/Invoices";
 import Rules from "./pages/Rules";
 import Documents from "./pages/Documents";
+import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/invoices" element={<Invoices />} />
             <Route path="/rules" element={<Rules />} />
             <Route path="/documents" element={<Documents />} />
+            <Route path="/profile" element={<Profile />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="*" element={<NotFound />} />

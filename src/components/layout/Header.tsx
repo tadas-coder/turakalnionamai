@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Ticket, Menu, X, LogIn, LogOut, Settings, ChevronDown, Vote, Newspaper, Receipt, FileText, ScrollText } from "lucide-react";
+import { Home, Ticket, Menu, X, LogIn, LogOut, Settings, ChevronDown, Vote, Newspaper, Receipt, FileText, ScrollText, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -110,6 +110,12 @@ export function Header() {
                     </Button>
                   </Link>
                 )}
+                <Link to="/profile">
+                  <Button variant={location.pathname === "/profile" ? "default" : "ghost"} size="sm" className="gap-2">
+                    <User className="h-4 w-4" />
+                    Mano profilis
+                  </Button>
+                </Link>
                 <Button variant="ghost" size="sm" onClick={signOut} className="gap-2">
                   <LogOut className="h-4 w-4" />
                   Atsijungti
@@ -194,6 +200,12 @@ export function Header() {
                       </Button>
                     </Link>
                   )}
+                  <Link to="/profile" onClick={() => setMobileMenuOpen(false)}>
+                    <Button variant={location.pathname === "/profile" ? "default" : "ghost"} className="w-full justify-start gap-3">
+                      <User className="h-4 w-4" />
+                      Mano profilis
+                    </Button>
+                  </Link>
                   <Button variant="ghost" className="w-full justify-start gap-3" onClick={() => { signOut(); setMobileMenuOpen(false); }}>
                     <LogOut className="h-4 w-4" />
                     Atsijungti
