@@ -12,6 +12,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useUnreadTickets } from "@/hooks/useUnreadTickets";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 
@@ -57,6 +58,7 @@ const getStatusIcon = (status: string) => {
 
 export default function Tickets() {
   const { user, isApproved } = useAuth();
+  const { isTicketUnread, markAsRead, markAllAsRead, unreadCount } = useUnreadTickets();
   const [images, setImages] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -223,11 +225,22 @@ export default function Tickets() {
                 <TabsTrigger value="history" className="gap-2">
                   <History className="h-4 w-4" />
                   Mano pranešimai
-                  {myTickets.length > 0 && (
+                  {unreadCount > 0 ? (
+                    <Badge variant="destructive" className="ml-1">{unreadCount}</Badge>
+                  ) : myTickets.length > 0 ? (
                     <Badge variant="secondary" className="ml-1">{myTickets.length}</Badge>
-                  )}
+                  ) : null}
                 </TabsTrigger>
               </TabsList>
+              
+              {unreadCount > 0 && (
+                <div className="flex justify-end">
+                  <Button variant="ghost" size="sm" onClick={() => markAllAsRead()}>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Pažymėti visus kaip perskaitytus
+                  </Button>
+                </div>
+              )}
 
               <TabsContent value="new">
                 <Card className="card-elevated animate-slide-up">
@@ -420,14 +433,14 @@ export default function Tickets() {
                     {myTickets.map((ticket, index) => {
                       const StatusIcon = getStatusIcon(ticket.status || "new");
                       const status = ticket.status || "new";
+                      const isUnread = isTicketUnread(ticket.id, ticket.updated_at);
                       return (
                         <Card 
                           key={ticket.id} 
                           className={cn(
                             "card-elevated animate-slide-up",
-                            status === "resolved" || status === "closed" 
-                              ? "opacity-70" 
-                              : ""
+                            !isUnread && "opacity-70",
+                            isUnread && "ring-2 ring-primary"
                           )}
                           style={{ animationDelay: `${index * 50}ms` }}
                         >
@@ -435,6 +448,11 @@ export default function Tickets() {
                             <div className="flex items-start justify-between gap-4">
                               <div className="flex-1">
                                 <div className="flex flex-wrap items-center gap-2 mb-2">
+                                  {isUnread && (
+                                    <Badge variant="destructive" className="text-xs">
+                                      Naujas
+                                    </Badge>
+                                  )}
                                   <Badge className={statusColors[status]}>
                                     <StatusIcon className={cn(
                                       "h-3 w-3 mr-1",
@@ -448,6 +466,16 @@ export default function Tickets() {
                                 </div>
                                 <CardTitle className="text-lg">{ticket.title}</CardTitle>
                               </div>
+                              {isUnread && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => markAsRead(ticket.id)}
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-1" />
+                                  Perskaityta
+                                </Button>
+                              )}
                             </div>
                           </CardHeader>
                           <CardContent className="pt-0">

@@ -398,6 +398,35 @@ export type Database = {
           },
         ]
       }
+      ticket_read: {
+        Row: {
+          id: string
+          read_at: string
+          ticket_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          read_at?: string
+          ticket_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          read_at?: string
+          ticket_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_read_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tickets: {
         Row: {
           category: string
