@@ -91,7 +91,7 @@ export default function Admin() {
             </TabsList>
 
             <TabsContent value="overview" className="animate-fade-in">
-              <AdminOverview />
+              <AdminOverview onTabChange={setActiveTab} />
             </TabsContent>
 
             <TabsContent value="users" className="animate-fade-in">
