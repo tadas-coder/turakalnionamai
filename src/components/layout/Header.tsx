@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { useUnreadNews } from "@/hooks/useUnreadNews";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +34,7 @@ export function Header() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, isAdmin, isApproved, signOut } = useAuth();
+  const { unreadCount } = useUnreadNews();
 
   const isMoreActive = moreItems.some((item) => location.pathname === item.path);
 
@@ -90,9 +93,14 @@ export function Header() {
                     <Button
                       variant={isMoreActive ? "default" : "ghost"}
                       size="sm"
-                      className={cn("gap-2", isMoreActive && "shadow-md")}
+                      className={cn("gap-2 relative", isMoreActive && "shadow-md")}
                     >
                       Daugiau
+                      {unreadCount > 0 && (
+                        <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center text-xs px-1">
+                          {unreadCount}
+                        </Badge>
+                      )}
                       <ChevronDown className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -102,6 +110,7 @@ export function Header() {
                       .map((item) => {
                         const Icon = item.icon;
                         const isActive = location.pathname === item.path;
+                        const isNewsItem = item.path === "/news";
                         return (
                           <DropdownMenuItem key={item.path} asChild>
                             <Link
@@ -113,6 +122,11 @@ export function Header() {
                             >
                               <Icon className="h-4 w-4" />
                               {item.label}
+                              {isNewsItem && unreadCount > 0 && (
+                                <Badge variant="destructive" className="ml-auto h-5 min-w-5 flex items-center justify-center text-xs px-1">
+                                  {unreadCount}
+                                </Badge>
+                              )}
                             </Link>
                           </DropdownMenuItem>
                         );
@@ -218,6 +232,7 @@ export function Header() {
                       .map((item) => {
                         const Icon = item.icon;
                         const isActive = location.pathname === item.path;
+                        const isNewsItem = item.path === "/news";
                         return (
                           <Link
                             key={item.path}
@@ -226,10 +241,15 @@ export function Header() {
                           >
                             <Button
                               variant={isActive ? "default" : "ghost"}
-                              className="w-full justify-start gap-3"
+                              className="w-full justify-start gap-3 relative"
                             >
                               <Icon className="h-4 w-4" />
                               {item.label}
+                              {isNewsItem && unreadCount > 0 && (
+                                <Badge variant="destructive" className="ml-auto h-5 min-w-5 flex items-center justify-center text-xs px-1">
+                                  {unreadCount}
+                                </Badge>
+                              )}
                             </Button>
                           </Link>
                         );
