@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Ticket, Vote, Newspaper, Receipt, Menu, X, LogIn, LogOut, Settings } from "lucide-react";
+import { Home, Ticket, Vote, Newspaper, Receipt, FileText, Menu, X, LogIn, LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ const navItems = [
   { path: "/voting", label: "Balsavimas", icon: Vote },
   { path: "/news", label: "Naujienos", icon: Newspaper },
   { path: "/invoices", label: "Sąskaitos", icon: Receipt },
+  { path: "/documents", label: "Dokumentai", icon: FileText },
 ];
 
 export function Header() {
