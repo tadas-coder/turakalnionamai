@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Upload, Send, AlertTriangle, X, History, Clock, CheckCircle, Loader2, Calendar, MapPin } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -62,6 +62,8 @@ export default function Tickets() {
   const [images, setImages] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState("new");
+  const autoMarkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -69,6 +71,21 @@ export default function Tickets() {
     issueType: "",
     description: "",
   });
+
+  // Auto-mark all as read after 2 seconds when viewing history tab
+  useEffect(() => {
+    if (activeTab === "history" && unreadCount > 0 && user && isApproved) {
+      autoMarkTimeoutRef.current = setTimeout(() => {
+        markAllAsRead();
+      }, 2000);
+    }
+
+    return () => {
+      if (autoMarkTimeoutRef.current) {
+        clearTimeout(autoMarkTimeoutRef.current);
+      }
+    };
+  }, [activeTab, unreadCount, user, isApproved, markAllAsRead]);
 
   // Fetch user's tickets history
   const { data: myTickets = [], isLoading: isLoadingTickets, refetch: refetchTickets } = useQuery({
@@ -216,7 +233,7 @@ export default function Tickets() {
               </p>
             </div>
 
-            <Tabs defaultValue="new" className="space-y-6">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="new" className="gap-2">
                   <Send className="h-4 w-4" />
