@@ -23,6 +23,9 @@ export default function Auth() {
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [signupData, setSignupData] = useState({ email: "", password: "", fullName: "" });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [resetEmail, setResetEmail] = useState("");
+  const [showResetForm, setShowResetForm] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
     if (user && !loading) {
@@ -126,6 +129,32 @@ export default function Auth() {
     setIsSubmitting(false);
   };
 
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const emailResult = emailSchema.safeParse(resetEmail);
+    if (!emailResult.success) {
+      setErrors({ resetEmail: emailResult.error.errors[0].message });
+      return;
+    }
+    
+    setIsResetting(true);
+    setErrors({});
+    
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+      redirectTo: `${window.location.origin}/auth`,
+    });
+    
+    if (error) {
+      toast.error("Klaida siunčiant slaptažodžio atkūrimo nuorodą: " + error.message);
+    } else {
+      toast.success("Slaptažodžio atkūrimo nuoroda išsiųsta į jūsų el. paštą!");
+      setShowResetForm(false);
+      setResetEmail("");
+    }
+    setIsResetting(false);
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -214,7 +243,63 @@ export default function Auth() {
                           </>
                         )}
                       </Button>
+
+                      <div className="text-center">
+                        <button
+                          type="button"
+                          onClick={() => setShowResetForm(true)}
+                          className="text-sm text-primary hover:underline"
+                        >
+                          Pamiršau slaptažodį
+                        </button>
+                      </div>
                     </form>
+
+                    {showResetForm && (
+                      <div className="mt-6 pt-6 border-t border-border">
+                        <h3 className="text-sm font-medium mb-4">Slaptažodžio atkūrimas</h3>
+                        <form onSubmit={handlePasswordReset} className="space-y-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="reset-email">El. paštas</Label>
+                            <div className="relative">
+                              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                              <Input
+                                id="reset-email"
+                                type="email"
+                                placeholder="jonas@pavyzdys.lt"
+                                className="pl-10"
+                                value={resetEmail}
+                                onChange={(e) => setResetEmail(e.target.value)}
+                              />
+                            </div>
+                            {errors.resetEmail && (
+                              <p className="text-sm text-destructive">{errors.resetEmail}</p>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="flex-1"
+                              onClick={() => {
+                                setShowResetForm(false);
+                                setResetEmail("");
+                                setErrors({});
+                              }}
+                            >
+                              Atšaukti
+                            </Button>
+                            <Button type="submit" className="flex-1" disabled={isResetting}>
+                              {isResetting ? (
+                                <div className="h-4 w-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                "Siųsti"
+                              )}
+                            </Button>
+                          </div>
+                        </form>
+                      </div>
+                    )}
                   </TabsContent>
 
                   <TabsContent value="signup" className="space-y-4 mt-0">
