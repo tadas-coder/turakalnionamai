@@ -26,7 +26,7 @@ export function Header() {
             <img 
               src="/favicon.png" 
               alt="Taurakalnio Namai" 
-              className="h-10 w-10 rounded-lg object-contain"
+              className="h-12 w-12 object-contain"
             />
             <div className="hidden sm:block">
               <h1 className="text-lg font-semibold text-foreground">Taurakalnio Namai</h1>
