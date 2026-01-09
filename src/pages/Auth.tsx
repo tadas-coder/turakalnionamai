@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { LogIn, UserPlus, Mail, Lock, User } from "lucide-react";
 import { z } from "zod";
+import { supabase } from "@/integrations/supabase/client";
 
 const emailSchema = z.string().email("Neteisingas el. pašto formatas");
 const passwordSchema = z.string().min(6, "Slaptažodis turi būti bent 6 simbolių");
@@ -106,6 +107,20 @@ export default function Auth() {
       }
     } else {
       toast.success("Registracija sėkminga! Laukite administratoriaus patvirtinimo.");
+      
+      // Send notification to admin
+      try {
+        await supabase.functions.invoke("send-registration-notification", {
+          body: {
+            userName: signupData.fullName,
+            userEmail: signupData.email,
+          },
+        });
+        console.log("Registration notification sent to admin");
+      } catch (notifyError) {
+        console.error("Failed to send registration notification:", notifyError);
+      }
+      
       navigate("/pending-approval");
     }
     setIsSubmitting(false);
