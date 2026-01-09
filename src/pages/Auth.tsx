@@ -79,38 +79,43 @@ export default function Auth() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateLogin()) return;
-    
+
     setIsSubmitting(true);
     const { error } = await signIn(loginData.email, loginData.password);
-    
+
     if (error) {
-      if (error.message.includes("Invalid login credentials")) {
+      const msg = error.message || "";
+
+      if (msg.toLowerCase().includes("invalid login credentials")) {
         toast.error("Neteisingas el. paštas arba slaptažodis");
+      } else if (msg.toLowerCase().includes("email not confirmed") || msg.toLowerCase().includes("not confirmed")) {
+        toast.error("Nepatvirtintas el. paštas. Patikrinkite paštą ir patvirtinkite registraciją.");
       } else {
-      toast.error("Prisijungimo klaida: " + error.message);
+        toast.error("Prisijungimo klaida: " + msg);
       }
     } else {
       toast.success("Sėkmingai prisijungėte!");
     }
+
     setIsSubmitting(false);
   };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateSignup()) return;
-    
+
     setIsSubmitting(true);
     const { error } = await signUp(signupData.email, signupData.password, signupData.fullName);
-    
+
     if (error) {
-      if (error.message.includes("already registered")) {
+      const msg = error.message || "";
+
+      if (msg.toLowerCase().includes("already registered")) {
         toast.error("Šis el. paštas jau užregistruotas");
       } else {
-        toast.error("Registracijos klaida: " + error.message);
+        toast.error("Registracijos klaida: " + msg);
       }
     } else {
-      toast.success("Registracija sėkminga! Laukite administratoriaus patvirtinimo.");
-      
       // Send notification to admin
       try {
         await supabase.functions.invoke("send-registration-notification", {
@@ -119,13 +124,20 @@ export default function Auth() {
             userEmail: signupData.email,
           },
         });
-        console.log("Registration notification sent to admin");
       } catch (notifyError) {
         console.error("Failed to send registration notification:", notifyError);
       }
-      
-      navigate("/pending-approval");
+
+      // If email confirmation is enabled, session may be null until user confirms email.
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.success("Registracija sėkminga! Patikrinkite el. paštą ir patvirtinkite registraciją.");
+      } else {
+        toast.success("Registracija sėkminga! Laukite administratoriaus patvirtinimo.");
+        navigate("/pending-approval");
+      }
     }
+
     setIsSubmitting(false);
   };
 
