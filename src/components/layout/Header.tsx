@@ -75,6 +75,15 @@ export function Header() {
                   );
                 })}
 
+                {isAdmin && (
+                  <Link to="/admin">
+                    <Button variant={location.pathname === "/admin" ? "default" : "ghost"} size="sm" className="gap-2">
+                      <Settings className="h-4 w-4" />
+                      Administravimas
+                    </Button>
+                  </Link>
+                )}
+
                 {/* More Dropdown */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -111,24 +120,41 @@ export function Header() {
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                {isAdmin && (
-                  <Link to="/admin">
-                    <Button variant={location.pathname === "/admin" ? "default" : "ghost"} size="sm" className="gap-2">
-                      <Settings className="h-4 w-4" />
-                      Administravimas
+                {/* Profile Dropdown with Logout */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant={location.pathname === "/profile" ? "default" : "ghost"}
+                      size="sm"
+                      className={cn("gap-2", location.pathname === "/profile" && "shadow-md")}
+                    >
+                      <User className="h-4 w-4" />
+                      Mano profilis
+                      <ChevronDown className="h-4 w-4" />
                     </Button>
-                  </Link>
-                )}
-                <Link to="/profile">
-                  <Button variant={location.pathname === "/profile" ? "default" : "ghost"} size="sm" className="gap-2">
-                    <User className="h-4 w-4" />
-                    Mano profilis
-                  </Button>
-                </Link>
-                <Button variant="ghost" size="sm" onClick={signOut} className="gap-2">
-                  <LogOut className="h-4 w-4" />
-                  Atsijungti
-                </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48 bg-background border z-50">
+                    <DropdownMenuItem asChild>
+                      <Link
+                        to="/profile"
+                        className={cn(
+                          "flex items-center gap-2 cursor-pointer",
+                          location.pathname === "/profile" && "bg-accent text-accent-foreground font-medium"
+                        )}
+                      >
+                        <User className="h-4 w-4" />
+                        Profilio nustatymai
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={signOut}
+                      className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Atsijungti
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </>
             ) : user && !isApproved ? (
               <>
