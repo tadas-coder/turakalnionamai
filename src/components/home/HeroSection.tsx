@@ -1,11 +1,20 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Building2 } from "lucide-react";
 import { Link } from "react-router-dom";
+import buildingPhoto from "@/assets/building-photo.jpg";
 
 export function HeroSection() {
   return (
-    <section className="hero-gradient text-primary-foreground py-20 md:py-28">
-      <div className="container mx-auto px-4">
+    <section className="relative text-primary-foreground py-20 md:py-28 overflow-hidden">
+      {/* Background Image */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: `url(${buildingPhoto})` }}
+      />
+      {/* Dark Overlay for readability */}
+      <div className="absolute inset-0 bg-primary/80" />
+      
+      <div className="container mx-auto px-4 relative z-10">
         <div className="max-w-3xl mx-auto text-center animate-fade-in">
           <div className="inline-flex items-center gap-2 bg-primary-foreground/10 backdrop-blur-sm px-4 py-2 rounded-full mb-6">
             <Building2 className="h-4 w-4" />
