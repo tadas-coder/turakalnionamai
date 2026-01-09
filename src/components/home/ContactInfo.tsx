@@ -2,9 +2,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Mail, Phone, MapPin, Clock, User, AlertTriangle, Wrench, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export function ContactInfo() {
-  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
+  const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  const isMobile = useIsMobile();
+
+  const handleCardInteraction = (cardId: string, isEntering: boolean) => {
+    if (isMobile) return;
+    setExpandedCard(isEntering ? cardId : null);
+  };
+
+  const handleCardClick = (cardId: string) => {
+    if (!isMobile) return;
+    setExpandedCard(expandedCard === cardId ? null : cardId);
+  };
+
+  const isExpanded = (cardId: string) => expandedCard === cardId;
 
   return (
     <section className="py-16 bg-muted">
@@ -14,7 +28,7 @@ export function ContactInfo() {
             Kontaktinė informacija
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Užveskite pelę ant kortelės, kad pamatytumėte daugiau informacijos
+            {isMobile ? "Paspauskite ant kortelės" : "Užveskite pelę ant kortelės"}, kad pamatytumėte daugiau informacijos
           </p>
         </div>
 
@@ -22,8 +36,9 @@ export function ContactInfo() {
           {/* Chairman Card */}
           <Card 
             className="card-elevated cursor-pointer transition-all duration-300 hover:shadow-lg"
-            onMouseEnter={() => setHoveredCard("chairman")}
-            onMouseLeave={() => setHoveredCard(null)}
+            onMouseEnter={() => handleCardInteraction("chairman", true)}
+            onMouseLeave={() => handleCardInteraction("chairman", false)}
+            onClick={() => handleCardClick("chairman")}
           >
             <CardHeader>
               <CardTitle className="flex items-center gap-3">
@@ -36,18 +51,19 @@ export function ContactInfo() {
                 </div>
                 <ChevronDown className={cn(
                   "h-5 w-5 text-muted-foreground transition-transform duration-300",
-                  hoveredCard === "chairman" && "rotate-180"
+                  isExpanded("chairman") && "rotate-180"
                 )} />
               </CardTitle>
             </CardHeader>
             <div className={cn(
               "overflow-hidden transition-all duration-300",
-              hoveredCard === "chairman" ? "max-h-40 opacity-100" : "max-h-0 opacity-0"
+              isExpanded("chairman") ? "max-h-40 opacity-100" : "max-h-0 opacity-0"
             )}>
               <CardContent className="space-y-3 pt-0">
                 <a 
                   href="tel:+37060010584" 
                   className="flex items-center gap-3 text-muted-foreground hover:text-primary transition-colors"
+                  onClick={(e) => e.stopPropagation()}
                 >
                   <Phone className="h-4 w-4" />
                   <span>0 600 10584</span>
@@ -55,6 +71,7 @@ export function ContactInfo() {
                 <a 
                   href="mailto:taurakalnionamai@gmail.com" 
                   className="flex items-center gap-3 text-muted-foreground hover:text-primary transition-colors"
+                  onClick={(e) => e.stopPropagation()}
                 >
                   <Mail className="h-4 w-4" />
                   <span>taurakalnionamai@gmail.com</span>
@@ -66,8 +83,9 @@ export function ContactInfo() {
           {/* Duty Officer & Emergencies Card */}
           <Card 
             className="card-elevated cursor-pointer transition-all duration-300 hover:shadow-lg"
-            onMouseEnter={() => setHoveredCard("emergencies")}
-            onMouseLeave={() => setHoveredCard(null)}
+            onMouseEnter={() => handleCardInteraction("emergencies", true)}
+            onMouseLeave={() => handleCardInteraction("emergencies", false)}
+            onClick={() => handleCardClick("emergencies")}
           >
             <CardHeader>
               <CardTitle className="flex items-center gap-3">
@@ -80,13 +98,13 @@ export function ContactInfo() {
                 </div>
                 <ChevronDown className={cn(
                   "h-5 w-5 text-muted-foreground transition-transform duration-300",
-                  hoveredCard === "emergencies" && "rotate-180"
+                  isExpanded("emergencies") && "rotate-180"
                 )} />
               </CardTitle>
             </CardHeader>
             <div className={cn(
               "overflow-hidden transition-all duration-300",
-              hoveredCard === "emergencies" ? "max-h-60 opacity-100" : "max-h-0 opacity-0"
+              isExpanded("emergencies") ? "max-h-60 opacity-100" : "max-h-0 opacity-0"
             )}>
               <CardContent className="space-y-4 pt-0">
                 <div>
@@ -94,6 +112,7 @@ export function ContactInfo() {
                   <a 
                     href="tel:+37064046200" 
                     className="flex items-center gap-3 text-muted-foreground hover:text-primary transition-colors"
+                    onClick={(e) => e.stopPropagation()}
                   >
                     <Phone className="h-4 w-4" />
                     <span>0 640 46200</span>
@@ -104,6 +123,7 @@ export function ContactInfo() {
                   <a 
                     href="tel:+37063331031" 
                     className="flex items-center gap-3 text-muted-foreground hover:text-primary transition-colors"
+                    onClick={(e) => e.stopPropagation()}
                   >
                     <Phone className="h-4 w-4" />
                     <span>(+370) 633 31031</span>
@@ -114,6 +134,7 @@ export function ContactInfo() {
                   <a 
                     href="tel:+37063600008" 
                     className="flex items-center gap-3 text-muted-foreground hover:text-primary transition-colors"
+                    onClick={(e) => e.stopPropagation()}
                   >
                     <Phone className="h-4 w-4" />
                     <span>(+370) 636 00008</span>
@@ -126,8 +147,9 @@ export function ContactInfo() {
           {/* Working Hours Card */}
           <Card 
             className="card-elevated cursor-pointer transition-all duration-300 hover:shadow-lg"
-            onMouseEnter={() => setHoveredCard("hours")}
-            onMouseLeave={() => setHoveredCard(null)}
+            onMouseEnter={() => handleCardInteraction("hours", true)}
+            onMouseLeave={() => handleCardInteraction("hours", false)}
+            onClick={() => handleCardClick("hours")}
           >
             <CardHeader>
               <CardTitle className="flex items-center gap-3">
@@ -140,13 +162,13 @@ export function ContactInfo() {
                 </div>
                 <ChevronDown className={cn(
                   "h-5 w-5 text-muted-foreground transition-transform duration-300",
-                  hoveredCard === "hours" && "rotate-180"
+                  isExpanded("hours") && "rotate-180"
                 )} />
               </CardTitle>
             </CardHeader>
             <div className={cn(
               "overflow-hidden transition-all duration-300",
-              hoveredCard === "hours" ? "max-h-48 opacity-100" : "max-h-0 opacity-0"
+              isExpanded("hours") ? "max-h-48 opacity-100" : "max-h-0 opacity-0"
             )}>
               <CardContent className="space-y-4 pt-0">
                 <div className="space-y-2">
@@ -177,8 +199,9 @@ export function ContactInfo() {
           {/* Additional Contacts Card - Full Width */}
           <Card 
             className="card-elevated lg:col-span-2 xl:col-span-3 cursor-pointer transition-all duration-300 hover:shadow-lg"
-            onMouseEnter={() => setHoveredCard("additional")}
-            onMouseLeave={() => setHoveredCard(null)}
+            onMouseEnter={() => handleCardInteraction("additional", true)}
+            onMouseLeave={() => handleCardInteraction("additional", false)}
+            onClick={() => handleCardClick("additional")}
           >
             <CardHeader>
               <CardTitle className="flex items-center gap-3">
@@ -191,13 +214,13 @@ export function ContactInfo() {
                 </div>
                 <ChevronDown className={cn(
                   "h-5 w-5 text-muted-foreground transition-transform duration-300",
-                  hoveredCard === "additional" && "rotate-180"
+                  isExpanded("additional") && "rotate-180"
                 )} />
               </CardTitle>
             </CardHeader>
             <div className={cn(
               "overflow-hidden transition-all duration-300",
-              hoveredCard === "additional" ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+              isExpanded("additional") ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
             )}>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -207,6 +230,7 @@ export function ContactInfo() {
                     <a 
                       href="tel:070055966" 
                       className="flex items-center gap-2 text-primary hover:underline text-sm"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <Phone className="h-3 w-3" />
                       <span>0 700 55966</span>
@@ -219,6 +243,7 @@ export function ContactInfo() {
                     <a 
                       href="tel:1895" 
                       className="flex items-center gap-2 text-primary hover:underline text-sm"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <Phone className="h-3 w-3" />
                       <span>1895</span>
@@ -231,6 +256,7 @@ export function ContactInfo() {
                     <a 
                       href="tel:080010880" 
                       className="flex items-center gap-2 text-primary hover:underline text-sm"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <Phone className="h-3 w-3" />
                       <span>0 800 10880</span>
@@ -243,6 +269,7 @@ export function ContactInfo() {
                     <a 
                       href="tel:1852" 
                       className="flex items-center gap-2 text-primary hover:underline text-sm"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <Phone className="h-3 w-3" />
                       <span>1852</span>
@@ -255,6 +282,7 @@ export function ContactInfo() {
                     <a 
                       href="tel:112" 
                       className="flex items-center gap-2 text-destructive hover:underline text-sm font-bold"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <Phone className="h-3 w-3" />
                       <span>112</span>
