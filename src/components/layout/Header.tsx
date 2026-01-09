@@ -23,9 +23,11 @@ export function Header() {
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           <Link to="/" className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg hero-gradient flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">TN</span>
-            </div>
+            <img 
+              src="/favicon.png" 
+              alt="Taurakalnio Namai" 
+              className="h-10 w-10 rounded-lg object-contain"
+            />
             <div className="hidden sm:block">
               <h1 className="text-lg font-semibold text-foreground">Taurakalnio Namai</h1>
               <p className="text-xs text-muted-foreground">Gyventojų portalas</p>
