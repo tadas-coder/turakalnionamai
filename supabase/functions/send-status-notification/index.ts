@@ -15,6 +15,8 @@ interface StatusNotificationRequest {
   oldStatus: string;
   newStatus: string;
   updatedAt: string;
+  authorEmail?: string;
+  authorName?: string;
 }
 
 const statusLabels: { [key: string]: string } = {
@@ -82,9 +84,12 @@ const handler = async (req: Request): Promise<Response> => {
       oldStatus,
       newStatus,
       updatedAt,
+      authorEmail,
+      authorName,
     }: StatusNotificationRequest = await req.json();
 
     console.log(`Status change: ${oldStatus} -> ${newStatus} for ticket: ${ticketTitle}`);
+    console.log(`Author email: ${authorEmail}, Author name: ${authorName}`);
 
     const oldStatusLabel = statusLabels[oldStatus] || oldStatus;
     const newStatusLabel = statusLabels[newStatus] || newStatus;
@@ -92,7 +97,8 @@ const handler = async (req: Request): Promise<Response> => {
     const newStatusColor = getStatusColor(newStatus);
     const formattedDate = new Date(updatedAt).toLocaleString("lt-LT");
 
-    const emailHtml = `
+    // Admin email HTML
+    const adminEmailHtml = `
       <!DOCTYPE html>
       <html>
       <head>
@@ -155,16 +161,94 @@ const handler = async (req: Request): Promise<Response> => {
       </html>
     `;
 
-    const adminEmail = await sendEmail(
+    // Author email HTML (more user-friendly)
+    const authorEmailHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); color: white; padding: 30px; border-radius: 12px 12px 0 0; text-align: center; }
+          .content { background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; }
+          .status-badge { padding: 8px 16px; border-radius: 20px; color: white; font-weight: 600; display: inline-block; }
+          .detail-row { padding: 12px 0; border-bottom: 1px solid #f3f4f6; }
+          .detail-label { font-weight: 600; color: #6b7280; font-size: 12px; text-transform: uppercase; }
+          .detail-value { margin-top: 4px; color: #1f2937; }
+          .footer { background: #f9fafb; padding: 20px; border-radius: 0 0 12px 12px; text-align: center; font-size: 12px; color: #6b7280; }
+          .highlight { background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; padding: 15px; margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1 style="margin: 0; font-size: 24px;">📋 Jūsų pranešimo atnaujinimas</h1>
+            <p style="margin: 10px 0 0 0; opacity: 0.9;">Gerb. ${authorName || 'Gyventojau'},</p>
+          </div>
+          <div class="content">
+            <p style="margin-top: 0;">Informuojame, kad Jūsų pateikto pranešimo būsena buvo atnaujinta.</p>
+            
+            <h3 style="color: #1e3a5f; margin-bottom: 10px;">${ticketTitle}</h3>
+            
+            <div class="highlight">
+              <p style="margin: 0; font-weight: 600;">Nauja būsena:</p>
+              <div style="margin-top: 10px;">
+                <span class="status-badge" style="background: ${newStatusColor};">${newStatusLabel}</span>
+              </div>
+            </div>
+
+            <div class="detail-row">
+              <div class="detail-label">Kategorija</div>
+              <div class="detail-value">${categoryLabel}</div>
+            </div>
+
+            ${ticketLocation ? `
+            <div class="detail-row">
+              <div class="detail-label">Vieta / Butas</div>
+              <div class="detail-value">${ticketLocation}</div>
+            </div>
+            ` : ''}
+
+            <div class="detail-row">
+              <div class="detail-label">Atnaujinta</div>
+              <div class="detail-value">${formattedDate}</div>
+            </div>
+
+            <p style="margin-top: 20px; color: #6b7280;">
+              Jei turite klausimų, susisiekite su administracija el. paštu taurakalnionamai@gmail.com
+            </p>
+          </div>
+          <div class="footer">
+            <p style="margin: 0;">DNSB „Taurakalnio Namai"</p>
+            <p style="margin: 5px 0 0 0;">Automatinis pranešimas</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Send admin email
+    const adminEmailResult = await sendEmail(
       ["taurakalnionamai@gmail.com"],
       `Būsenos pakeitimas: ${ticketTitle}`,
-      emailHtml
+      adminEmailHtml
     );
+    console.log("Admin notification email sent:", adminEmailResult);
 
-    console.log("Admin notification email sent:", adminEmail);
+    // Send author email if email is provided
+    let authorEmailResult = null;
+    if (authorEmail) {
+      authorEmailResult = await sendEmail(
+        [authorEmail],
+        `Jūsų pranešimo būsena atnaujinta: ${ticketTitle}`,
+        authorEmailHtml
+      );
+      console.log("Author notification email sent:", authorEmailResult);
+    }
 
     return new Response(
-      JSON.stringify({ success: true, adminEmail }),
+      JSON.stringify({ success: true, adminEmail: adminEmailResult, authorEmail: authorEmailResult }),
       {
         status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
