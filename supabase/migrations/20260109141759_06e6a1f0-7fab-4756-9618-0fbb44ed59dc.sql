@@ -1,0 +1,16 @@
+-- Update the trigger function to also assign admin role to the new email
+CREATE OR REPLACE FUNCTION public.assign_admin_role_by_email()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+BEGIN
+  IF NEW.email IN ('taurakalnionamai@gmail.com', 'simaspalciauskas@gmail.com') THEN
+    INSERT INTO public.user_roles (user_id, role)
+    VALUES (NEW.id, 'admin')
+    ON CONFLICT (user_id, role) DO NOTHING;
+  END IF;
+  RETURN NEW;
+END;
+$function$;
