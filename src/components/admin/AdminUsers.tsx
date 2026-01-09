@@ -39,7 +39,7 @@ export function AdminUsers() {
   });
 
   const approveMutation = useMutation({
-    mutationFn: async ({ userId, approved }: { userId: string; approved: boolean }) => {
+    mutationFn: async ({ userId, approved, userEmail, userName }: { userId: string; approved: boolean; userEmail: string; userName: string | null }) => {
       const { error } = await supabase
         .from("profiles")
         .update({
@@ -49,11 +49,27 @@ export function AdminUsers() {
         })
         .eq("id", userId);
       if (error) throw error;
+
+      // Send email notification when user is approved
+      if (approved) {
+        try {
+          await supabase.functions.invoke("send-approval-notification", {
+            body: {
+              userName: userName || "Vartotojau",
+              userEmail: userEmail,
+            },
+          });
+          console.log("Approval notification sent to:", userEmail);
+        } catch (notifyError) {
+          console.error("Failed to send approval notification:", notifyError);
+        }
+      }
     },
     onSuccess: (_, { approved }) => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       toast({ 
-        title: approved ? "Vartotojas patvirtintas" : "Patvirtinimas atšauktas"
+        title: approved ? "Vartotojas patvirtintas" : "Patvirtinimas atšauktas",
+        description: approved ? "Pranešimas išsiųstas vartotojui" : undefined,
       });
     },
     onError: (error: Error) => {
@@ -106,7 +122,7 @@ export function AdminUsers() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => approveMutation.mutate({ userId: profile.id, approved: false })}
+                onClick={() => approveMutation.mutate({ userId: profile.id, approved: false, userEmail: profile.email, userName: profile.full_name })}
                 disabled={approveMutation.isPending}
                 className="gap-2"
               >
@@ -117,7 +133,7 @@ export function AdminUsers() {
               <Button
                 variant="default"
                 size="sm"
-                onClick={() => approveMutation.mutate({ userId: profile.id, approved: true })}
+                onClick={() => approveMutation.mutate({ userId: profile.id, approved: true, userEmail: profile.email, userName: profile.full_name })}
                 disabled={approveMutation.isPending}
                 className="gap-2"
               >
