@@ -47,10 +47,12 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Processing approval notification for:", userEmail);
 
-    // Send email to the approved user
-    const userEmailResponse = await sendEmail(
-      [userEmail],
-      "Jūsų paskyra patvirtinta!",
+    // Send email to admin about approved user (temporary - until domain is verified in Resend)
+    const ADMIN_EMAIL = "taurakalnionamai@gmail.com";
+    
+    const adminEmailResponse = await sendEmail(
+      [ADMIN_EMAIL],
+      `Vartotojas patvirtintas: ${userName || userEmail}`,
       `
         <!DOCTYPE html>
         <html>
@@ -61,29 +63,28 @@ const handler = async (req: Request): Promise<Response> => {
             .container { max-width: 600px; margin: 0 auto; padding: 20px; }
             .header { background: linear-gradient(135deg, #0d9488, #0891b2); color: white; padding: 20px; border-radius: 8px 8px 0 0; }
             .content { background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px; }
-            .action-btn { display: inline-block; background: #0d9488; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 15px; }
+            .info-box { background: #ecfdf5; border: 1px solid #10b981; padding: 15px; border-radius: 6px; margin: 15px 0; }
             .footer { margin-top: 20px; padding-top: 15px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #6b7280; }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
-              <h1 style="margin: 0; font-size: 20px;">✅ Paskyra patvirtinta!</h1>
+              <h1 style="margin: 0; font-size: 20px;">✅ Vartotojas patvirtintas</h1>
               <p style="margin: 5px 0 0 0; opacity: 0.9;">Taurakalnio Namai gyventojų portalas</p>
             </div>
             <div class="content">
-              <p>Gerbiamas(-a) ${userName},</p>
-              <p>Džiaugiamės galėdami pranešti, kad jūsų paskyra <strong>Taurakalnio Namų gyventojų portale</strong> buvo sėkmingai patvirtinta!</p>
-              <p>Dabar galite prisijungti ir naudotis visomis portalo funkcijomis:</p>
-              <ul>
-                <li>Peržiūrėti naujienas ir pranešimus</li>
-                <li>Teikti pranešimus apie gedimus</li>
-                <li>Dalyvauti balsavimuose</li>
-                <li>Peržiūrėti dokumentus</li>
-              </ul>
+              <p>Šis vartotojas buvo sėkmingai patvirtintas ir dabar gali prisijungti prie portalo:</p>
+              <div class="info-box">
+                <p style="margin: 0;"><strong>Vardas:</strong> ${userName || "Nenurodyta"}</p>
+                <p style="margin: 5px 0 0 0;"><strong>El. paštas:</strong> ${userEmail}</p>
+              </div>
+              <p style="font-size: 13px; color: #6b7280;">
+                <em>Pastaba: Šis laiškas siunčiamas administratoriui, nes Resend domenas dar nepatvirtintas. 
+                Patvirtinus domeną, laiškai bus siunčiami tiesiogiai vartotojams.</em>
+              </p>
               <div class="footer">
-                <p>Pagarbiai,<br>Taurakalnio Namų administracija</p>
-                <p style="font-size: 11px; color: #9ca3af;">Jeigu turite klausimų, susisiekite: taurakalnionamai@gmail.com</p>
+                <p>Taurakalnio Namų administracija</p>
               </div>
             </div>
           </div>
@@ -92,12 +93,12 @@ const handler = async (req: Request): Promise<Response> => {
       `
     );
 
-    console.log("Approval notification email sent successfully:", userEmailResponse);
+    console.log("Approval notification email sent to admin:", adminEmailResponse);
 
     return new Response(
       JSON.stringify({
         success: true,
-        userEmail: userEmailResponse,
+        adminEmail: adminEmailResponse,
       }),
       {
         status: 200,
