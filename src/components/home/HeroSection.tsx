@@ -18,7 +18,7 @@ export function HeroSection() {
         <div className="max-w-3xl mx-auto text-center animate-fade-in">
           <div className="inline-flex items-center gap-2 bg-primary-foreground/10 backdrop-blur-sm px-4 py-2 rounded-full mb-6">
             <Building2 className="h-4 w-4" />
-            <span className="text-sm font-medium">Gyventojų savitarnos portalas</span>
+            <span className="text-lg font-medium">Gyventojų savitarnos portalas</span>
           </div>
           
           
