@@ -1,5 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Ticket, Vote, Newspaper, Receipt, ArrowRight } from "lucide-react";
+import { Ticket, Vote, Newspaper, Receipt, ArrowRight, ScrollText } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const actions = [
@@ -34,6 +34,14 @@ const actions = [
     path: "/invoices",
     color: "text-warning",
     bgColor: "bg-warning/10",
+  },
+  {
+    title: "Vidaus tvarkos taisyklės",
+    description: "Susipažinkite su namo vidaus tvarkos taisyklėmis",
+    icon: ScrollText,
+    path: "/rules",
+    color: "text-primary",
+    bgColor: "bg-primary/10",
   },
 ];
 

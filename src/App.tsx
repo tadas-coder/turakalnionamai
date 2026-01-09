@@ -9,6 +9,7 @@ import Tickets from "./pages/Tickets";
 import Voting from "./pages/Voting";
 import News from "./pages/News";
 import Invoices from "./pages/Invoices";
+import Rules from "./pages/Rules";
 import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/voting" element={<Voting />} />
             <Route path="/news" element={<News />} />
             <Route path="/invoices" element={<Invoices />} />
+            <Route path="/rules" element={<Rules />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="*" element={<NotFound />} />
