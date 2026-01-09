@@ -1,0 +1,96 @@
+import { Link, useLocation } from "react-router-dom";
+import { Home, Ticket, Vote, Newspaper, Receipt, Menu, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { cn } from "@/lib/utils";
+
+const navItems = [
+  { path: "/", label: "Pradžia", icon: Home },
+  { path: "/tickets", label: "Pranešimai", icon: Ticket },
+  { path: "/voting", label: "Balsavimas", icon: Vote },
+  { path: "/news", label: "Naujienos", icon: Newspaper },
+  { path: "/invoices", label: "Sąskaitos", icon: Receipt },
+];
+
+export function Header() {
+  const location = useLocation();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  return (
+    <header className="sticky top-0 z-50 glass-effect border-b border-border">
+      <div className="container mx-auto px-4">
+        <div className="flex h-16 items-center justify-between">
+          <Link to="/" className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg hero-gradient flex items-center justify-center">
+              <span className="text-primary-foreground font-bold text-lg">TN</span>
+            </div>
+            <div className="hidden sm:block">
+              <h1 className="text-lg font-semibold text-foreground">Taurakalnio Namai</h1>
+              <p className="text-xs text-muted-foreground">Gyventojų portalas</p>
+            </div>
+          </Link>
+
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center gap-1">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = location.pathname === item.path;
+              return (
+                <Link key={item.path} to={item.path}>
+                  <Button
+                    variant={isActive ? "default" : "ghost"}
+                    size="sm"
+                    className={cn(
+                      "gap-2",
+                      isActive && "shadow-md"
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {item.label}
+                  </Button>
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Mobile Menu Button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </Button>
+        </div>
+
+        {/* Mobile Navigation */}
+        {mobileMenuOpen && (
+          <nav className="md:hidden py-4 border-t border-border animate-slide-up">
+            <div className="flex flex-col gap-2">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.path;
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <Button
+                      variant={isActive ? "default" : "ghost"}
+                      className="w-full justify-start gap-3"
+                    >
+                      <Icon className="h-4 w-4" />
+                      {item.label}
+                    </Button>
+                  </Link>
+                );
+              })}
+            </div>
+          </nav>
+        )}
+      </div>
+    </header>
+  );
+}
