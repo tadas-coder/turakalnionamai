@@ -1,12 +1,12 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Ticket, Vote, Newspaper, Receipt, ArrowRight, ScrollText, FileText, BarChart3, CalendarDays } from "lucide-react";
+import { AlertTriangle, Vote, Newspaper, Receipt, ArrowRight, ScrollText, FileText, BarChart3, CalendarDays } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const actions = [
   {
     title: "Pranešti problemą",
     description: "Praneškite apie gedimus, pažeidimus ar kitas problemas name",
-    icon: Ticket,
+    icon: AlertTriangle,
     path: "/tickets",
     color: "text-destructive",
     bgColor: "bg-destructive/10",
