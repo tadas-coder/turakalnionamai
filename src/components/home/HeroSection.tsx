@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Building2 } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { Link } from "react-router-dom";
 import buildingPhoto from "@/assets/building-photo.jpg";
 
@@ -22,8 +22,8 @@ export function HeroSection() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link to="/tickets">
               <Button size="xl" variant="outline" className="border-primary-foreground text-primary-foreground hover:bg-primary-foreground hover:text-primary w-full sm:w-auto">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
                 Pranešti apie problemą
-                <ArrowRight className="h-5 w-5" />
               </Button>
             </Link>
             <Link to="/news">
