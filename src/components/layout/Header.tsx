@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Ticket, Vote, Newspaper, Receipt, FileText, Menu, X, LogIn, LogOut, Settings } from "lucide-react";
+import { Home, Ticket, Menu, X, LogIn, LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -8,10 +8,6 @@ import { useAuth } from "@/hooks/useAuth";
 const navItems = [
   { path: "/", label: "Pradžia", icon: Home },
   { path: "/tickets", label: "Pranešimai", icon: Ticket },
-  { path: "/voting", label: "Balsavimas", icon: Vote },
-  { path: "/news", label: "Naujienos", icon: Newspaper },
-  { path: "/invoices", label: "Sąskaitos", icon: Receipt },
-  { path: "/documents", label: "Dokumentai", icon: FileText },
 ];
 
 export function Header() {
@@ -29,10 +25,7 @@ export function Header() {
               alt="Taurakalnio Namai" 
               className="h-12 w-12 object-contain"
             />
-            <div className="hidden sm:block">
-              <h1 className="text-lg font-semibold text-foreground">Taurakalnio Namai</h1>
-              <p className="text-xs text-muted-foreground">Gyventojų portalas</p>
-            </div>
+            <h1 className="text-lg font-semibold text-foreground hidden sm:block">Taurakalnio Namai</h1>
           </Link>
 
           {/* Desktop Navigation */}
