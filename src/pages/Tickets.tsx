@@ -5,9 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, Send, AlertTriangle, CheckCircle2, X, ImageIcon } from "lucide-react";
+import { Upload, Send, AlertTriangle, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 const issueTypes = [
   { value: "doors", label: "Durų problemos" },
@@ -22,6 +24,7 @@ const issueTypes = [
 ];
 
 export default function Tickets() {
+  const { user } = useAuth();
   const [images, setImages] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -59,19 +62,83 @@ export default function Tickets() {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Simulate submission - will be replaced with actual Cloud integration
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    try {
+      // Create the ticket in the database
+      const { data: ticket, error: ticketError } = await supabase
+        .from("tickets")
+        .insert({
+          title: `${issueTypes.find(t => t.value === formData.issueType)?.label || formData.issueType}`,
+          description: formData.description,
+          category: formData.issueType,
+          location: formData.apartment,
+          user_id: user?.id || null,
+        })
+        .select()
+        .single();
 
-    toast.success("Pranešimas sėkmingai išsiųstas!", {
-      description: "Administratorius netrukus susisieks su jumis.",
-    });
+      if (ticketError) throw ticketError;
 
-    // Reset form
-    setFormData({ name: "", email: "", apartment: "", issueType: "", description: "" });
-    setImages([]);
-    previews.forEach(preview => URL.revokeObjectURL(preview));
-    setPreviews([]);
-    setIsSubmitting(false);
+      // Upload photos if any
+      if (images.length > 0 && ticket) {
+        for (const image of images) {
+          const fileName = `${ticket.id}/${Date.now()}-${image.name}`;
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from("ticket-photos")
+            .upload(fileName, image);
+
+          if (uploadError) {
+            console.error("Error uploading image:", uploadError);
+            continue;
+          }
+
+          // Get public URL
+          const { data: urlData } = supabase.storage
+            .from("ticket-photos")
+            .getPublicUrl(fileName);
+
+          // Save photo reference in database
+          await supabase.from("ticket_photos").insert({
+            ticket_id: ticket.id,
+            photo_url: urlData.publicUrl,
+          });
+        }
+      }
+
+      // Send email notification
+      const { error: emailError } = await supabase.functions.invoke("send-ticket-notification", {
+        body: {
+          ticketId: ticket.id,
+          title: ticket.title,
+          description: formData.description,
+          category: formData.issueType,
+          location: formData.apartment,
+          reporterName: formData.name,
+          reporterEmail: formData.email,
+        },
+      });
+
+      if (emailError) {
+        console.error("Error sending email notification:", emailError);
+        // Don't fail the whole submission if email fails
+      }
+
+      toast.success("Pranešimas sėkmingai išsiųstas!", {
+        description: "Administratorius netrukus susisieks su jumis.",
+      });
+
+      // Reset form
+      setFormData({ name: "", email: "", apartment: "", issueType: "", description: "" });
+      setImages([]);
+      previews.forEach(preview => URL.revokeObjectURL(preview));
+      setPreviews([]);
+    } catch (error: any) {
+      console.error("Error submitting ticket:", error);
+      toast.error("Nepavyko išsiųsti pranešimo", {
+        description: error.message || "Bandykite dar kartą",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
