@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { Ticket, Newspaper, Vote, Users, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
+import { Newspaper, Vote, AlertTriangle, Clock } from "lucide-react";
 
 interface Stats {
   totalTickets: number;
@@ -14,7 +14,11 @@ interface Stats {
   activePolls: number;
 }
 
-export function AdminOverview() {
+interface AdminOverviewProps {
+  onTabChange: (tab: string) => void;
+}
+
+export function AdminOverview({ onTabChange }: AdminOverviewProps) {
   const [stats, setStats] = useState<Stats>({
     totalTickets: 0,
     newTickets: 0,
@@ -87,7 +91,10 @@ export function AdminOverview() {
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="card-elevated">
+        <Card 
+          className="card-elevated cursor-pointer transition-all hover:scale-[1.02] hover:shadow-lg"
+          onClick={() => onTabChange("tickets")}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Nauji pranešimai</CardTitle>
             <AlertTriangle className="h-4 w-4 text-destructive" />
@@ -100,7 +107,10 @@ export function AdminOverview() {
           </CardContent>
         </Card>
 
-        <Card className="card-elevated">
+        <Card 
+          className="card-elevated cursor-pointer transition-all hover:scale-[1.02] hover:shadow-lg"
+          onClick={() => onTabChange("tickets")}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Vykdomi</CardTitle>
             <Clock className="h-4 w-4 text-warning" />
@@ -113,7 +123,10 @@ export function AdminOverview() {
           </CardContent>
         </Card>
 
-        <Card className="card-elevated">
+        <Card 
+          className="card-elevated cursor-pointer transition-all hover:scale-[1.02] hover:shadow-lg"
+          onClick={() => onTabChange("news")}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Naujienos</CardTitle>
             <Newspaper className="h-4 w-4 text-info" />
@@ -126,7 +139,10 @@ export function AdminOverview() {
           </CardContent>
         </Card>
 
-        <Card className="card-elevated">
+        <Card 
+          className="card-elevated cursor-pointer transition-all hover:scale-[1.02] hover:shadow-lg"
+          onClick={() => onTabChange("polls")}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Aktyvios apklausos</CardTitle>
             <Vote className="h-4 w-4 text-secondary" />
@@ -179,10 +195,25 @@ export function AdminOverview() {
             <CardDescription>Greitosios nuorodos</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <p>• Nauji pranešimai laukia jūsų dėmesio</p>
-              <p>• Sukurkite naujieną gyventojams informuoti</p>
-              <p>• Paleiskite apklausą svarbiems klausimams</p>
+            <div className="space-y-2">
+              <button 
+                onClick={() => onTabChange("tickets")}
+                className="w-full text-left px-3 py-2 rounded-md hover:bg-muted transition-colors text-sm"
+              >
+                • Nauji pranešimai laukia jūsų dėmesio
+              </button>
+              <button 
+                onClick={() => onTabChange("news")}
+                className="w-full text-left px-3 py-2 rounded-md hover:bg-muted transition-colors text-sm"
+              >
+                • Sukurkite naujieną gyventojams informuoti
+              </button>
+              <button 
+                onClick={() => onTabChange("polls")}
+                className="w-full text-left px-3 py-2 rounded-md hover:bg-muted transition-colors text-sm"
+              >
+                • Paleiskite apklausą svarbiems klausimams
+              </button>
             </div>
           </CardContent>
         </Card>
