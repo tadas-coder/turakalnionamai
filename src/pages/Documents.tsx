@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { FileText, Upload, Download, Eye, EyeOff, Trash2, Plus, FolderOpen, Filter } from "lucide-react";
+import { FileText, Upload, Download, Eye, EyeOff, Trash2, Plus, FolderOpen, Filter, Search } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -42,6 +42,7 @@ export default function Documents() {
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [uploading, setUploading] = useState(false);
 
   // Form state
@@ -145,9 +146,11 @@ export default function Documents() {
     setFile(null);
   };
 
-  const filteredDocuments = documents.filter(
-    (doc) => selectedCategory === "all" || doc.category === selectedCategory
-  );
+  const filteredDocuments = documents.filter((doc) => {
+    const matchesCategory = selectedCategory === "all" || doc.category === selectedCategory;
+    const matchesSearch = doc.title.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
 
   const getCategoryLabel = (value: string) => {
     return CATEGORIES.find((c) => c.value === value)?.label || value;
@@ -244,24 +247,35 @@ export default function Documents() {
           )}
         </div>
 
-        {/* Filter */}
+        {/* Filter & Search */}
         <Card className="mb-6">
           <CardContent className="py-4">
-            <div className="flex items-center gap-3">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Visos kategorijos</SelectItem>
-                  {CATEGORIES.map((cat) => (
-                    <SelectItem key={cat.value} value={cat.value}>
-                      {cat.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              <div className="relative flex-1 w-full sm:max-w-xs">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Ieškoti pagal pavadinimą..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Visos kategorijos</SelectItem>
+                    {CATEGORIES.map((cat) => (
+                      <SelectItem key={cat.value} value={cat.value}>
+                        {cat.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CardContent>
         </Card>
