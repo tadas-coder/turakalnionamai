@@ -56,6 +56,33 @@ export type Database = {
         }
         Relationships: []
       }
+      duty_schedules: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          duty_date: string
+          id: string
+          person_name: string
+          person_phone: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          duty_date: string
+          id?: string
+          person_name: string
+          person_phone?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          duty_date?: string
+          id?: string
+          person_name?: string
+          person_phone?: string | null
+        }
+        Relationships: []
+      }
       invoices: {
         Row: {
           amount: number
@@ -140,6 +167,39 @@ export type Database = {
           published?: boolean | null
           title?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      planned_works: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          start_date: string
+          title: string
+          work_type: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          start_date: string
+          title: string
+          work_type?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          start_date?: string
+          title?: string
+          work_type?: string
         }
         Relationships: []
       }

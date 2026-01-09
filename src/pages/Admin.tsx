@@ -3,13 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Ticket, Newspaper, Vote, Users, LayoutDashboard, ClipboardList } from "lucide-react";
+import { Ticket, Newspaper, Vote, Users, LayoutDashboard, ClipboardList, CalendarDays } from "lucide-react";
 import { AdminTickets } from "@/components/admin/AdminTickets";
 import { AdminNews } from "@/components/admin/AdminNews";
 import { AdminPolls } from "@/components/admin/AdminPolls";
 import { AdminOverview } from "@/components/admin/AdminOverview";
 import { AdminUsers } from "@/components/admin/AdminUsers";
 import { AdminReports } from "@/components/admin/AdminReports";
+import { AdminSchedules } from "@/components/admin/AdminSchedules";
 import { toast } from "sonner";
 
 export default function Admin() {
@@ -58,7 +59,7 @@ export default function Admin() {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
+            <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid">
               <TabsTrigger value="overview" className="gap-2">
                 <LayoutDashboard className="h-4 w-4" />
                 <span className="hidden sm:inline">Apžvalga</span>
@@ -82,6 +83,10 @@ export default function Admin() {
               <TabsTrigger value="reports" className="gap-2">
                 <ClipboardList className="h-4 w-4" />
                 <span className="hidden sm:inline">Ataskaitos</span>
+              </TabsTrigger>
+              <TabsTrigger value="schedules" className="gap-2">
+                <CalendarDays className="h-4 w-4" />
+                <span className="hidden sm:inline">Grafikai</span>
               </TabsTrigger>
             </TabsList>
 
@@ -107,6 +112,10 @@ export default function Admin() {
 
             <TabsContent value="reports" className="animate-fade-in">
               <AdminReports />
+            </TabsContent>
+
+            <TabsContent value="schedules" className="animate-fade-in">
+              <AdminSchedules />
             </TabsContent>
           </Tabs>
         </div>
