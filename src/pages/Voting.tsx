@@ -1,11 +1,13 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Vote, Calendar, Users, CheckCircle2, Clock } from "lucide-react";
-import { useState } from "react";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 // Mock data - will be replaced with Cloud data
 const polls = [
@@ -53,7 +55,29 @@ const polls = [
 ];
 
 export default function Voting() {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
   const [votedPolls, setVotedPolls] = useState<{ [key: number]: number }>({});
+
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate("/auth");
+    }
+  }, [user, loading, navigate]);
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
 
   const handleVote = (pollId: number, optionId: number) => {
     setVotedPolls({ ...votedPolls, [pollId]: optionId });
