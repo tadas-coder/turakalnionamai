@@ -72,6 +72,11 @@ export function AdminTickets() {
   };
 
   const updateTicketStatus = async (ticketId: string, newStatus: string) => {
+    const ticket = tickets.find(t => t.id === ticketId);
+    if (!ticket) return;
+
+    const oldStatus = ticket.status;
+    
     try {
       const { error } = await supabase
         .from("tickets")
@@ -84,6 +89,23 @@ export function AdminTickets() {
         t.id === ticketId ? { ...t, status: newStatus } : t
       ));
       toast.success("Būsena atnaujinta");
+
+      // Send email notification about status change
+      try {
+        await supabase.functions.invoke("send-status-notification", {
+          body: {
+            ticketTitle: ticket.title,
+            ticketDescription: ticket.description,
+            ticketCategory: ticket.category,
+            ticketLocation: ticket.location,
+            oldStatus,
+            newStatus,
+            updatedAt: new Date().toISOString(),
+          },
+        });
+      } catch (emailError) {
+        console.error("Failed to send status notification email:", emailError);
+      }
     } catch (error) {
       console.error("Error updating ticket:", error);
       toast.error("Nepavyko atnaujinti būsenos");
