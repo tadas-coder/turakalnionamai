@@ -49,15 +49,6 @@ export function QuickActions() {
   return (
     <section className="py-16 bg-background">
       <div className="container mx-auto px-4">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold font-display text-foreground mb-4">
-            Greita prieiga
-          </h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            Pasirinkite norimą veiksmą ir pradėkite naudotis portalu
-          </p>
-        </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {actions.map((action, index) => {
             const Icon = action.icon;
