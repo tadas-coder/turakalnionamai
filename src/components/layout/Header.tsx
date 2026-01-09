@@ -44,7 +44,7 @@ export function Header() {
               alt="Taurakalnio Namai" 
               className="h-14 w-14 object-contain hover-scale"
             />
-            <h1 className="text-lg font-semibold text-foreground hidden sm:block">Taurakalnio Namai</h1>
+            <h1 className="text-sm font-medium tracking-wide text-foreground hidden sm:block uppercase">Taurakalnio Namai</h1>
           </Link>
 
           {/* Desktop Navigation */}
