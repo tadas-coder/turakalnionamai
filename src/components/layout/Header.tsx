@@ -1,19 +1,35 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Ticket, Menu, X, LogIn, LogOut, Settings } from "lucide-react";
+import { Home, Ticket, Menu, X, LogIn, LogOut, Settings, ChevronDown, Vote, Newspaper, Receipt, FileText, ScrollText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const navItems = [
   { path: "/", label: "Pradžia", icon: Home },
   { path: "/tickets", label: "Pranešimai", icon: Ticket },
 ];
 
+const moreItems = [
+  { path: "/voting", label: "Balsavimas", icon: Vote },
+  { path: "/news", label: "Naujienos", icon: Newspaper },
+  { path: "/invoices", label: "Sąskaitos", icon: Receipt },
+  { path: "/documents", label: "Dokumentai", icon: FileText },
+  { path: "/rules", label: "Taisyklės", icon: ScrollText },
+];
+
 export function Header() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, isAdmin, signOut } = useAuth();
+
+  const isMoreActive = moreItems.some((item) => location.pathname === item.path);
 
   return (
     <header className="sticky top-0 z-50 glass-effect border-b border-border">
@@ -49,6 +65,41 @@ export function Header() {
                 </Link>
               );
             })}
+
+            {/* More Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant={isMoreActive ? "default" : "ghost"}
+                  size="sm"
+                  className={cn("gap-2", isMoreActive && "shadow-md")}
+                >
+                  Daugiau
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48 bg-background border z-50">
+                {moreItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = location.pathname === item.path;
+                  return (
+                    <DropdownMenuItem key={item.path} asChild>
+                      <Link
+                        to={item.path}
+                        className={cn(
+                          "flex items-center gap-2 cursor-pointer",
+                          isActive && "bg-accent text-accent-foreground font-medium"
+                        )}
+                      >
+                        <Icon className="h-4 w-4" />
+                        {item.label}
+                      </Link>
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             {isAdmin && (
               <Link to="/admin">
                 <Button variant={location.pathname === "/admin" ? "default" : "ghost"} size="sm" className="gap-2">
@@ -106,6 +157,31 @@ export function Header() {
                   </Link>
                 );
               })}
+              
+              {/* More items in mobile */}
+              <div className="border-t border-border pt-2 mt-2">
+                <p className="text-xs text-muted-foreground px-4 mb-2">Daugiau</p>
+                {moreItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = location.pathname === item.path;
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Button
+                        variant={isActive ? "default" : "ghost"}
+                        className="w-full justify-start gap-3"
+                      >
+                        <Icon className="h-4 w-4" />
+                        {item.label}
+                      </Button>
+                    </Link>
+                  );
+                })}
+              </div>
+
               {isAdmin && (
                 <Link to="/admin" onClick={() => setMobileMenuOpen(false)}>
                   <Button variant={location.pathname === "/admin" ? "default" : "ghost"} className="w-full justify-start gap-3">
