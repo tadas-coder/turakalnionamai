@@ -17,7 +17,7 @@ const nameSchema = z.string().min(2, "Vardas turi būti bent 2 simbolių");
 
 export default function Auth() {
   const navigate = useNavigate();
-  const { user, signIn, signUp, loading } = useAuth();
+  const { user, isApproved, isAdmin, signIn, signUp, loading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [signupData, setSignupData] = useState({ email: "", password: "", fullName: "" });
@@ -25,9 +25,13 @@ export default function Auth() {
 
   useEffect(() => {
     if (user && !loading) {
-      navigate("/");
+      if (isAdmin || isApproved) {
+        navigate("/");
+      } else {
+        navigate("/pending-approval");
+      }
     }
-  }, [user, loading, navigate]);
+  }, [user, isApproved, isAdmin, loading, navigate]);
 
   const validateLogin = () => {
     const newErrors: { [key: string]: string } = {};
@@ -79,11 +83,10 @@ export default function Auth() {
       if (error.message.includes("Invalid login credentials")) {
         toast.error("Neteisingas el. paštas arba slaptažodis");
       } else {
-        toast.error("Prisijungimo klaida: " + error.message);
+      toast.error("Prisijungimo klaida: " + error.message);
       }
     } else {
       toast.success("Sėkmingai prisijungėte!");
-      navigate("/");
     }
     setIsSubmitting(false);
   };
@@ -102,8 +105,8 @@ export default function Auth() {
         toast.error("Registracijos klaida: " + error.message);
       }
     } else {
-      toast.success("Sėkmingai užsiregistravote!");
-      navigate("/");
+      toast.success("Registracija sėkminga! Laukite administratoriaus patvirtinimo.");
+      navigate("/pending-approval");
     }
     setIsSubmitting(false);
   };

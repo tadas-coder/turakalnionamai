@@ -27,7 +27,7 @@ const moreItems = [
 export function Header() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, isAdmin, signOut } = useAuth();
+  const { user, isAdmin, isApproved, signOut } = useAuth();
 
   const isMoreActive = moreItems.some((item) => location.pathname === item.path);
 
@@ -46,7 +46,7 @@ export function Header() {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-1">
-            {user ? (
+            {user && isApproved ? (
               <>
                 {navItems.map((item) => {
                   const Icon = item.icon;
@@ -121,6 +121,13 @@ export function Header() {
                   Atsijungti
                 </Button>
               </>
+            ) : user && !isApproved ? (
+              <>
+                <Button variant="ghost" size="sm" onClick={signOut} className="gap-2">
+                  <LogOut className="h-4 w-4" />
+                  Atsijungti
+                </Button>
+              </>
             ) : (
               <Link to="/auth">
                 <Button variant="default" size="sm" className="gap-2">
@@ -146,7 +153,7 @@ export function Header() {
         {mobileMenuOpen && (
           <nav className="md:hidden py-4 border-t border-border animate-slide-up">
             <div className="flex flex-col gap-2">
-              {user ? (
+              {user && isApproved ? (
                 <>
                   {navItems.map((item) => {
                     const Icon = item.icon;
@@ -211,6 +218,11 @@ export function Header() {
                     Atsijungti
                   </Button>
                 </>
+              ) : user && !isApproved ? (
+                <Button variant="ghost" className="w-full justify-start gap-3" onClick={() => { signOut(); setMobileMenuOpen(false); }}>
+                  <LogOut className="h-4 w-4" />
+                  Atsijungti
+                </Button>
               ) : (
                 <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
                   <Button variant="default" className="w-full justify-start gap-3">
