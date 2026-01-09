@@ -44,7 +44,7 @@ export function Header() {
               alt="Taurakalnio Namai" 
               className="h-16 w-16 object-contain hover-scale"
             />
-            <h1 className="text-sm font-medium tracking-wide text-foreground hidden sm:block">DNSB Taurakalnio Namai, Vilnius</h1>
+            <h1 className="text-sm font-bold tracking-wide text-foreground hidden sm:block">DNSB Taurakalnio Namai, Vilnius</h1>
           </Link>
 
           {/* Desktop Navigation */}
