@@ -5,6 +5,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useUnreadNews } from "@/hooks/useUnreadNews";
+import { useUnreadTickets } from "@/hooks/useUnreadTickets";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -35,6 +36,7 @@ export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, isAdmin, isApproved, signOut } = useAuth();
   const { unreadCount } = useUnreadNews();
+  const { unreadCount: unreadTicketsCount } = useUnreadTickets();
 
   const isMoreActive = moreItems.some((item) => location.pathname === item.path);
 
@@ -61,18 +63,24 @@ export function Header() {
                 {navItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = location.pathname === item.path;
+                  const isTickets = item.path === "/tickets";
                   return (
                     <Link key={item.path} to={item.path}>
                       <Button
                         variant={isActive ? "default" : "ghost"}
                         size="sm"
                         className={cn(
-                          "gap-2",
+                          "gap-2 relative",
                           isActive && "shadow-md"
                         )}
                       >
                         <Icon className="h-4 w-4" />
                         {item.label}
+                        {isTickets && unreadTicketsCount > 0 && (
+                          <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center text-xs px-1">
+                            {unreadTicketsCount}
+                          </Badge>
+                        )}
                       </Button>
                     </Link>
                   );
@@ -207,6 +215,7 @@ export function Header() {
                   {navItems.map((item) => {
                     const Icon = item.icon;
                     const isActive = location.pathname === item.path;
+                    const isTickets = item.path === "/tickets";
                     return (
                       <Link
                         key={item.path}
@@ -215,10 +224,15 @@ export function Header() {
                       >
                         <Button
                           variant={isActive ? "default" : "ghost"}
-                          className="w-full justify-start gap-3"
+                          className="w-full justify-start gap-3 relative"
                         >
                           <Icon className="h-4 w-4" />
                           {item.label}
+                          {isTickets && unreadTicketsCount > 0 && (
+                            <Badge variant="destructive" className="ml-auto h-5 min-w-5 flex items-center justify-center text-xs px-1">
+                              {unreadTicketsCount}
+                            </Badge>
+                          )}
                         </Button>
                       </Link>
                     );
