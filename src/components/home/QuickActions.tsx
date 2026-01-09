@@ -1,5 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Ticket, Vote, Newspaper, Receipt, ArrowRight, ScrollText } from "lucide-react";
+import { Ticket, Vote, Newspaper, Receipt, ArrowRight, ScrollText, FileText, BarChart3, CalendarDays } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const actions = [
@@ -42,6 +42,30 @@ const actions = [
     path: "/rules",
     color: "text-primary",
     bgColor: "bg-primary/10",
+  },
+  {
+    title: "Dokumentai",
+    description: "Peržiūrėkite bendrijos dokumentus ir aktus",
+    icon: FileText,
+    path: "/documents",
+    color: "text-accent",
+    bgColor: "bg-accent/10",
+  },
+  {
+    title: "Ataskaitos",
+    description: "Peržiūrėkite finansines ir veiklos ataskaitas",
+    icon: BarChart3,
+    path: "/reports",
+    color: "text-muted-foreground",
+    bgColor: "bg-muted",
+  },
+  {
+    title: "Darbų kalendorius",
+    description: "Planuojami ir vykdomi darbai name",
+    icon: CalendarDays,
+    path: "/schedules",
+    color: "text-secondary",
+    bgColor: "bg-secondary/10",
   },
 ];
 
