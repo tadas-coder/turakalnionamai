@@ -122,10 +122,10 @@ export function ChatAssistant() {
       {/* Floating button */}
       <Button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50"
+        className="fixed bottom-6 right-6 h-16 w-16 rounded-full shadow-xl z-50 bg-primary hover:bg-primary/90 border-4 border-primary-foreground/20 transition-all duration-200 hover:scale-105"
         size="icon"
       >
-        {isOpen ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
+        {isOpen ? <X className="h-7 w-7" /> : <MessageCircle className="h-7 w-7" />}
       </Button>
 
       {/* Chat window */}
