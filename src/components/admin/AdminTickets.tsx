@@ -90,6 +90,23 @@ export function AdminTickets() {
       ));
       toast.success("Būsena atnaujinta");
 
+      // Fetch author email if ticket has user_id
+      let authorEmail: string | undefined;
+      let authorName: string | undefined;
+      
+      if (ticket.user_id) {
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("email, full_name")
+          .eq("id", ticket.user_id)
+          .single();
+        
+        if (profileData) {
+          authorEmail = profileData.email;
+          authorName = profileData.full_name || undefined;
+        }
+      }
+
       // Send email notification about status change
       try {
         await supabase.functions.invoke("send-status-notification", {
@@ -101,6 +118,8 @@ export function AdminTickets() {
             oldStatus,
             newStatus,
             updatedAt: new Date().toISOString(),
+            authorEmail,
+            authorName,
           },
         });
       } catch (emailError) {
