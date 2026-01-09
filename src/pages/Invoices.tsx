@@ -1,90 +1,71 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Receipt, Download, CreditCard, CheckCircle2, AlertCircle, Clock } from "lucide-react";
+import { Receipt, CreditCard, CheckCircle2, AlertCircle, Clock, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { format, parseISO } from "date-fns";
+import { lt } from "date-fns/locale";
 
-// Mock data - will be replaced with Cloud data
-const invoices = [
-  {
-    id: "INV-2024-001",
-    period: "2024 Sausis",
-    amount: 125.50,
-    dueDate: "2024-02-15",
-    status: "unpaid",
-    items: [
-      { name: "Namo išlaikymas", amount: 45.00 },
-      { name: "Šildymas", amount: 55.50 },
-      { name: "Vandentiekis", amount: 15.00 },
-      { name: "Liftas", amount: 10.00 },
-    ],
-  },
-  {
-    id: "INV-2023-012",
-    period: "2023 Gruodis",
-    amount: 132.00,
-    dueDate: "2024-01-15",
-    status: "paid",
-    paidDate: "2024-01-10",
-    items: [
-      { name: "Namo išlaikymas", amount: 45.00 },
-      { name: "Šildymas", amount: 62.00 },
-      { name: "Vandentiekis", amount: 15.00 },
-      { name: "Liftas", amount: 10.00 },
-    ],
-  },
-  {
-    id: "INV-2023-011",
-    period: "2023 Lapkritis",
-    amount: 118.75,
-    dueDate: "2023-12-15",
-    status: "paid",
-    paidDate: "2023-12-08",
-    items: [
-      { name: "Namo išlaikymas", amount: 45.00 },
-      { name: "Šildymas", amount: 48.75 },
-      { name: "Vandentiekis", amount: 15.00 },
-      { name: "Liftas", amount: 10.00 },
-    ],
-  },
-];
-
-const getStatusBadge = (status: string) => {
-  switch (status) {
-    case "paid":
-      return (
-        <Badge className="bg-success text-success-foreground gap-1">
-          <CheckCircle2 className="h-3 w-3" />
-          Apmokėta
-        </Badge>
-      );
-    case "unpaid":
-      return (
-        <Badge variant="destructive" className="gap-1">
-          <AlertCircle className="h-3 w-3" />
-          Neapmokėta
-        </Badge>
-      );
-    case "overdue":
-      return (
-        <Badge variant="destructive" className="gap-1">
-          <Clock className="h-3 w-3" />
-          Vėluoja
-        </Badge>
-      );
-    default:
-      return <Badge variant="secondary">{status}</Badge>;
+const getStatusBadge = (status: string, dueDate: string) => {
+  const isOverdue = new Date(dueDate) < new Date() && status !== "paid";
+  
+  if (status === "paid") {
+    return (
+      <Badge className="bg-success text-success-foreground gap-1">
+        <CheckCircle2 className="h-3 w-3" />
+        Apmokėta
+      </Badge>
+    );
   }
+  
+  if (isOverdue) {
+    return (
+      <Badge variant="destructive" className="gap-1">
+        <Clock className="h-3 w-3" />
+        Vėluoja
+      </Badge>
+    );
+  }
+  
+  return (
+    <Badge variant="destructive" className="gap-1">
+      <AlertCircle className="h-3 w-3" />
+      Neapmokėta
+    </Badge>
+  );
+};
+
+const formatMonth = (dateStr: string) => {
+  const date = parseISO(dateStr);
+  return format(date, "yyyy MMM", { locale: lt });
 };
 
 export default function Invoices() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+
+  const { data: invoices = [], isLoading: invoicesLoading } = useQuery({
+    queryKey: ["invoices", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("invoices")
+        .select("*")
+        .eq("user_id", user?.id)
+        .order("due_date", { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
 
   useEffect(() => {
     if (!loading && !user) {
@@ -93,10 +74,19 @@ export default function Invoices() {
   }, [user, loading, navigate]);
 
   const unpaidTotal = invoices
-    .filter((inv) => inv.status === "unpaid")
-    .reduce((sum, inv) => sum + inv.amount, 0);
+    .filter((inv) => inv.status !== "paid")
+    .reduce((sum, inv) => sum + Number(inv.amount), 0);
 
-  if (loading) {
+  // Prepare chart data - sort by date ascending for chart
+  const chartData = [...invoices]
+    .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
+    .map((inv) => ({
+      month: formatMonth(inv.due_date),
+      amount: Number(inv.amount),
+      status: inv.status,
+    }));
+
+  if (loading || invoicesLoading) {
     return (
       <Layout>
         <div className="min-h-screen flex items-center justify-center">
@@ -116,15 +106,11 @@ export default function Invoices() {
     });
   };
 
-  const handleDownload = (invoiceId: string) => {
-    toast.success("Sąskaita atsisiunčiama...");
-  };
-
   return (
     <Layout>
       <div className="py-12 bg-muted min-h-screen">
         <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-5xl mx-auto">
             <div className="text-center mb-8 animate-fade-in">
               <div className="inline-flex items-center gap-2 bg-warning/10 text-warning px-4 py-2 rounded-full mb-4">
                 <Receipt className="h-4 w-4" />
@@ -158,44 +144,102 @@ export default function Invoices() {
               </Card>
             )}
 
+            {/* Chart Section */}
+            {chartData.length > 0 && (
+              <Card className="card-elevated mb-8 animate-slide-up" style={{ animationDelay: "50ms" }}>
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-primary" />
+                    <CardTitle>Mokėjimų istorija</CardTitle>
+                  </div>
+                  <CardDescription>
+                    Mėnesinių sąskaitų sumos
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis 
+                          dataKey="month" 
+                          tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                          tickLine={{ stroke: 'hsl(var(--muted-foreground))' }}
+                        />
+                        <YAxis 
+                          tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                          tickLine={{ stroke: 'hsl(var(--muted-foreground))' }}
+                          tickFormatter={(value) => `${value} €`}
+                        />
+                        <Tooltip 
+                          formatter={(value: number) => [`${value.toFixed(2)} €`, 'Suma']}
+                          contentStyle={{ 
+                            backgroundColor: 'hsl(var(--card))', 
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                          }}
+                          labelStyle={{ color: 'hsl(var(--foreground))' }}
+                        />
+                        <Bar dataKey="amount" radius={[4, 4, 0, 0]}>
+                          {chartData.map((entry, index) => (
+                            <Cell 
+                              key={`cell-${index}`} 
+                              fill={entry.status === 'paid' ? 'hsl(var(--success))' : 'hsl(var(--primary))'}
+                            />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex items-center justify-center gap-6 mt-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-sm bg-success" />
+                      <span className="text-muted-foreground">Apmokėta</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-sm bg-primary" />
+                      <span className="text-muted-foreground">Neapmokėta</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <Card className="card-elevated animate-slide-up" style={{ animationDelay: "100ms" }}>
               <CardHeader>
-                <CardTitle>Sąskaitų istorija</CardTitle>
+                <CardTitle>Sąskaitų sąrašas</CardTitle>
                 <CardDescription>
                   Visos jūsų sąskaitos ir mokėjimai
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Numeris</TableHead>
-                        <TableHead>Laikotarpis</TableHead>
-                        <TableHead>Suma</TableHead>
-                        <TableHead>Apmokėti iki</TableHead>
-                        <TableHead>Būsena</TableHead>
-                        <TableHead className="text-right">Veiksmai</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {invoices.map((invoice) => (
-                        <TableRow key={invoice.id}>
-                          <TableCell className="font-medium">{invoice.id}</TableCell>
-                          <TableCell>{invoice.period}</TableCell>
-                          <TableCell className="font-semibold">{invoice.amount.toFixed(2)} €</TableCell>
-                          <TableCell>{invoice.dueDate}</TableCell>
-                          <TableCell>{getStatusBadge(invoice.status)}</TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDownload(invoice.id)}
-                              >
-                                <Download className="h-4 w-4" />
-                              </Button>
-                              {invoice.status === "unpaid" && (
+                {invoices.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Receipt className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Sąskaitų nerasta</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Pavadinimas</TableHead>
+                          <TableHead>Suma</TableHead>
+                          <TableHead>Apmokėti iki</TableHead>
+                          <TableHead>Būsena</TableHead>
+                          <TableHead className="text-right">Veiksmai</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {invoices.map((invoice) => (
+                          <TableRow key={invoice.id}>
+                            <TableCell className="font-medium">{invoice.title}</TableCell>
+                            <TableCell className="font-semibold">{Number(invoice.amount).toFixed(2)} €</TableCell>
+                            <TableCell>{format(parseISO(invoice.due_date), "yyyy-MM-dd")}</TableCell>
+                            <TableCell>{getStatusBadge(invoice.status || 'pending', invoice.due_date)}</TableCell>
+                            <TableCell className="text-right">
+                              {invoice.status !== "paid" && (
                                 <Button
                                   size="sm"
                                   onClick={() => handlePayment(invoice.id)}
@@ -204,43 +248,49 @@ export default function Invoices() {
                                   Mokėti
                                 </Button>
                               )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
-            <Card className="card-elevated mt-6 animate-slide-up" style={{ animationDelay: "200ms" }}>
-              <CardHeader>
-                <CardTitle className="text-lg">Sąskaitos detalės: {invoices[0].id}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Paslauga</TableHead>
-                      <TableHead className="text-right">Suma</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {invoices[0].items.map((item, index) => (
-                      <TableRow key={index}>
-                        <TableCell>{item.name}</TableCell>
-                        <TableCell className="text-right">{item.amount.toFixed(2)} €</TableCell>
-                      </TableRow>
-                    ))}
-                    <TableRow className="font-bold">
-                      <TableCell>Iš viso</TableCell>
-                      <TableCell className="text-right">{invoices[0].amount.toFixed(2)} €</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+            {/* Summary Stats */}
+            {invoices.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6 animate-slide-up" style={{ animationDelay: "150ms" }}>
+                <Card className="card-elevated">
+                  <CardContent className="pt-6">
+                    <div className="text-center">
+                      <p className="text-sm text-muted-foreground mb-1">Iš viso sąskaitų</p>
+                      <p className="text-3xl font-bold text-foreground">{invoices.length}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="card-elevated">
+                  <CardContent className="pt-6">
+                    <div className="text-center">
+                      <p className="text-sm text-muted-foreground mb-1">Bendra suma</p>
+                      <p className="text-3xl font-bold text-foreground">
+                        {invoices.reduce((sum, inv) => sum + Number(inv.amount), 0).toFixed(2)} €
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="card-elevated">
+                  <CardContent className="pt-6">
+                    <div className="text-center">
+                      <p className="text-sm text-muted-foreground mb-1">Vidutinė sąskaita</p>
+                      <p className="text-3xl font-bold text-foreground">
+                        {(invoices.reduce((sum, inv) => sum + Number(inv.amount), 0) / invoices.length).toFixed(2)} €
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </div>
         </div>
       </div>
