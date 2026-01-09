@@ -21,9 +21,6 @@ export function HeroSection() {
             <span className="text-sm font-medium">Gyventojų savitarnos portalas</span>
           </div>
           
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 font-display leading-tight">
-            DNSB Taurakalnio Namai
-          </h1>
           
           <p className="text-lg md:text-xl text-primary-foreground/90 mb-8 max-w-2xl mx-auto">
             Sveiki atvykę į mūsų bendruomenės portalą. Čia galite pranešti apie problemas, 
