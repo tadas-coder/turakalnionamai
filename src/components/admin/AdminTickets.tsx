@@ -49,6 +49,7 @@ export function AdminTickets() {
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [ticketPhotos, setTicketPhotos] = useState<TicketPhoto[]>([]);
   const [photoDialogOpen, setPhotoDialogOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   useEffect(() => {
     fetchTickets();
@@ -160,6 +161,14 @@ export function AdminTickets() {
     );
   };
 
+  const filteredTickets = statusFilter === "all" 
+    ? tickets 
+    : tickets.filter(t => t.status === statusFilter);
+
+  const getStatusCount = (status: string) => {
+    return tickets.filter(t => t.status === status).length;
+  };
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -195,7 +204,64 @@ export function AdminTickets() {
   return (
     <>
       <div className="space-y-4">
-        {tickets.map((ticket) => (
+        {/* Filter buttons */}
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant={statusFilter === "all" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setStatusFilter("all")}
+          >
+            Visi ({tickets.length})
+          </Button>
+          <Button
+            variant={statusFilter === "new" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setStatusFilter("new")}
+            className={statusFilter === "new" ? "bg-destructive hover:bg-destructive/90" : ""}
+          >
+            <AlertTriangle className="h-4 w-4 mr-1" />
+            Nauji ({getStatusCount("new")})
+          </Button>
+          <Button
+            variant={statusFilter === "in_progress" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setStatusFilter("in_progress")}
+            className={statusFilter === "in_progress" ? "bg-warning hover:bg-warning/90" : ""}
+          >
+            <Clock className="h-4 w-4 mr-1" />
+            Vykdomi ({getStatusCount("in_progress")})
+          </Button>
+          <Button
+            variant={statusFilter === "resolved" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setStatusFilter("resolved")}
+            className={statusFilter === "resolved" ? "bg-success hover:bg-success/90" : ""}
+          >
+            <CheckCircle2 className="h-4 w-4 mr-1" />
+            Išspręsti ({getStatusCount("resolved")})
+          </Button>
+          <Button
+            variant={statusFilter === "closed" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setStatusFilter("closed")}
+          >
+            <XCircle className="h-4 w-4 mr-1" />
+            Uždaryti ({getStatusCount("closed")})
+          </Button>
+        </div>
+
+        {filteredTickets.length === 0 ? (
+          <Card className="card-elevated">
+            <CardContent className="py-12 text-center">
+              <AlertTriangle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Pranešimų nerasta</h3>
+              <p className="text-muted-foreground">
+                Nėra pranešimų su pasirinkta būsena
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          filteredTickets.map((ticket) => (
           <Card key={ticket.id} className="card-elevated">
             <CardHeader>
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
@@ -250,7 +316,8 @@ export function AdminTickets() {
               </div>
             </CardContent>
           </Card>
-        ))}
+          ))
+        )}
       </div>
 
       <Dialog open={photoDialogOpen} onOpenChange={setPhotoDialogOpen}>
