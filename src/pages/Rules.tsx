@@ -1,6 +1,6 @@
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollText, Gavel, Wrench, Sparkles, PawPrint, AlertTriangle, Video } from "lucide-react";
+import { ScrollText, Gavel, Wrench, Sparkles, PawPrint, AlertTriangle, Video, Users } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 export default function Rules() {
@@ -36,7 +36,52 @@ export default function Rules() {
             </Card>
 
             {/* Rules Sections */}
-            <Accordion type="multiple" defaultValue={["bendrosios"]} className="space-y-4">
+            <Accordion type="multiple" defaultValue={["valdymas", "bendrosios"]} className="space-y-4">
+              {/* VALDYMO ORGANAI */}
+              <AccordionItem value="valdymas" className="border rounded-lg bg-card px-4">
+                <AccordionTrigger className="hover:no-underline">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-secondary/10 flex items-center justify-center">
+                      <Users className="h-5 w-5 text-secondary" />
+                    </div>
+                    <span className="font-semibold text-lg">VALDYMO ORGANAI</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pt-4 pb-6">
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div>
+                      <h4 className="font-semibold text-foreground mb-4">Valdybos nariai:</h4>
+                      <ul className="space-y-2 text-muted-foreground">
+                        <li className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-primary"></div>
+                          Simas Palčiauskas
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-primary"></div>
+                          Laura Žuromskytė
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-primary"></div>
+                          Skaistė Lapienė
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-primary"></div>
+                          Jelena Obcarskienė
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-primary"></div>
+                          Tadas Bielskis
+                        </li>
+                      </ul>
+                    </div>
+                    <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
+                      <h4 className="font-semibold text-foreground mb-2">Bendrijos pirmininkas:</h4>
+                      <p className="text-lg font-medium text-primary">Tadas Bielskis</p>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
               {/* BENDROSIOS TAISYKLĖS */}
               <AccordionItem value="bendrosios" className="border rounded-lg bg-card px-4">
                 <AccordionTrigger className="hover:no-underline">
