@@ -42,7 +42,7 @@ export function Header() {
             <img 
               src="/favicon.png" 
               alt="Taurakalnio Namai" 
-              className="h-14 w-14 object-contain hover-scale"
+              className="h-16 w-16 object-contain hover-scale"
             />
             <h1 className="text-sm font-medium tracking-wide text-foreground hidden sm:block">Taurakalnio Namai</h1>
           </Link>
