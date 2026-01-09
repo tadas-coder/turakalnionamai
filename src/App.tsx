@@ -11,6 +11,7 @@ import News from "./pages/News";
 import Invoices from "./pages/Invoices";
 import Rules from "./pages/Rules";
 import Documents from "./pages/Documents";
+import Reports from "./pages/Reports";
 import Profile from "./pages/Profile";
 import PendingApproval from "./pages/PendingApproval";
 import Auth from "./pages/Auth";
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/invoices" element={<Invoices />} />
             <Route path="/rules" element={<Rules />} />
             <Route path="/documents" element={<Documents />} />
+            <Route path="/reports" element={<Reports />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/pending-approval" element={<PendingApproval />} />
             <Route path="/auth" element={<Auth />} />
