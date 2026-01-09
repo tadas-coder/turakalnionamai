@@ -8,6 +8,7 @@ import { AdminTickets } from "@/components/admin/AdminTickets";
 import { AdminNews } from "@/components/admin/AdminNews";
 import { AdminPolls } from "@/components/admin/AdminPolls";
 import { AdminOverview } from "@/components/admin/AdminOverview";
+import { AdminUsers } from "@/components/admin/AdminUsers";
 import { toast } from "sonner";
 
 export default function Admin() {
@@ -51,15 +52,19 @@ export default function Admin() {
               Administratoriaus skydelis
             </h1>
             <p className="text-muted-foreground">
-              Valdykite pranešimus, naujienas ir apklausas
+              Valdykite pranešimus, naujienas, apklausas ir vartotojus
             </p>
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+            <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
               <TabsTrigger value="overview" className="gap-2">
                 <LayoutDashboard className="h-4 w-4" />
                 <span className="hidden sm:inline">Apžvalga</span>
+              </TabsTrigger>
+              <TabsTrigger value="users" className="gap-2">
+                <Users className="h-4 w-4" />
+                <span className="hidden sm:inline">Vartotojai</span>
               </TabsTrigger>
               <TabsTrigger value="tickets" className="gap-2">
                 <Ticket className="h-4 w-4" />
@@ -77,6 +82,10 @@ export default function Admin() {
 
             <TabsContent value="overview" className="animate-fade-in">
               <AdminOverview />
+            </TabsContent>
+
+            <TabsContent value="users" className="animate-fade-in">
+              <AdminUsers />
             </TabsContent>
 
             <TabsContent value="tickets" className="animate-fade-in">

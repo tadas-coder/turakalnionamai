@@ -6,10 +6,12 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   isAdmin: boolean;
+  isApproved: boolean;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  checkApprovalStatus: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -18,6 +20,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isApproved, setIsApproved] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -27,13 +30,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Defer admin check with setTimeout to prevent deadlock
+        // Defer admin and approval check with setTimeout to prevent deadlock
         if (session?.user) {
           setTimeout(() => {
             checkAdminRole(session.user.id);
+            checkApproval(session.user.id);
           }, 0);
         } else {
           setIsAdmin(false);
+          setIsApproved(false);
         }
       }
     );
@@ -44,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
       if (session?.user) {
         checkAdminRole(session.user.id);
+        checkApproval(session.user.id);
       }
       setLoading(false);
     });
@@ -59,7 +65,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq("role", "admin")
       .maybeSingle();
     
-    setIsAdmin(!!data && !error);
+    const isAdminUser = !!data && !error;
+    setIsAdmin(isAdminUser);
+    
+    // Admins are always approved
+    if (isAdminUser) {
+      setIsApproved(true);
+    }
+  };
+
+  const checkApproval = async (userId: string) => {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("approved")
+      .eq("id", userId)
+      .single();
+    
+    if (!error && data) {
+      setIsApproved(data.approved);
+    }
+  };
+
+  const checkApprovalStatus = async (): Promise<boolean> => {
+    if (!user?.id) return false;
+    
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("approved")
+      .eq("id", user.id)
+      .single();
+    
+    if (!error && data) {
+      setIsApproved(data.approved);
+      return data.approved;
+    }
+    return false;
   };
 
   const signIn = async (email: string, password: string) => {
@@ -85,10 +125,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setSession(null);
     setIsAdmin(false);
+    setIsApproved(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, isAdmin, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, session, isAdmin, isApproved, loading, signIn, signUp, signOut, checkApprovalStatus }}>
       {children}
     </AuthContext.Provider>
   );
