@@ -1,6 +1,6 @@
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollText, Gavel, Wrench, Sparkles, PawPrint, AlertTriangle } from "lucide-react";
+import { ScrollText, Gavel, Wrench, Sparkles, PawPrint, AlertTriangle, Video } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 export default function Rules() {
@@ -185,6 +185,76 @@ export default function Rules() {
                     <li>Patalpų savininkai privalo užtikrinti, kad šių taisyklių laikytųsi šeimos nariai, svečiai, tretieji asmenys, kurie valdo ar kitaip naudojasi jo nekilnojamuoju turtu. Išvardintiems asmenims pažeidus taisykles, atsakomybė atitenka būstų savininkams.</li>
                     <li>Patalpų savininkams vengiant apmokėti bendrijai už suteiktas paslaugas, pradžioje raštiški įspėjami, po to jų skola perduodama skolas administruojančiai bendrovei.</li>
                   </ol>
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* VAIZDO DUOMENŲ TVARKYMAS */}
+              <AccordionItem value="vaizdo" className="border rounded-lg bg-card px-4">
+                <AccordionTrigger className="hover:no-underline">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-info/10 flex items-center justify-center">
+                      <Video className="h-5 w-5 text-info" />
+                    </div>
+                    <span className="font-semibold text-lg">VAIZDO DUOMENŲ TVARKYMAS</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pt-4 pb-6 space-y-6 text-muted-foreground">
+                  <p>
+                    Vadovaujantis Bendrojo duomenų apsaugos reglamento (toliau vadinamas „BDAR") nuostatomis, informuojame, kad DNSB „Taurakalnio namai, Vilnius" vykdo vaizdo stebėjimą viešose erdvėse aplink V. Mykolaičio-Putino g. 10, Vilniuje, namą ir pirmo aukšto holą, o taip pat po šiuo namu esančioje požeminėje stovėjimo aikštelėje (toliau šio pastato aplinkinė teritorija ir požeminė stovėjimo aikštelė vadinama „Statiniu"). Šiame informaciniame pranešime pateikiame detalią informaciją apie vykdomą vaizdo stebėjimą, duomenų tvarkymą ir duomenų subjektų teises.
+                  </p>
+
+                  <div className="p-4 bg-muted rounded-lg">
+                    <p className="font-medium text-foreground mb-2">Duomenų valdytojas:</p>
+                    <p>Daugiabučių namų savininkų bendrija „Taurakalnio namai, Vilnius"</p>
+                    <p>Juridinio asmens kodas: 301692533</p>
+                    <p>Adresas: V. Mykolaičio-Putino g. 10, Vilnius</p>
+                    <p>El. p.: taurakalnionamai@gmail.com</p>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-foreground mb-2">Kokią informaciją renkame vaizdo stebėjimo metu?</h4>
+                    <p>Vaizdo stebėjimo metu yra renkami vaizdo duomenys apie asmenis, patenkančius į vaizdo stebėjimo lauką, t.y. patalpose ir teritorijoje, kurioje yra vykdomas vaizdo stebėjimas.</p>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-foreground mb-2">Kokie yra vykdomo vaizdo stebėjimo tikslai?</h4>
+                    <p className="mb-2">Vaizdo stebėjimas yra vykdomas:</p>
+                    <ul className="list-disc list-inside space-y-1 ml-2">
+                      <li>siekiant užtikrinti Statinio gyventojų asmens ir turto saugumą;</li>
+                      <li>siekiant užfiksuoti ir išsaugoti nusikaltimų ir/arba kitų incidentų (turto sugadinimo, vagysčių, kitų neteisėtų veikų) įrodymus teisiniams tyrimams atlikti ateityje;</li>
+                      <li>nusikaltimų prevencijai.</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-foreground mb-2">Koks yra vaizdo duomenų tvarkymo teisinis pagrindas?</h4>
+                    <p>Vaizdo duomenys tvarkomi siekiant teisėtų Duomenų valdytojo ir Statinio gyventojų interesų (BDAR 6 str. 1 d. f punktas) apsaugoti sveikatą ir turtą, fiksuoti nusikaltimus ir/arba kitus incidentus (turto sugadinimus, vagystes, kitas neteisėtas veikas) teisiniams tyrimams atlikti ateityje bei vykdyti nusikaltimų prevenciją.</p>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-foreground mb-2">Kam ir kodėl galime perduoti užfiksuotus vaizdo duomenis?</h4>
+                    <ul className="list-disc list-inside space-y-2 ml-2">
+                      <li>Vaizdo kamerų fiksuojamus vaizdo duomenis realiu laiku gali matyti Statinį saugantys budėtojai.</li>
+                      <li>Vaizdo kamerų įrašytus asmens duomenis gali matyti tik Duomenų valdytojo pirmininkas. Laikantis teisės aktų reikalavimų, šie duomenys taip pat gali būti peržiūrimi ir kitų asmenų, kuriems būtina įrašus peržiūrėti dalyvaujant incidentų/įvykių tyrime.</li>
+                      <li>Vaizdo duomenis taip pat gali gauti ikiteisminio tyrimo ir kitos valstybinės institucijos, teismai ir kt. institucijos, turinčios teisę gauti tokius vaizdo įrašus, jiems priskirtų įsipareigojimų vykdymui, esant teisėtam pagrindui.</li>
+                    </ul>
+                  </div>
+
+                  <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
+                    <h4 className="font-semibold text-foreground mb-2">Kiek laiko saugome vaizdo įrašus?</h4>
+                    <p>Vaizdo įrašai yra saugomi <span className="font-bold">14 dienų</span>. Tiriant incidentą ar įvykį, įrašas gali būti išsaugomas tiek laiko, kiek vyksta tyrimas ar teisinis procesas.</p>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-foreground mb-2">Kokios yra Jūsų teisės?</h4>
+                    <p className="mb-3">Jūs turite teisę prašyti leisti susipažinti su užfiksuotais Jūsų vaizdo duomenimis, prašyti juos ištaisyti ar ištrinti, arba apriboti duomenų tvarkymą, taip pat teisę nesutikti, kad Jūsų duomenys būtų tvarkomi, prašyti perkelti Jūsų duomenis.</p>
+                    <p className="mb-3">Jūsų teisės įgyvendinamos tik gavus Jūsų prašymą, pagal kurį galime Jus identifikuoti ir nustačius, kad Jūsų turite teisę įgyvendinti tokį prašymą pagal BDAR reikalavimus.</p>
+                    <p className="font-medium">Savo prašymą galite pateikti bendrijos pirmininkui adresu: <span className="text-foreground">M. Mironaitės g. 12-46, Vilnius</span>.</p>
+                  </div>
+
+                  <div className="p-4 bg-warning/10 border border-warning/30 rounded-lg">
+                    <p className="text-sm">Jeigu manote, kad Jūsų teisės yra pažeidžiamos, turite teisę pateikti skundą <span className="font-medium">Valstybinei duomenų apsaugos inspekcijai</span>.</p>
+                  </div>
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
