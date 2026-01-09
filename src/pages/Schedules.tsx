@@ -12,7 +12,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ChevronLeft, ChevronRight, Calendar, Wrench, User, Phone, Plus, Trash2, Edit, AlertTriangle } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ChevronLeft, ChevronRight, Calendar, Wrench, User, Phone, Plus, Trash2, Edit, AlertTriangle, Mail, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
@@ -91,6 +92,8 @@ export default function Schedules() {
   const [workType, setWorkType] = useState("maintenance");
   const [workStartDate, setWorkStartDate] = useState("");
   const [workEndDate, setWorkEndDate] = useState("");
+  const [sendNotification, setSendNotification] = useState(true);
+  const [isSendingNotification, setIsSendingNotification] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -226,11 +229,42 @@ export default function Schedules() {
         end_date: workEndDate || null,
       });
       if (error) throw error;
+
+      // Send notification to residents if checkbox is checked
+      if (sendNotification) {
+        setIsSendingNotification(true);
+        try {
+          const { data, error: notifError } = await supabase.functions.invoke("send-work-notification", {
+            body: {
+              title: workTitle,
+              description: workDescription || null,
+              work_type: workType,
+              start_date: workStartDate,
+              end_date: workEndDate || null,
+            },
+          });
+          
+          if (notifError) {
+            console.error("Notification error:", notifError);
+            toast.error("Darbas sukurtas, bet pranešimų išsiųsti nepavyko");
+          } else {
+            console.log("Notification result:", data);
+            toast.success(`Pranešimai išsiųsti ${data.successful} gyventojams`);
+          }
+        } catch (e) {
+          console.error("Failed to send notifications:", e);
+          toast.error("Darbas sukurtas, bet pranešimų išsiųsti nepavyko");
+        } finally {
+          setIsSendingNotification(false);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["planned-works"] });
       queryClient.invalidateQueries({ queryKey: ["upcoming-works"] });
-      toast.success("Darbas pridėtas");
+      if (!sendNotification) {
+        toast.success("Darbas pridėtas");
+      }
       setIsWorkDialogOpen(false);
       resetWorkForm();
     },
@@ -294,6 +328,7 @@ export default function Schedules() {
     setWorkType("maintenance");
     setWorkStartDate("");
     setWorkEndDate("");
+    setSendNotification(true);
   };
 
   const openEditDuty = (duty: DutySchedule) => {
@@ -728,14 +763,38 @@ export default function Schedules() {
                               />
                             </div>
                           </div>
+                          {!editingWork && (
+                            <div className="flex items-center space-x-2 p-3 bg-muted/50 rounded-lg">
+                              <Checkbox
+                                id="send_notification"
+                                checked={sendNotification}
+                                onCheckedChange={(checked) => setSendNotification(checked as boolean)}
+                              />
+                              <div className="flex-1">
+                                <Label htmlFor="send_notification" className="flex items-center gap-2 cursor-pointer">
+                                  <Mail className="h-4 w-4" />
+                                  Išsiųsti pranešimą gyventojams
+                                </Label>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Visi patvirtinti gyventojai gaus el. laišką apie šį darbą
+                                </p>
+                              </div>
+                            </div>
+                          )}
                           <Button
                             className="w-full"
                             onClick={() => editingWork ? updateWorkMutation.mutate() : createWorkMutation.mutate()}
-                            disabled={!workTitle || !workStartDate || createWorkMutation.isPending || updateWorkMutation.isPending}
+                            disabled={!workTitle || !workStartDate || createWorkMutation.isPending || updateWorkMutation.isPending || isSendingNotification}
                           >
-                            {(createWorkMutation.isPending || updateWorkMutation.isPending) 
+                            {isSendingNotification ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Siunčiami pranešimai...
+                              </>
+                            ) : (createWorkMutation.isPending || updateWorkMutation.isPending) 
                               ? "Išsaugoma..." 
-                              : editingWork ? "Atnaujinti" : "Pridėti"}
+                              : editingWork ? "Atnaujinti" : sendNotification ? "Pridėti ir išsiųsti pranešimus" : "Pridėti"
+                            }
                           </Button>
                         </div>
                       </DialogContent>
