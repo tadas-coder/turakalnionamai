@@ -1,8 +1,9 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Ticket, Vote, Newspaper, Receipt, Menu, X } from "lucide-react";
+import { Home, Ticket, Vote, Newspaper, Receipt, Menu, X, LogIn, LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
 const navItems = [
   { path: "/", label: "Pradžia", icon: Home },
@@ -15,6 +16,7 @@ const navItems = [
 export function Header() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, isAdmin, signOut } = useAuth();
 
   return (
     <header className="sticky top-0 z-50 glass-effect border-b border-border">
@@ -51,6 +53,27 @@ export function Header() {
                 </Link>
               );
             })}
+            {isAdmin && (
+              <Link to="/admin">
+                <Button variant={location.pathname === "/admin" ? "default" : "ghost"} size="sm" className="gap-2">
+                  <Settings className="h-4 w-4" />
+                  Administravimas
+                </Button>
+              </Link>
+            )}
+            {user ? (
+              <Button variant="ghost" size="sm" onClick={signOut} className="gap-2">
+                <LogOut className="h-4 w-4" />
+                Atsijungti
+              </Button>
+            ) : (
+              <Link to="/auth">
+                <Button variant="ghost" size="sm" className="gap-2">
+                  <LogIn className="h-4 w-4" />
+                  Prisijungti
+                </Button>
+              </Link>
+            )}
           </nav>
 
           {/* Mobile Menu Button */}
@@ -87,6 +110,27 @@ export function Header() {
                   </Link>
                 );
               })}
+              {isAdmin && (
+                <Link to="/admin" onClick={() => setMobileMenuOpen(false)}>
+                  <Button variant={location.pathname === "/admin" ? "default" : "ghost"} className="w-full justify-start gap-3">
+                    <Settings className="h-4 w-4" />
+                    Administravimas
+                  </Button>
+                </Link>
+              )}
+              {user ? (
+                <Button variant="ghost" className="w-full justify-start gap-3" onClick={() => { signOut(); setMobileMenuOpen(false); }}>
+                  <LogOut className="h-4 w-4" />
+                  Atsijungti
+                </Button>
+              ) : (
+                <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
+                  <Button variant="ghost" className="w-full justify-start gap-3">
+                    <LogIn className="h-4 w-4" />
+                    Prisijungti
+                  </Button>
+                </Link>
+              )}
             </div>
           </nav>
         )}
