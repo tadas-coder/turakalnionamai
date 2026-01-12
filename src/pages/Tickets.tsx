@@ -7,14 +7,16 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Send, AlertTriangle, X, History, Clock, CheckCircle, Loader2, Calendar, MapPin } from "lucide-react";
+import { Upload, Send, AlertTriangle, X, History, Clock, CheckCircle, Loader2, Calendar, MapPin, Camera } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useUnreadTickets } from "@/hooks/useUnreadTickets";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const issueTypes = [
   { value: "doors", label: "Durų problemos" },
@@ -57,13 +59,17 @@ const getStatusIcon = (status: string) => {
 };
 
 export default function Tickets() {
-  const { user, isApproved } = useAuth();
+  const { user, isApproved, loading } = useAuth();
+  const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { isTicketUnread, markAsRead, markAllAsRead, unreadCount } = useUnreadTickets();
   const [images, setImages] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState("new");
   const autoMarkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -71,6 +77,14 @@ export default function Tickets() {
     issueType: "",
     description: "",
   });
+
+  // Redirect to auth if not logged in
+  useEffect(() => {
+    if (!loading && !user) {
+      toast.error("Prisijunkite, kad galėtumėte pranešti apie problemą");
+      navigate("/auth");
+    }
+  }, [user, loading, navigate]);
 
   // Auto-mark all as read after 2 seconds when viewing history tab
   useEffect(() => {
@@ -215,6 +229,22 @@ export default function Tickets() {
     return issueTypes.find(t => t.value === category)?.label || category;
   };
 
+  // Show loading state
+  if (loading) {
+    return (
+      <Layout>
+        <div className="py-12 bg-muted min-h-screen flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
+
+  // Don't render if not logged in (will redirect)
+  if (!user) {
+    return null;
+  }
+
   return (
     <Layout>
       <div className="py-12 bg-muted min-h-screen">
@@ -339,27 +369,57 @@ export default function Tickets() {
 
                       <div className="space-y-3">
                         <Label>Nuotraukos (neprivaloma)</Label>
-                        <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-primary/50 transition-colors">
+                        
+                        {/* Camera and Upload buttons */}
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          {/* Camera button - only show on mobile */}
+                          {isMobile && (
+                            <>
+                              <input
+                                ref={cameraInputRef}
+                                type="file"
+                                accept="image/*"
+                                capture="environment"
+                                onChange={handleImageChange}
+                                className="hidden"
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="flex-1 gap-2"
+                                onClick={() => cameraInputRef.current?.click()}
+                                disabled={images.length >= 5}
+                              >
+                                <Camera className="h-5 w-5" />
+                                Fotografuoti
+                              </Button>
+                            </>
+                          )}
+                          
+                          {/* Upload button */}
                           <input
+                            ref={fileInputRef}
                             type="file"
-                            id="images"
                             accept="image/*"
                             multiple
                             onChange={handleImageChange}
                             className="hidden"
                           />
-                          <label htmlFor="images" className="cursor-pointer">
-                            <div className="flex flex-col items-center gap-2">
-                              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                                <Upload className="h-6 w-6 text-primary" />
-                              </div>
-                              <p className="text-sm font-medium">Įkelti nuotraukas</p>
-                              <p className="text-xs text-muted-foreground">
-                                Iki 5 nuotraukų (PNG, JPG)
-                              </p>
-                            </div>
-                          </label>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="flex-1 gap-2"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={images.length >= 5}
+                          >
+                            <Upload className="h-5 w-5" />
+                            Įkelti nuotraukas
+                          </Button>
                         </div>
+                        
+                        <p className="text-xs text-muted-foreground text-center">
+                          Iki 5 nuotraukų (PNG, JPG)
+                        </p>
 
                         {previews.length > 0 && (
                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
@@ -373,7 +433,7 @@ export default function Tickets() {
                                 <button
                                   type="button"
                                   onClick={() => removeImage(index)}
-                                  className="absolute top-2 right-2 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                  className="absolute top-2 right-2 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 md:opacity-100 transition-opacity"
                                 >
                                   <X className="h-4 w-4" />
                                 </button>

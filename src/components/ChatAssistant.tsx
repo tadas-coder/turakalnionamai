@@ -26,6 +26,15 @@ export function ChatAssistant() {
     }
   }, [messages]);
 
+  // Listen for custom event to open chat assistant
+  useEffect(() => {
+    const handleOpenChat = () => {
+      setIsOpen(true);
+    };
+    window.addEventListener("openChatAssistant", handleOpenChat);
+    return () => window.removeEventListener("openChatAssistant", handleOpenChat);
+  }, []);
+
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
 
