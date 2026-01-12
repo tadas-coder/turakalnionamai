@@ -24,7 +24,7 @@ const moreItems = [
   { path: "/news", label: "Naujienos", icon: Newspaper },
   { path: "/schedules", label: "Grafikai", icon: CalendarDays },
   { path: "/invoices", label: "Sąskaitos", icon: Receipt },
-  { path: "/documents", label: "Dokumentai", icon: FileText },
+  { path: "/documents", label: "Dokumentai", icon: FileText, authRequired: true },
   { path: "/reports", label: "Ataskaitos", icon: ClipboardList },
   { path: "/financial-report", label: "Finansinė ataskaita", icon: PieChart },
   { path: "/ticket-statistics", label: "Problemų statistika", icon: BarChart3, adminOnly: true },
@@ -114,6 +114,7 @@ export function Header() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48 bg-background border z-50">
                     {moreItems
+                      .filter((item) => !item.authRequired || user)
                       .filter((item) => !item.adminOnly || isAdmin)
                       .map((item) => {
                         const Icon = item.icon;
@@ -243,6 +244,7 @@ export function Header() {
                     <p className="text-xs text-muted-foreground px-4 mb-2">Daugiau</p>
                     {moreItems
                       .filter((item) => !item.adminOnly || isAdmin)
+                      .filter((item) => !item.authRequired || user)
                       .map((item) => {
                         const Icon = item.icon;
                         const isActive = location.pathname === item.path;
