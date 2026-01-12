@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages } = await req.json();
+    const { messages, documentContent, documentName } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -77,8 +77,14 @@ serve(async (req) => {
       }
     }
 
+    // Document context
+    let documentContext = "";
+    if (documentContent && documentName) {
+      documentContext = `\n\n### Vartotojo įkeltas dokumentas "${documentName}":\n${documentContent.substring(0, 15000)}${documentContent.length > 15000 ? "\n\n[Dokumentas sutrumpintas dėl dydžio apribojimų...]" : ""}`;
+    }
+
     console.log("Starting chat request with", messages.length, "messages");
-    console.log("Context loaded - News:", newsContext ? "yes" : "no", "Polls:", pollsContext ? "yes" : "no", "Works:", worksContext ? "yes" : "no");
+    console.log("Context loaded - News:", newsContext ? "yes" : "no", "Polls:", pollsContext ? "yes" : "no", "Works:", worksContext ? "yes" : "no", "Document:", documentContent ? "yes" : "no");
 
     const systemPrompt = `Esi draugiškas ir naudingas DNSB "Taurakalnio Namai" virtualus asistentas. Tu padedi gyventojams atsakyti į klausimus apie:
 - Namo valdymą ir administravimą
@@ -89,6 +95,7 @@ serve(async (req) => {
 - Taisykles ir dokumentus
 - Kontaktinius duomenis
 - Planuojamus darbus
+- Įkeltus dokumentus ir jų turinį
 
 Atsakyk trumpai, aiškiai ir draugiškai lietuvių kalba. Jei nežinai atsakymo, nukreipk gyventoją kreiptis į administratorių.
 
@@ -96,8 +103,9 @@ Atsakyk trumpai, aiškiai ir draugiškai lietuvių kalba. Jei nežinai atsakymo,
 ${newsContext || "\nŠiuo metu nėra naujų naujienų."}
 ${pollsContext || "\nŠiuo metu nėra aktyvių apklausų."}
 ${worksContext || "\nŠiuo metu nėra planuojamų darbų."}
+${documentContext}
 
-Kai vartotojas klausia apie naujienas, apklausas ar planuojamus darbus, naudok šią informaciją atsakydamas. Jei klausia apie konkrečią temą, kurią randi sąraše - pateik išsamią informaciją.`;
+Kai vartotojas įkėlė dokumentą, atsakyk į klausimus remdamasis to dokumento turiniu. Jei klausia apie naujienas, apklausas ar planuojamus darbus, naudok atitinkamą informaciją.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
