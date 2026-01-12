@@ -3,11 +3,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageCircle, X, Send, Bot, User, Loader2 } from "lucide-react";
+import { MessageCircle, X, Send, Bot, User, Loader2, FileText, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface Message {
   role: "user" | "assistant";
+  content: string;
+}
+
+interface DocumentInfo {
+  name: string;
   content: string;
 }
 
@@ -18,7 +23,10 @@ export function ChatAssistant() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [uploadedDocument, setUploadedDocument] = useState<DocumentInfo | null>(null);
+  const [isParsingDocument, setIsParsingDocument] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -34,6 +42,83 @@ export function ChatAssistant() {
     window.addEventListener("openChatAssistant", handleOpenChat);
     return () => window.removeEventListener("openChatAssistant", handleOpenChat);
   }, []);
+
+  // Parse document content
+  const parseDocument = async (file: File): Promise<string> => {
+    const fileType = file.type;
+    const fileName = file.name.toLowerCase();
+
+    // Handle text files directly
+    if (fileType.startsWith("text/") || fileName.endsWith(".txt") || fileName.endsWith(".md")) {
+      return await file.text();
+    }
+
+    // Handle JSON files
+    if (fileType === "application/json" || fileName.endsWith(".json")) {
+      const text = await file.text();
+      try {
+        const parsed = JSON.parse(text);
+        return JSON.stringify(parsed, null, 2);
+      } catch {
+        return text;
+      }
+    }
+
+    // For other files (PDF, DOCX), we'll use a simple text extraction approach
+    if (fileType === "application/pdf" || fileName.endsWith(".pdf")) {
+      throw new Error("PDF failų skaitymas reikalauja papildomo apdorojimo. Prašome įkelti tekstinį failą (.txt, .md).");
+    }
+
+    // Try reading as text for other file types
+    try {
+      return await file.text();
+    } catch {
+      throw new Error("Nepavyko perskaityti failo turinio.");
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check file size (max 1MB for text content)
+    if (file.size > 1024 * 1024) {
+      toast.error("Failas per didelis. Maksimalus dydis: 1MB");
+      return;
+    }
+
+    setIsParsingDocument(true);
+    try {
+      const content = await parseDocument(file);
+      setUploadedDocument({
+        name: file.name,
+        content: content,
+      });
+      toast.success(`Dokumentas "${file.name}" įkeltas sėkmingai!`);
+      
+      // Add system message about the document
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: `📄 Dokumentas "${file.name}" įkeltas. Dabar galite užduoti klausimus apie jo turinį!`
+      }]);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Nepavyko įkelti dokumento");
+    } finally {
+      setIsParsingDocument(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const removeDocument = () => {
+    setUploadedDocument(null);
+    setMessages(prev => [...prev, {
+      role: "assistant",
+      content: "📄 Dokumentas pašalintas. Galite įkelti naują dokumentą arba tęsti pokalbį."
+    }]);
+  };
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
@@ -52,7 +137,11 @@ export function ChatAssistant() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ messages: [...messages, userMessage] }),
+        body: JSON.stringify({ 
+          messages: [...messages, userMessage],
+          documentContent: uploadedDocument?.content || null,
+          documentName: uploadedDocument?.name || null,
+        }),
       });
 
       if (!response.ok) {
@@ -137,9 +226,18 @@ export function ChatAssistant() {
         {isOpen ? <X className="h-7 w-7" /> : <MessageCircle className="h-7 w-7" />}
       </Button>
 
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".txt,.md,.json,.csv,.xml"
+        onChange={handleFileUpload}
+        className="hidden"
+      />
+
       {/* Chat window */}
       {isOpen && (
-        <Card className="fixed bottom-24 right-6 w-[360px] max-w-[calc(100vw-3rem)] h-[500px] max-h-[calc(100vh-8rem)] shadow-2xl z-50 flex flex-col animate-fade-in">
+        <Card className="fixed bottom-24 right-6 w-[360px] max-w-[calc(100vw-3rem)] h-[550px] max-h-[calc(100vh-8rem)] shadow-2xl z-50 flex flex-col animate-fade-in">
           <CardHeader className="pb-3 border-b">
             <CardTitle className="flex items-center gap-2 text-lg">
               <Bot className="h-5 w-5 text-primary" />
@@ -147,12 +245,43 @@ export function ChatAssistant() {
             </CardTitle>
           </CardHeader>
           <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
+            {/* Document upload indicator */}
+            {uploadedDocument && (
+              <div className="px-4 py-2 bg-primary/5 border-b flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <FileText className="h-4 w-4 text-primary flex-shrink-0" />
+                  <span className="text-xs text-muted-foreground truncate">
+                    {uploadedDocument.name}
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 flex-shrink-0"
+                  onClick={removeDocument}
+                >
+                  <Trash2 className="h-3 w-3 text-muted-foreground" />
+                </Button>
+              </div>
+            )}
+            
             <ScrollArea className="flex-1 p-4" ref={scrollRef}>
               {messages.length === 0 ? (
-                <div className="text-center text-muted-foreground py-8">
-                  <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p className="text-sm">Sveiki! Kaip galiu jums padėti?</p>
-                  <p className="text-xs mt-2">Klauskite apie namo valdymą, pranešimus, sąskaitas ir kt.</p>
+                <div className="text-center text-muted-foreground py-6">
+                  <Bot className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                  <p className="text-sm font-medium">Sveiki! Kaip galiu padėti?</p>
+                  <p className="text-xs mt-2 mb-4">Klauskite apie namo valdymą, pranešimus, sąskaitas ir kt.</p>
+                  <div className="flex justify-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-2 text-xs"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <FileText className="h-3 w-3" />
+                      Įkelti dokumentą
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -187,8 +316,23 @@ export function ChatAssistant() {
                 </div>
               )}
             </ScrollArea>
+            
             <div className="p-4 border-t">
               <div className="flex gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isLoading || isParsingDocument}
+                  title="Įkelti dokumentą"
+                  className="flex-shrink-0"
+                >
+                  {isParsingDocument ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileText className="h-4 w-4" />
+                  )}
+                </Button>
                 <Input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
