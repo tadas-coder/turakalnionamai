@@ -20,7 +20,7 @@ async function sendEmail(to: string[], subject: string, html: string) {
       Authorization: `Bearer ${RESEND_API_KEY}`,
     },
     body: JSON.stringify({
-      from: "Taurakalnio Namai <onboarding@resend.dev>",
+      from: "Taurakalnio Namai <info@taurakalnionamai.lt>",
       to,
       subject,
       html,
@@ -47,45 +47,56 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Processing approval notification for:", userEmail);
 
-    // Send email to admin about approved user (temporary - until domain is verified in Resend)
-    const ADMIN_EMAIL = "taurakalnionamai@gmail.com";
-    
-    const adminEmailResponse = await sendEmail(
-      [ADMIN_EMAIL],
-      `Vartotojas patvirtintas: ${userName || userEmail}`,
+    // Send email directly to the approved user
+    const userEmailResponse = await sendEmail(
+      [userEmail],
+      `Jūsų paskyra patvirtinta - Taurakalnio Namai`,
       `
         <!DOCTYPE html>
         <html>
         <head>
           <meta charset="utf-8">
           <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
             .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: linear-gradient(135deg, #0d9488, #0891b2); color: white; padding: 20px; border-radius: 8px 8px 0 0; }
-            .content { background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px; }
-            .info-box { background: #ecfdf5; border: 1px solid #10b981; padding: 15px; border-radius: 6px; margin: 15px 0; }
-            .footer { margin-top: 20px; padding-top: 15px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #6b7280; }
+            .header { background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); color: white; padding: 30px; border-radius: 12px 12px 0 0; text-align: center; }
+            .content { background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; }
+            .success-box { background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center; }
+            .button { display: inline-block; background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 15px; }
+            .footer { background: #f9fafb; padding: 20px; border-radius: 0 0 12px 12px; text-align: center; font-size: 12px; color: #6b7280; }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
-              <h1 style="margin: 0; font-size: 20px;">✅ Vartotojas patvirtintas</h1>
-              <p style="margin: 5px 0 0 0; opacity: 0.9;">Taurakalnio Namai gyventojų portalas</p>
+              <h1 style="margin: 0; font-size: 24px;">🎉 Sveikiname!</h1>
+              <p style="margin: 10px 0 0 0; opacity: 0.9;">Jūsų paskyra patvirtinta</p>
             </div>
             <div class="content">
-              <p>Šis vartotojas buvo sėkmingai patvirtintas ir dabar gali prisijungti prie portalo:</p>
-              <div class="info-box">
-                <p style="margin: 0;"><strong>Vardas:</strong> ${userName || "Nenurodyta"}</p>
-                <p style="margin: 5px 0 0 0;"><strong>El. paštas:</strong> ${userEmail}</p>
+              <p>Gerb. ${userName || "Gyventojau"},</p>
+              <p>Džiaugiamės galėdami pranešti, kad Jūsų paskyra Taurakalnio Namų gyventojų portale buvo sėkmingai patvirtinta.</p>
+              
+              <div class="success-box">
+                <p style="margin: 0; font-size: 18px; color: #22c55e;">✅ Paskyra aktyvuota</p>
+                <p style="margin: 10px 0 0 0; color: #6b7280;">Dabar galite naudotis visomis portalo funkcijomis</p>
               </div>
-              <p style="font-size: 13px; color: #6b7280;">
-                <em>Pastaba: Šis laiškas siunčiamas administratoriui, nes Resend domenas dar nepatvirtintas. 
-                Patvirtinus domeną, laiškai bus siunčiami tiesiogiai vartotojams.</em>
+
+              <p>Portale galite:</p>
+              <ul>
+                <li>Peržiūrėti ir teikti pranešimus apie gedimus</li>
+                <li>Skaityti naujienas ir pranešimus</li>
+                <li>Dalyvauti balsavimuose</li>
+                <li>Peržiūrėti dokumentus ir tvarkaraščius</li>
+              </ul>
+
+              <p style="margin-top: 20px; color: #6b7280;">
+                Jei turite klausimų, susisiekite su administracija el. paštu 
+                <a href="mailto:taurakalnionamai@gmail.com">taurakalnionamai@gmail.com</a>
               </p>
-              <div class="footer">
-                <p>Taurakalnio Namų administracija</p>
-              </div>
+            </div>
+            <div class="footer">
+              <p style="margin: 0;">DNSB „Taurakalnio Namai"</p>
+              <p style="margin: 5px 0 0 0;">Automatinis pranešimas</p>
             </div>
           </div>
         </body>
@@ -93,12 +104,12 @@ const handler = async (req: Request): Promise<Response> => {
       `
     );
 
-    console.log("Approval notification email sent to admin:", adminEmailResponse);
+    console.log("Approval notification email sent to user:", userEmailResponse);
 
     return new Response(
       JSON.stringify({
         success: true,
-        adminEmail: adminEmailResponse,
+        userEmail: userEmailResponse,
       }),
       {
         status: 200,
