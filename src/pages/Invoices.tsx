@@ -1,12 +1,12 @@
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Receipt, CreditCard, CheckCircle2, AlertCircle, Clock, TrendingUp } from "lucide-react";
+import { Receipt, CreditCard, CheckCircle2, AlertCircle, Clock, TrendingUp, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -51,6 +51,10 @@ const formatMonth = (dateStr: string) => {
 export default function Invoices() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const queryClient = useQueryClient();
+  const [payingInvoiceId, setPayingInvoiceId] = useState<string | null>(null);
+  const [verifyingPayment, setVerifyingPayment] = useState(false);
 
   const { data: invoices = [], isLoading: invoicesLoading } = useQuery({
     queryKey: ["invoices", user?.id],
@@ -66,6 +70,49 @@ export default function Invoices() {
     },
     enabled: !!user?.id,
   });
+
+  // Handle payment success/cancel from URL params
+  useEffect(() => {
+    const payment = searchParams.get("payment");
+    const sessionId = searchParams.get("session_id");
+
+    if (payment === "success" && sessionId && !verifyingPayment) {
+      setVerifyingPayment(true);
+      
+      const verifyPayment = async () => {
+        try {
+          const { data, error } = await supabase.functions.invoke("verify-invoice-payment", {
+            body: { sessionId },
+          });
+
+          if (error) throw error;
+
+          if (data.success) {
+            toast.success("Mokėjimas sėkmingas!", {
+              description: "Jūsų sąskaitos buvo apmokėtos.",
+            });
+            queryClient.invalidateQueries({ queryKey: ["invoices"] });
+          } else {
+            toast.error("Mokėjimas nepatvirtintas", {
+              description: data.message || "Bandykite dar kartą.",
+            });
+          }
+        } catch (error) {
+          console.error("Payment verification error:", error);
+          toast.error("Klaida tikrinant mokėjimą");
+        } finally {
+          setVerifyingPayment(false);
+          // Clear URL params
+          setSearchParams({});
+        }
+      };
+
+      verifyPayment();
+    } else if (payment === "cancelled") {
+      toast.info("Mokėjimas atšauktas");
+      setSearchParams({});
+    }
+  }, [searchParams, queryClient, setSearchParams, verifyingPayment]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -86,11 +133,46 @@ export default function Invoices() {
       status: inv.status,
     }));
 
-  if (loading || invoicesLoading) {
+  const handlePayment = async (invoiceId: string) => {
+    setPayingInvoiceId(invoiceId);
+    
+    try {
+      const body = invoiceId === "all" 
+        ? { invoiceId: "all" }
+        : { invoiceId };
+
+      const { data, error } = await supabase.functions.invoke("create-invoice-payment", {
+        body,
+      });
+
+      if (error) throw error;
+
+      if (data.url) {
+        // Open Stripe checkout in new tab
+        window.open(data.url, "_blank");
+      } else {
+        throw new Error("No checkout URL returned");
+      }
+    } catch (error) {
+      console.error("Payment error:", error);
+      toast.error("Klaida kuriant mokėjimą", {
+        description: "Bandykite dar kartą vėliau.",
+      });
+    } finally {
+      setPayingInvoiceId(null);
+    }
+  };
+
+  if (loading || invoicesLoading || verifyingPayment) {
     return (
       <Layout>
         <div className="min-h-screen flex items-center justify-center">
-          <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <div className="flex flex-col items-center gap-4">
+            <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+            {verifyingPayment && (
+              <p className="text-muted-foreground">Tikrinama mokėjimo būsena...</p>
+            )}
+          </div>
         </div>
       </Layout>
     );
@@ -99,12 +181,6 @@ export default function Invoices() {
   if (!user) {
     return null;
   }
-
-  const handlePayment = (invoiceId: string) => {
-    toast.info("Mokėjimo sistema netrukus bus aktyvi", {
-      description: "Šiuo metu mokėjimas internetu nėra galimas.",
-    });
-  };
 
   return (
     <Layout>
@@ -136,8 +212,17 @@ export default function Invoices() {
                       <p className="text-2xl font-bold text-destructive">{unpaidTotal.toFixed(2)} €</p>
                     </div>
                   </div>
-                  <Button variant="hero" size="lg" onClick={() => handlePayment("all")}>
-                    <CreditCard className="h-4 w-4" />
+                  <Button 
+                    variant="hero" 
+                    size="lg" 
+                    onClick={() => handlePayment("all")}
+                    disabled={payingInvoiceId !== null}
+                  >
+                    {payingInvoiceId === "all" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <CreditCard className="h-4 w-4" />
+                    )}
                     Apmokėti viską
                   </Button>
                 </CardContent>
@@ -243,8 +328,13 @@ export default function Invoices() {
                                 <Button
                                   size="sm"
                                   onClick={() => handlePayment(invoice.id)}
+                                  disabled={payingInvoiceId !== null}
                                 >
-                                  <CreditCard className="h-4 w-4" />
+                                  {payingInvoiceId === invoice.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <CreditCard className="h-4 w-4" />
+                                  )}
                                   Mokėti
                                 </Button>
                               )}

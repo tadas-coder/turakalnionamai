@@ -35,3 +35,9 @@ verify_jwt = false
 
 [functions.send-invoice-reminders]
 verify_jwt = false
+
+[functions.create-invoice-payment]
+verify_jwt = false
+
+[functions.verify-invoice-payment]
+verify_jwt = false
