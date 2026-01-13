@@ -417,11 +417,11 @@ export function AdminMonthlyReports() {
               </div>
 
               <div>
-                <Label>Excel failas (neprivaloma)</Label>
+                <Label>Excel/PDF failas (neprivaloma)</Label>
                 <div className="mt-1">
                   <Input
                     type="file"
-                    accept=".xlsx,.xls,.csv"
+                    accept=".xlsx,.xls,.csv,.pdf"
                     onChange={(e) => setFile(e.target.files?.[0] || null)}
                   />
                 </div>
@@ -453,7 +453,14 @@ export function AdminMonthlyReports() {
         <Card>
           <CardContent className="py-12 text-center">
             <FileSpreadsheet className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">Kol kas nėra mėnesio ataskaitų</p>
+            <p className="text-muted-foreground mb-4">Kol kas nėra mėnesio ataskaitų</p>
+            <Button 
+              onClick={() => setIsDialogOpen(true)}
+              className="gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Pridėti pirmą ataskaitą
+            </Button>
           </CardContent>
         </Card>
       ) : (
