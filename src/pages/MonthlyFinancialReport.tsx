@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, TrendingUp, TrendingDown, Euro, Wallet, Calendar, Download, ChevronLeft, ChevronRight } from "lucide-react";
+import { FileText, TrendingUp, TrendingDown, Euro, Wallet, Calendar, Download, ChevronLeft, ChevronRight, BarChart3, PieChart as PieChartIcon } from "lucide-react";
 import { format } from "date-fns";
 import { lt } from "date-fns/locale";
 import {
@@ -18,6 +18,12 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+  LineChart,
+  Line,
 } from "recharts";
 
 type MonthlyReport = {
@@ -262,6 +268,144 @@ export default function MonthlyFinancialReport() {
                           </CardContent>
                         </Card>
                       </div>
+                    )}
+
+                    {/* Charts Section */}
+                    {selectedReport.summary_data && (
+                      <div className="grid lg:grid-cols-2 gap-6 mb-8">
+                        {/* Summary Bar Chart */}
+                        <Card>
+                          <CardHeader className="pb-2">
+                            <div className="flex items-center gap-2">
+                              <BarChart3 className="h-5 w-5 text-primary" />
+                              <CardTitle className="text-lg">Finansų apžvalga</CardTitle>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <ResponsiveContainer width="100%" height={250}>
+                              <BarChart
+                                data={[
+                                  { name: "Likutis pr.", value: selectedReport.summary_data.likutisPr, fill: "#64748b" },
+                                  { name: "Priskaitymai", value: selectedReport.summary_data.priskaitymai, fill: "#10b981" },
+                                  { name: "Išleista", value: selectedReport.summary_data.isleista, fill: "#ef4444" },
+                                  { name: "Likutis pab.", value: selectedReport.summary_data.likutisPab, fill: "#3b82f6" },
+                                ]}
+                                margin={{ top: 20, right: 20, left: 20, bottom: 5 }}
+                              >
+                                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                                <XAxis dataKey="name" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+                                <YAxis tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                                <Tooltip
+                                  formatter={(value: number) => formatCurrency(value)}
+                                  contentStyle={{
+                                    backgroundColor: "hsl(var(--card))",
+                                    border: "1px solid hsl(var(--border))",
+                                    borderRadius: "8px",
+                                  }}
+                                />
+                                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                                  {[
+                                    { name: "Likutis pr.", fill: "#64748b" },
+                                    { name: "Priskaitymai", fill: "#10b981" },
+                                    { name: "Išleista", fill: "#ef4444" },
+                                    { name: "Likutis pab.", fill: "#3b82f6" },
+                                  ].map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                                  ))}
+                                </Bar>
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </CardContent>
+                        </Card>
+
+                        {/* Pie Chart for Income vs Expenses */}
+                        <Card>
+                          <CardHeader className="pb-2">
+                            <div className="flex items-center gap-2">
+                              <PieChartIcon className="h-5 w-5 text-primary" />
+                              <CardTitle className="text-lg">Pajamos vs Išlaidos</CardTitle>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <ResponsiveContainer width="100%" height={250}>
+                              <PieChart>
+                                <Pie
+                                  data={[
+                                    { name: "Priskaitymai", value: selectedReport.summary_data.priskaitymai, fill: "#10b981" },
+                                    { name: "Išleista", value: selectedReport.summary_data.isleista, fill: "#ef4444" },
+                                  ]}
+                                  cx="50%"
+                                  cy="50%"
+                                  innerRadius={60}
+                                  outerRadius={90}
+                                  paddingAngle={5}
+                                  dataKey="value"
+                                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                                  labelLine={false}
+                                >
+                                  <Cell fill="#10b981" />
+                                  <Cell fill="#ef4444" />
+                                </Pie>
+                                <Tooltip
+                                  formatter={(value: number) => formatCurrency(value)}
+                                  contentStyle={{
+                                    backgroundColor: "hsl(var(--card))",
+                                    border: "1px solid hsl(var(--border))",
+                                    borderRadius: "8px",
+                                  }}
+                                />
+                                <Legend />
+                              </PieChart>
+                            </ResponsiveContainer>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    )}
+
+                    {/* Categories Chart */}
+                    {selectedReport.main_categories && selectedReport.main_categories.length > 0 && (
+                      <Card className="mb-8">
+                        <CardHeader className="pb-2">
+                          <div className="flex items-center gap-2">
+                            <BarChart3 className="h-5 w-5 text-primary" />
+                            <CardTitle className="text-lg">Kategorijų palyginimas</CardTitle>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <ResponsiveContainer width="100%" height={300}>
+                            <BarChart
+                              data={selectedReport.main_categories.slice(0, 8).map(cat => ({
+                                name: cat.name.length > 15 ? cat.name.substring(0, 15) + '...' : cat.name,
+                                Priskaitymai: cat.priskaitymai,
+                                Išleista: cat.isleista,
+                              }))}
+                              margin={{ top: 20, right: 20, left: 20, bottom: 60 }}
+                            >
+                              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                              <XAxis 
+                                dataKey="name" 
+                                tick={{ fontSize: 11 }} 
+                                stroke="hsl(var(--muted-foreground))" 
+                                angle={-45}
+                                textAnchor="end"
+                                height={80}
+                              />
+                              <YAxis tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                              <Tooltip
+                                formatter={(value: number) => formatCurrency(value)}
+                                contentStyle={{
+                                  backgroundColor: "hsl(var(--card))",
+                                  border: "1px solid hsl(var(--border))",
+                                  borderRadius: "8px",
+                                }}
+                              />
+                              <Legend />
+                              <Bar dataKey="Priskaitymai" fill="#10b981" radius={[4, 4, 0, 0]} />
+                              <Bar dataKey="Išleista" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </CardContent>
+                      </Card>
                     )}
 
                     {/* Main Categories Table */}

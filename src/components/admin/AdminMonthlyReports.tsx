@@ -10,9 +10,10 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Upload, FileSpreadsheet, Trash2, Edit, Calendar, Eye, EyeOff } from "lucide-react";
+import { Plus, Upload, FileSpreadsheet, Trash2, Edit, Calendar, Eye, EyeOff, Loader2 } from "lucide-react";
 import { format, parse } from "date-fns";
 import { lt } from "date-fns/locale";
+import * as XLSX from "xlsx";
 
 type MonthlyReport = {
   id: string;
@@ -71,6 +72,20 @@ export function AdminMonthlyReports() {
   const [title, setTitle] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [editingReport, setEditingReport] = useState<MonthlyReport | null>(null);
+  const [isParsingFile, setIsParsingFile] = useState(false);
+  const [mainCategories, setMainCategories] = useState<Array<{
+    name: string;
+    likutisPr: number;
+    priskaitymai: number;
+    isleista: number;
+    likutisPab: number;
+  }>>([]);
+  const [detailedCategories, setDetailedCategories] = useState<Array<{
+    name: string;
+    priskaitymai: number;
+    isleista: number;
+    color: string;
+  }>>([]);
   const [summaryData, setSummaryData] = useState({
     likutisPr: "",
     priskaitymai: "",
@@ -79,6 +94,129 @@ export function AdminMonthlyReports() {
   });
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Parse Excel file and extract data
+  const parseExcelFile = async (fileToProcess: File) => {
+    setIsParsingFile(true);
+    try {
+      const data = await fileToProcess.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as unknown[][];
+
+      // Try to extract summary data from common patterns
+      let extractedSummary = { likutisPr: 0, priskaitymai: 0, isleista: 0, likutisPab: 0 };
+      const extractedCategories: Array<{ name: string; likutisPr: number; priskaitymai: number; isleista: number; likutisPab: number }> = [];
+      const colors = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#ec4899", "#84cc16"];
+
+      // Search for keywords in the data
+      for (let i = 0; i < jsonData.length; i++) {
+        const row = jsonData[i];
+        if (!row || row.length === 0) continue;
+
+        const firstCell = String(row[0] || "").toLowerCase();
+        
+        // Look for summary row patterns
+        if (firstCell.includes("likutis") && firstCell.includes("pradžio")) {
+          extractedSummary.likutisPr = parseFloat(String(row[1] || row[2] || 0)) || 0;
+        }
+        if (firstCell.includes("priskaitym") || firstCell.includes("pajamos") || firstCell.includes("gauta")) {
+          extractedSummary.priskaitymai = parseFloat(String(row[1] || row[2] || 0)) || 0;
+        }
+        if (firstCell.includes("išlaid") || firstCell.includes("isleist") || firstCell.includes("mokėjim")) {
+          extractedSummary.isleista = parseFloat(String(row[1] || row[2] || 0)) || 0;
+        }
+        if (firstCell.includes("likutis") && (firstCell.includes("pabaig") || firstCell.includes("galutinis"))) {
+          extractedSummary.likutisPab = parseFloat(String(row[1] || row[2] || 0)) || 0;
+        }
+
+        // Try to find category data (rows with name and numeric values)
+        if (row.length >= 3) {
+          const name = String(row[0] || "").trim();
+          const val1 = parseFloat(String(row[1] || 0));
+          const val2 = parseFloat(String(row[2] || 0));
+          const val3 = parseFloat(String(row[3] || 0));
+          const val4 = parseFloat(String(row[4] || 0));
+          
+          // If it's a valid category row (has a name and at least one numeric value)
+          if (name && name.length > 2 && name.length < 50 && !name.toLowerCase().includes("suma") && !name.toLowerCase().includes("iš viso") && (val1 || val2 || val3 || val4)) {
+            if (!isNaN(val1) && !isNaN(val2) && !isNaN(val3) && !isNaN(val4) && row.length >= 5) {
+              extractedCategories.push({
+                name,
+                likutisPr: val1,
+                priskaitymai: val2,
+                isleista: val3,
+                likutisPab: val4,
+              });
+            }
+          }
+        }
+      }
+
+      // Calculate summary from categories if not found directly
+      if (extractedCategories.length > 0) {
+        const totals = extractedCategories.reduce(
+          (acc, cat) => ({
+            likutisPr: acc.likutisPr + cat.likutisPr,
+            priskaitymai: acc.priskaitymai + cat.priskaitymai,
+            isleista: acc.isleista + cat.isleista,
+            likutisPab: acc.likutisPab + cat.likutisPab,
+          }),
+          { likutisPr: 0, priskaitymai: 0, isleista: 0, likutisPab: 0 }
+        );
+        
+        if (extractedSummary.likutisPr === 0) extractedSummary.likutisPr = totals.likutisPr;
+        if (extractedSummary.priskaitymai === 0) extractedSummary.priskaitymai = totals.priskaitymai;
+        if (extractedSummary.isleista === 0) extractedSummary.isleista = totals.isleista;
+        if (extractedSummary.likutisPab === 0) extractedSummary.likutisPab = totals.likutisPab;
+      }
+
+      // Update state with extracted data
+      setSummaryData({
+        likutisPr: extractedSummary.likutisPr.toString(),
+        priskaitymai: extractedSummary.priskaitymai.toString(),
+        isleista: extractedSummary.isleista.toString(),
+        likutisPab: extractedSummary.likutisPab.toString(),
+      });
+
+      if (extractedCategories.length > 0) {
+        setMainCategories(extractedCategories.slice(0, 10));
+        setDetailedCategories(
+          extractedCategories.slice(0, 8).map((cat, idx) => ({
+            name: cat.name,
+            priskaitymai: cat.priskaitymai,
+            isleista: cat.isleista,
+            color: colors[idx % colors.length],
+          }))
+        );
+      }
+
+      toast({ 
+        title: "Failas išanalizuotas", 
+        description: `Rasta ${extractedCategories.length} kategorijų` 
+      });
+    } catch (error) {
+      console.error("Error parsing Excel:", error);
+      toast({ 
+        title: "Nepavyko išanalizuoti failo", 
+        description: "Patikrinkite ar failas yra teisingas Excel formatas",
+        variant: "destructive" 
+      });
+    } finally {
+      setIsParsingFile(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0] || null;
+    setFile(selectedFile);
+    
+    // Auto-parse Excel files
+    if (selectedFile && (selectedFile.name.endsWith('.xlsx') || selectedFile.name.endsWith('.xls'))) {
+      parseExcelFile(selectedFile);
+    }
+  };
 
   const { data: reports = [], isLoading } = useQuery({
     queryKey: ["monthly-reports-admin"],
@@ -97,6 +235,8 @@ export function AdminMonthlyReports() {
       report_month: string;
       title: string;
       summary_data: Record<string, unknown> | null;
+      main_categories: Record<string, unknown>[] | null;
+      detailed_categories: Record<string, unknown>[] | null;
       file_url: string | null;
       file_name: string | null;
       file_size: number | null;
@@ -108,6 +248,8 @@ export function AdminMonthlyReports() {
           report_month: data.report_month,
           title: data.title,
           summary_data: data.summary_data as unknown as undefined,
+          main_categories: data.main_categories as unknown as undefined,
+          detailed_categories: data.detailed_categories as unknown as undefined,
           file_url: data.file_url,
           file_name: data.file_name,
           file_size: data.file_size,
@@ -130,6 +272,8 @@ export function AdminMonthlyReports() {
       id: string;
       title: string;
       summary_data: Record<string, unknown> | null;
+      main_categories: Record<string, unknown>[] | null;
+      detailed_categories: Record<string, unknown>[] | null;
       file_url: string | null;
       file_name: string | null;
       file_size: number | null;
@@ -140,6 +284,8 @@ export function AdminMonthlyReports() {
         .update({
           title: data.title,
           summary_data: data.summary_data as unknown as undefined,
+          main_categories: data.main_categories as unknown as undefined,
+          detailed_categories: data.detailed_categories as unknown as undefined,
           file_url: data.file_url,
           file_name: data.file_name,
           file_size: data.file_size,
@@ -200,6 +346,8 @@ export function AdminMonthlyReports() {
     setFile(null);
     setEditingReport(null);
     setSummaryData({ likutisPr: "", priskaitymai: "", isleista: "", likutisPab: "" });
+    setMainCategories([]);
+    setDetailedCategories([]);
   };
 
   const handleEdit = (report: MonthlyReport) => {
@@ -215,6 +363,12 @@ export function AdminMonthlyReports() {
         isleista: report.summary_data.isleista?.toString() || "",
         likutisPab: report.summary_data.likutisPab?.toString() || "",
       });
+    }
+    if (report.main_categories) {
+      setMainCategories(report.main_categories);
+    }
+    if (report.detailed_categories) {
+      setDetailedCategories(report.detailed_categories);
     }
     setIsDialogOpen(true);
   };
@@ -260,6 +414,8 @@ export function AdminMonthlyReports() {
         id: editingReport.id,
         title,
         summary_data: summary,
+        main_categories: mainCategories.length > 0 ? mainCategories : editingReport.main_categories,
+        detailed_categories: detailedCategories.length > 0 ? detailedCategories : editingReport.detailed_categories,
         file_url: fileUrl || editingReport.file_url,
         file_name: fileName || editingReport.file_name,
         file_size: fileSize || editingReport.file_size,
@@ -271,6 +427,8 @@ export function AdminMonthlyReports() {
         report_month: reportMonth,
         title,
         summary_data: summary,
+        main_categories: mainCategories.length > 0 ? mainCategories : null,
+        detailed_categories: detailedCategories.length > 0 ? detailedCategories : null,
         file_url: fileUrl,
         file_name: fileName,
         file_size: fileSize,
@@ -417,20 +575,49 @@ export function AdminMonthlyReports() {
               </div>
 
               <div>
-                <Label>Excel/PDF failas (neprivaloma)</Label>
-                <div className="mt-1">
+                <Label>Excel/PDF failas</Label>
+                <div className="mt-1 flex gap-2 items-center">
                   <Input
                     type="file"
                     accept=".xlsx,.xls,.csv,.pdf"
-                    onChange={(e) => setFile(e.target.files?.[0] || null)}
+                    onChange={handleFileChange}
+                    className="flex-1"
                   />
+                  {isParsingFile && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Analizuojama...
+                    </div>
+                  )}
                 </div>
                 {editingReport?.file_name && !file && (
                   <p className="text-xs text-muted-foreground mt-1">
                     Dabartinis failas: {editingReport.file_name}
                   </p>
                 )}
+                <p className="text-xs text-muted-foreground mt-1">
+                  💡 Įkėlus Excel failą, sistema automatiškai išanalizuos duomenis
+                </p>
               </div>
+
+              {/* Show parsed categories preview */}
+              {mainCategories.length > 0 && (
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-sm font-medium mb-2">Išanalizuotos kategorijos ({mainCategories.length})</p>
+                  <div className="flex flex-wrap gap-1">
+                    {mainCategories.slice(0, 5).map((cat, idx) => (
+                      <Badge key={idx} variant="secondary" className="text-xs">
+                        {cat.name}
+                      </Badge>
+                    ))}
+                    {mainCategories.length > 5 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{mainCategories.length - 5} daugiau
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="flex justify-end gap-2 pt-4">
                 <Button type="button" variant="outline" onClick={resetForm}>
