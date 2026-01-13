@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { Newspaper, Vote, AlertTriangle, Clock } from "lucide-react";
+import { Newspaper, Vote, AlertTriangle, Clock, ClipboardList, Users, FileText, Calendar, Bell, CheckCircle2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Stats {
   totalTickets: number;
@@ -12,6 +14,19 @@ interface Stats {
   publishedNews: number;
   totalPolls: number;
   activePolls: number;
+  pendingUsers: number;
+  unpublishedDocuments: number;
+}
+
+interface Task {
+  id: string;
+  title: string;
+  description: string;
+  count: number;
+  icon: React.ReactNode;
+  tab?: string;
+  isWeekly?: boolean;
+  completed?: boolean;
 }
 
 interface AdminOverviewProps {
@@ -28,11 +43,24 @@ export function AdminOverview({ onTabChange }: AdminOverviewProps) {
     publishedNews: 0,
     totalPolls: 0,
     activePolls: 0,
+    pendingUsers: 0,
+    unpublishedDocuments: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [weeklyTaskCompleted, setWeeklyTaskCompleted] = useState(false);
 
   useEffect(() => {
     fetchStats();
+    // Check if weekly task was completed this week
+    const lastCompleted = localStorage.getItem("calendarTaskCompleted");
+    if (lastCompleted) {
+      const lastDate = new Date(lastCompleted);
+      const now = new Date();
+      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      if (lastDate > weekAgo) {
+        setWeeklyTaskCompleted(true);
+      }
+    }
   }, []);
 
   const fetchStats = async () => {
@@ -54,6 +82,20 @@ export function AdminOverview({ onTabChange }: AdminOverviewProps) {
       const totalPolls = polls?.length || 0;
       const activePolls = polls?.filter(p => p.active).length || 0;
 
+      // Fetch pending users (not approved)
+      const { data: pendingProfiles } = await supabase
+        .from("profiles")
+        .select("approved")
+        .eq("approved", false);
+      const pendingUsers = pendingProfiles?.length || 0;
+
+      // Fetch unpublished documents
+      const { data: documents } = await supabase
+        .from("documents")
+        .select("visible")
+        .eq("visible", false);
+      const unpublishedDocuments = documents?.length || 0;
+
       setStats({
         totalTickets,
         newTickets,
@@ -63,6 +105,8 @@ export function AdminOverview({ onTabChange }: AdminOverviewProps) {
         publishedNews,
         totalPolls,
         activePolls,
+        pendingUsers,
+        unpublishedDocuments,
       });
     } catch (error) {
       console.error("Error fetching stats:", error);
@@ -71,25 +115,174 @@ export function AdminOverview({ onTabChange }: AdminOverviewProps) {
     }
   };
 
+  const handleWeeklyTaskToggle = (checked: boolean) => {
+    setWeeklyTaskCompleted(checked);
+    if (checked) {
+      localStorage.setItem("calendarTaskCompleted", new Date().toISOString());
+    } else {
+      localStorage.removeItem("calendarTaskCompleted");
+    }
+  };
+
+  const tasks: Task[] = [
+    {
+      id: "pending-users",
+      title: "Naujų vartotojų registracijos",
+      description: "Laukia patvirtinimo",
+      count: stats.pendingUsers,
+      icon: <Users className="h-4 w-4" />,
+      tab: "users",
+    },
+    {
+      id: "new-tickets",
+      title: "Problemų pranešimai",
+      description: "Nauji pranešimai",
+      count: stats.newTickets,
+      icon: <AlertTriangle className="h-4 w-4" />,
+      tab: "tickets",
+    },
+    {
+      id: "in-progress-tickets",
+      title: "Vykdomi užklausimai",
+      description: "Reikia dėmesio",
+      count: stats.inProgressTickets,
+      icon: <Clock className="h-4 w-4" />,
+      tab: "tickets",
+    },
+    {
+      id: "active-polls",
+      title: "Balsavimų stebėjimas",
+      description: "Aktyvios apklausos",
+      count: stats.activePolls,
+      icon: <Vote className="h-4 w-4" />,
+      tab: "polls",
+    },
+    {
+      id: "unpublished-docs",
+      title: "Dokumentų patvirtinimas",
+      description: "Nepaskelbti dokumentai",
+      count: stats.unpublishedDocuments,
+      icon: <FileText className="h-4 w-4" />,
+      tab: "reports",
+    },
+    {
+      id: "news-draft",
+      title: "Pranešimų siuntimas",
+      description: "Sukurti naujienas",
+      count: stats.totalNews - stats.publishedNews,
+      icon: <Bell className="h-4 w-4" />,
+      tab: "news",
+    },
+    {
+      id: "calendar-update",
+      title: "Kalendoriaus atnaujinimas",
+      description: "Atnaujinti kartą per savaitę",
+      count: weeklyTaskCompleted ? 0 : 1,
+      icon: <Calendar className="h-4 w-4" />,
+      tab: "schedules",
+      isWeekly: true,
+      completed: weeklyTaskCompleted,
+    },
+  ];
+
+  const totalTasks = tasks.reduce((sum, task) => sum + task.count, 0);
+  const activeTasks = tasks.filter(task => task.count > 0);
+
   if (loading) {
     return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {[1, 2, 3, 4].map((i) => (
-          <Card key={i} className="animate-pulse">
-            <CardHeader className="pb-2">
-              <div className="h-4 w-24 bg-muted rounded" />
-            </CardHeader>
-            <CardContent>
-              <div className="h-8 w-16 bg-muted rounded" />
-            </CardContent>
-          </Card>
-        ))}
+      <div className="space-y-6">
+        <Card className="animate-pulse">
+          <CardHeader className="pb-2">
+            <div className="h-6 w-48 bg-muted rounded" />
+          </CardHeader>
+          <CardContent>
+            <div className="h-32 bg-muted rounded" />
+          </CardContent>
+        </Card>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="animate-pulse">
+              <CardHeader className="pb-2">
+                <div className="h-4 w-24 bg-muted rounded" />
+              </CardHeader>
+              <CardContent>
+                <div className="h-8 w-16 bg-muted rounded" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      {/* My Tasks Section */}
+      <Card className="card-elevated border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <div className="flex items-center gap-3">
+            <ClipboardList className="h-5 w-5 text-primary" />
+            <div>
+              <CardTitle className="text-lg">Mano užduotys</CardTitle>
+              <CardDescription>Užduotys, kurias reikia atlikti</CardDescription>
+            </div>
+          </div>
+          <Badge 
+            variant={totalTasks > 0 ? "destructive" : "secondary"}
+            className="text-lg px-3 py-1"
+          >
+            {totalTasks}
+          </Badge>
+        </CardHeader>
+        <CardContent>
+          {activeTasks.length === 0 ? (
+            <div className="flex items-center justify-center py-8 text-muted-foreground">
+              <CheckCircle2 className="h-5 w-5 mr-2 text-success" />
+              Visos užduotys atliktos!
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {tasks.map((task) => (
+                <div
+                  key={task.id}
+                  className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
+                    task.count > 0 
+                      ? "bg-background hover:bg-muted cursor-pointer hover:border-primary/50" 
+                      : "bg-muted/30 opacity-60"
+                  }`}
+                  onClick={() => task.count > 0 && task.tab && onTabChange(task.tab)}
+                >
+                  <div className="flex items-center gap-3">
+                    {task.isWeekly ? (
+                      <Checkbox
+                        checked={task.completed}
+                        onCheckedChange={(checked) => {
+                          handleWeeklyTaskToggle(checked as boolean);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      <div className={`p-2 rounded-full ${task.count > 0 ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                        {task.icon}
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-sm font-medium">{task.title}</p>
+                      <p className="text-xs text-muted-foreground">{task.description}</p>
+                    </div>
+                  </div>
+                  {task.count > 0 && (
+                    <Badge variant="outline" className="ml-2">
+                      {task.count}
+                    </Badge>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card 
           className="card-elevated cursor-pointer transition-all hover:scale-[1.02] hover:shadow-lg"
