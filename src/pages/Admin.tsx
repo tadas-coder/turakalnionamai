@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,8 +16,16 @@ import { toast } from "sonner";
 
 export default function Admin() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isAdmin, loading } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
+
+  useEffect(() => {
+    // Support deep-linking to a tab, e.g. /admin?tab=monthly-reports
+    const params = new URLSearchParams(location.search);
+    const tab = params.get("tab");
+    if (tab) setActiveTab(tab);
+  }, [location.search]);
 
   useEffect(() => {
     if (!loading) {

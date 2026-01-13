@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -94,8 +95,22 @@ export function AdminMonthlyReports() {
   });
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  // Parse Excel file and extract data
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    // If we came from user page CTA: /admin?tab=monthly-reports&new=1
+    if (params.get("new") === "1") {
+      setIsDialogOpen(true);
+      params.delete("new");
+      const nextSearch = params.toString();
+      navigate(
+        { pathname: location.pathname, search: nextSearch ? `?${nextSearch}` : "" },
+        { replace: true }
+      );
+    }
+  }, [location.pathname, location.search, navigate]);
   const parseExcelFile = async (fileToProcess: File) => {
     setIsParsingFile(true);
     try {
@@ -108,7 +123,16 @@ export function AdminMonthlyReports() {
       // Try to extract summary data from common patterns
       let extractedSummary = { likutisPr: 0, priskaitymai: 0, isleista: 0, likutisPab: 0 };
       const extractedCategories: Array<{ name: string; likutisPr: number; priskaitymai: number; isleista: number; likutisPab: number }> = [];
-      const colors = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#ec4899", "#84cc16"];
+      const colors = [
+        "hsl(var(--primary))",
+        "hsl(var(--accent))",
+        "hsl(var(--secondary))",
+        "hsl(var(--destructive))",
+        "hsl(var(--muted-foreground))",
+        "hsl(var(--primary))",
+        "hsl(var(--accent))",
+        "hsl(var(--secondary))",
+      ];
 
       // Search for keywords in the data
       for (let i = 0; i < jsonData.length; i++) {

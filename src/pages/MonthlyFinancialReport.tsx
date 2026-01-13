@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, TrendingUp, TrendingDown, Euro, Wallet, Calendar, Download, ChevronLeft, ChevronRight, BarChart3, PieChart as PieChartIcon } from "lucide-react";
+import { FileText, TrendingUp, TrendingDown, Euro, Wallet, Calendar, Download, ChevronLeft, ChevronRight, BarChart3, PieChart as PieChartIcon, Upload } from "lucide-react";
 import { format } from "date-fns";
 import { lt } from "date-fns/locale";
 import {
@@ -57,6 +58,7 @@ type MonthlyReport = {
 };
 
 export default function MonthlyFinancialReport() {
+  const navigate = useNavigate();
   const { user, isApproved, isAdmin } = useAuth();
   const [selectedReportId, setSelectedReportId] = useState<string>("");
 
@@ -160,7 +162,16 @@ export default function MonthlyFinancialReport() {
               <Card>
                 <CardContent className="py-12 text-center">
                   <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">Kol kas nėra mėnesio ataskaitų</p>
+                  <p className="text-muted-foreground mb-4">Kol kas nėra mėnesio ataskaitų</p>
+                  {isAdmin && (
+                    <Button
+                      className="gap-2"
+                      onClick={() => navigate("/admin?tab=monthly-reports&new=1")}
+                    >
+                      <Upload className="h-4 w-4" />
+                      Įkelti mėnesio ataskaitą
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             ) : (
@@ -285,10 +296,26 @@ export default function MonthlyFinancialReport() {
                             <ResponsiveContainer width="100%" height={250}>
                               <BarChart
                                 data={[
-                                  { name: "Likutis pr.", value: selectedReport.summary_data.likutisPr, fill: "#64748b" },
-                                  { name: "Priskaitymai", value: selectedReport.summary_data.priskaitymai, fill: "#10b981" },
-                                  { name: "Išleista", value: selectedReport.summary_data.isleista, fill: "#ef4444" },
-                                  { name: "Likutis pab.", value: selectedReport.summary_data.likutisPab, fill: "#3b82f6" },
+                                  {
+                                    name: "Likutis pr.",
+                                    value: selectedReport.summary_data.likutisPr,
+                                    fill: "hsl(var(--muted-foreground))",
+                                  },
+                                  {
+                                    name: "Priskaitymai",
+                                    value: selectedReport.summary_data.priskaitymai,
+                                    fill: "hsl(var(--primary))",
+                                  },
+                                  {
+                                    name: "Išleista",
+                                    value: selectedReport.summary_data.isleista,
+                                    fill: "hsl(var(--destructive))",
+                                  },
+                                  {
+                                    name: "Likutis pab.",
+                                    value: selectedReport.summary_data.likutisPab,
+                                    fill: "hsl(var(--accent))",
+                                  },
                                 ]}
                                 margin={{ top: 20, right: 20, left: 20, bottom: 5 }}
                               >
@@ -305,10 +332,10 @@ export default function MonthlyFinancialReport() {
                                 />
                                 <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                                   {[
-                                    { name: "Likutis pr.", fill: "#64748b" },
-                                    { name: "Priskaitymai", fill: "#10b981" },
-                                    { name: "Išleista", fill: "#ef4444" },
-                                    { name: "Likutis pab.", fill: "#3b82f6" },
+                                    { name: "Likutis pr.", fill: "hsl(var(--muted-foreground))" },
+                                    { name: "Priskaitymai", fill: "hsl(var(--primary))" },
+                                    { name: "Išleista", fill: "hsl(var(--destructive))" },
+                                    { name: "Likutis pab.", fill: "hsl(var(--accent))" },
                                   ].map((entry, index) => (
                                     <Cell key={`cell-${index}`} fill={entry.fill} />
                                   ))}
@@ -331,8 +358,8 @@ export default function MonthlyFinancialReport() {
                               <PieChart>
                                 <Pie
                                   data={[
-                                    { name: "Priskaitymai", value: selectedReport.summary_data.priskaitymai, fill: "#10b981" },
-                                    { name: "Išleista", value: selectedReport.summary_data.isleista, fill: "#ef4444" },
+                                    { name: "Priskaitymai", value: selectedReport.summary_data.priskaitymai, fill: "hsl(var(--primary))" },
+                                    { name: "Išleista", value: selectedReport.summary_data.isleista, fill: "hsl(var(--destructive))" },
                                   ]}
                                   cx="50%"
                                   cy="50%"
@@ -343,8 +370,8 @@ export default function MonthlyFinancialReport() {
                                   label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                                   labelLine={false}
                                 >
-                                  <Cell fill="#10b981" />
-                                  <Cell fill="#ef4444" />
+                                  <Cell fill="hsl(var(--primary))" />
+                                  <Cell fill="hsl(var(--destructive))" />
                                 </Pie>
                                 <Tooltip
                                   formatter={(value: number) => formatCurrency(value)}
@@ -400,8 +427,8 @@ export default function MonthlyFinancialReport() {
                                 }}
                               />
                               <Legend />
-                              <Bar dataKey="Priskaitymai" fill="#10b981" radius={[4, 4, 0, 0]} />
-                              <Bar dataKey="Išleista" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                              <Bar dataKey="Priskaitymai" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                              <Bar dataKey="Išleista" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
                             </BarChart>
                           </ResponsiveContainer>
                         </CardContent>
