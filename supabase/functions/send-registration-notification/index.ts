@@ -107,10 +107,71 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Admin notification email sent successfully:", adminEmailResponse);
 
+    // Send confirmation email to the user
+    const userEmailResponse = await sendEmail(
+      [userEmail],
+      "Jūsų registracija priimta - Taurakalnio Namai",
+      `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #0d9488, #0891b2); color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }
+            .content { background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px; }
+            .highlight { background: #ecfdf5; border-left: 4px solid #0d9488; padding: 15px; margin: 20px 0; border-radius: 0 6px 6px 0; }
+            .footer { margin-top: 20px; padding-top: 15px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #6b7280; text-align: center; }
+            .icon { font-size: 48px; margin-bottom: 10px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <div class="icon">✉️</div>
+              <h1 style="margin: 0; font-size: 22px;">Registracija priimta!</h1>
+              <p style="margin: 5px 0 0 0; opacity: 0.9;">Taurakalnio Namai gyventojų portalas</p>
+            </div>
+            <div class="content">
+              <p>Sveiki, <strong>${userName}</strong>!</p>
+              
+              <p>Dėkojame už registraciją Taurakalnio Namų gyventojų portale.</p>
+              
+              <div class="highlight">
+                <strong>📋 Jūsų registracijos statusas:</strong><br>
+                Laukiama administratoriaus patvirtinimo
+              </div>
+              
+              <p>Kai jūsų paskyra bus patvirtinta, gausite pranešimą el. paštu ir galėsite prisijungti prie portalo.</p>
+              
+              <p><strong>Ką galėsite daryti portale:</strong></p>
+              <ul>
+                <li>📰 Skaityti namo naujienas</li>
+                <li>🎫 Teikti užklausas ir pranešimus</li>
+                <li>📅 Matyti planuojamus darbus</li>
+                <li>🗳️ Dalyvauti balsavimuose</li>
+                <li>📄 Pasiekti svarbius dokumentus</li>
+              </ul>
+              
+              <div class="footer">
+                <p>Šis pranešimas automatiškai sugeneruotas iš Taurakalnio Namų gyventojų portalo.</p>
+                <p>Jei turite klausimų, susisiekite su namo administracija.</p>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    );
+
+    console.log("User notification email sent successfully:", userEmailResponse);
+
     return new Response(
       JSON.stringify({
         success: true,
         adminEmail: adminEmailResponse,
+        userEmail: userEmailResponse,
       }),
       {
         status: 200,
