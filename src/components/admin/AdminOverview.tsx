@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { Newspaper, Vote, AlertTriangle, Clock, ClipboardList, Users, FileText, Calendar, Bell, CheckCircle2 } from "lucide-react";
+import { Newspaper, Vote, AlertTriangle, Clock, ClipboardList, Users, FileText, Calendar, Bell, CheckCircle2, FileSpreadsheet } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -182,6 +182,14 @@ export function AdminOverview({ onTabChange }: AdminOverviewProps) {
       tab: "schedules",
       isWeekly: true,
       completed: weeklyTaskCompleted,
+    },
+    {
+      id: "monthly-report",
+      title: "Mėnesio finansinė ataskaita",
+      description: "Įkelti kartą per mėnesį",
+      count: 1,
+      icon: <FileSpreadsheet className="h-4 w-4" />,
+      tab: "monthly-reports",
     },
   ];
 

@@ -140,6 +140,57 @@ export type Database = {
         }
         Relationships: []
       }
+      monthly_financial_reports: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          detailed_categories: Json | null
+          file_name: string | null
+          file_size: number | null
+          file_url: string | null
+          id: string
+          main_categories: Json | null
+          monthly_expenses: Json | null
+          published: boolean | null
+          report_month: string
+          summary_data: Json | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          detailed_categories?: Json | null
+          file_name?: string | null
+          file_size?: number | null
+          file_url?: string | null
+          id?: string
+          main_categories?: Json | null
+          monthly_expenses?: Json | null
+          published?: boolean | null
+          report_month: string
+          summary_data?: Json | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          detailed_categories?: Json | null
+          file_name?: string | null
+          file_size?: number | null
+          file_url?: string | null
+          id?: string
+          main_categories?: Json | null
+          monthly_expenses?: Json | null
+          published?: boolean | null
+          report_month?: string
+          summary_data?: Json | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       news: {
         Row: {
           author_id: string | null
