@@ -50,18 +50,27 @@ export function AdminUsers() {
         .eq("id", userId);
       if (error) throw error;
 
-      // Send email notification when user is approved
       if (approved) {
-        try {
-          await supabase.functions.invoke("send-approval-notification", {
+        const { data, error: notifyError } = await supabase.functions.invoke(
+          "send-approval-notification",
+          {
             body: {
               userName: userName || "Vartotojau",
               userEmail: userEmail,
             },
-          });
-          console.log("Approval notification sent to:", userEmail);
-        } catch (notifyError) {
+          }
+        );
+
+        if (notifyError) {
           console.error("Failed to send approval notification:", notifyError);
+          toast({
+            title: "Laiško išsiųsti nepavyko",
+            description:
+              "Patikrinkite el. pašto siuntimo nustatymus (domeno patvirtinimą) ir bandykite dar kartą.",
+            variant: "destructive",
+          });
+        } else {
+          console.log("Approval notification sent to:", userEmail, data);
         }
       }
     },
