@@ -13,6 +13,7 @@ import Rules from "./pages/Rules";
 import Documents from "./pages/Documents";
 import Reports from "./pages/Reports";
 import FinancialReport from "./pages/FinancialReport";
+import MonthlyFinancialReport from "./pages/MonthlyFinancialReport";
 import TicketStatistics from "./pages/TicketStatistics";
 import Schedules from "./pages/Schedules";
 import Profile from "./pages/Profile";
@@ -40,6 +41,7 @@ const App = () => (
             <Route path="/documents" element={<Documents />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/financial-report" element={<FinancialReport />} />
+            <Route path="/monthly-financial-report" element={<MonthlyFinancialReport />} />
             <Route path="/ticket-statistics" element={<TicketStatistics />} />
             <Route path="/schedules" element={<Schedules />} />
             <Route path="/profile" element={<Profile />} />

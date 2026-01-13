@@ -1,8 +1,10 @@
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { FileText, TrendingUp, TrendingDown, Building, Euro, Wallet, PieChart } from "lucide-react";
+import { FileText, TrendingUp, TrendingDown, Building, Euro, Wallet, PieChart, Calendar } from "lucide-react";
+import { Link } from "react-router-dom";
 import {
   BarChart,
   Bar,
@@ -109,12 +111,20 @@ export default function FinancialReport() {
                 <p className="text-muted-foreground">{summaryData.period}</p>
               </div>
             </div>
-            <div className="mt-4 p-4 bg-card rounded-lg border">
-              <div className="flex items-center gap-2 mb-1">
-                <Building className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">{summaryData.organization}</span>
+            <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-4">
+              <div className="p-4 bg-card rounded-lg border flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <Building className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium">{summaryData.organization}</span>
+                </div>
+                <p className="text-sm text-muted-foreground">{summaryData.address}</p>
               </div>
-              <p className="text-sm text-muted-foreground">{summaryData.address}</p>
+              <Button asChild variant="outline" className="gap-2">
+                <Link to="/monthly-financial-report">
+                  <Calendar className="h-4 w-4" />
+                  Mėnesio ataskaitos
+                </Link>
+              </Button>
             </div>
           </div>
 
