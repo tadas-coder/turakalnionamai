@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUnreadNews } from "@/hooks/useUnreadNews";
 import { useUnreadTickets } from "@/hooks/useUnreadTickets";
 import { Badge } from "@/components/ui/badge";
+import logo from "@/assets/logo.png";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,16 +46,12 @@ export function Header() {
     <header className="sticky top-0 z-50 glass-effect border-b border-border">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
-          <Link to="/" className="flex items-center gap-4">
+          <Link to="/" className="flex items-center gap-3">
             <img 
-              src="/favicon.png" 
+              src={logo} 
               alt="Taurakalnio Namai" 
-              className="h-12 w-12 object-contain"
+              className="h-10 w-auto"
             />
-            <div className="hidden sm:flex flex-col">
-              <h1 className="text-lg font-display font-bold tracking-tight text-foreground">Taurakalnio Namai</h1>
-              <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Gyventojų savitarna</span>
-            </div>
           </Link>
 
           {/* Desktop Navigation */}
