@@ -74,6 +74,8 @@ interface PreviewSlip {
     apartment_number: string | null;
   } | null;
   matchType: string;
+  matchReason?: string;
+  failureReason?: string;
   dataForSave: any;
 }
 
@@ -418,6 +420,10 @@ export default function AdminPaymentSlips() {
         return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">Pagal butą</Badge>;
       case "payment_code":
         return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">Pagal kodą</Badge>;
+      case "name_exact":
+        return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-300">Pagal vardą</Badge>;
+      case "name_fuzzy":
+        return <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-300">Panašus vardas</Badge>;
       case "name":
         return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-300">Pagal vardą</Badge>;
       case "manual":
@@ -744,11 +750,12 @@ export default function AdminPaymentSlips() {
           <ScrollArea className="h-[400px] border rounded-lg">
             <Table>
               <TableHeader className="sticky top-0 bg-background">
-                <TableRow>
+              <TableRow>
                   <TableHead className="w-[80px]">Butas</TableHead>
                   <TableHead>Pirkėjas (faile)</TableHead>
                   <TableHead className="text-right">Suma</TableHead>
                   <TableHead>Priskyrimo būdas</TableHead>
+                  <TableHead>Priežastis / Paaiškinimas</TableHead>
                   <TableHead className="w-[250px]">Priskirti gyventojui</TableHead>
                 </TableRow>
               </TableHeader>
@@ -769,6 +776,13 @@ export default function AdminPaymentSlips() {
                     </TableCell>
                     <TableCell>
                       {getMatchTypeBadge(preview.matchType)}
+                    </TableCell>
+                    <TableCell className="max-w-[200px]">
+                      {preview.matchedResident ? (
+                        <span className="text-xs text-green-700">{preview.matchReason || 'Automatiškai priskirta'}</span>
+                      ) : (
+                        <span className="text-xs text-yellow-700">{preview.failureReason || 'Nepavyko priskirti automatiškai'}</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Select 

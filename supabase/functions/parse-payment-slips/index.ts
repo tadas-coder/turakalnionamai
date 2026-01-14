@@ -793,35 +793,143 @@ Grąžink TIK JSON su visais rastais lapeliais!`;
       .select("id, apartment_number, full_name, payment_code, linked_profile_id");
 
     const batchId = crypto.randomUUID();
-    
+
+    // Helper: normalize apartment number (remove leading zeros, spaces)
+    function normalizeApartment(apt: string | null | undefined): string {
+      if (!apt) return '';
+      return apt.toString().replace(/\s/g, '').replace(/^0+/, '').toLowerCase();
+    }
+
+    // Helper: normalize payment code (remove spaces, dashes)
+    function normalizePaymentCode(code: string | null | undefined): string {
+      if (!code) return '';
+      return code.toString().replace(/[\s\-]/g, '').toLowerCase();
+    }
+
+    // Helper: normalize name for comparison
+    function normalizeName(name: string | null | undefined): string {
+      if (!name) return '';
+      return name
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, ' ')
+        // Remove common suffixes/prefixes
+        .replace(/\b(uab|mb|iį|ab|vši|įį)\b/gi, '')
+        .trim();
+    }
+
+    // Helper: fuzzy name similarity (Levenshtein-based)
+    function nameSimilarity(a: string, b: string): number {
+      const s1 = normalizeName(a);
+      const s2 = normalizeName(b);
+      if (!s1 || !s2) return 0;
+      if (s1 === s2) return 1;
+      
+      // Check if one contains the other
+      if (s1.includes(s2) || s2.includes(s1)) return 0.9;
+      
+      // Check word overlap
+      const words1 = s1.split(' ').filter(w => w.length > 2);
+      const words2 = s2.split(' ').filter(w => w.length > 2);
+      
+      if (words1.length === 0 || words2.length === 0) return 0;
+      
+      let matchedWords = 0;
+      for (const w1 of words1) {
+        for (const w2 of words2) {
+          if (w1 === w2 || (w1.length > 3 && w2.length > 3 && (w1.includes(w2) || w2.includes(w1)))) {
+            matchedWords++;
+            break;
+          }
+        }
+      }
+      
+      return matchedWords / Math.max(words1.length, words2.length);
+    }
+
     // Prepare slips with matching info for preview
     const previewSlips = parsedSlips.map((parsed, index) => {
-      let matchedResident = null;
+      let matchedResident: any = null;
       let matchType = 'none';
+      let matchReason = '';
+      const failedAttempts: string[] = [];
 
-      // First try apartment number
-      if (parsed.apartmentNumber && residents) {
-        matchedResident = residents.find(r => 
-          r.apartment_number === parsed.apartmentNumber ||
-          r.apartment_number === parsed.apartmentNumber.replace(/^0+/, '')
+      const normalizedSlipApt = normalizeApartment(parsed.apartmentNumber);
+      const normalizedSlipCode = normalizePaymentCode(parsed.paymentCode);
+      const normalizedSlipName = normalizeName(parsed.buyerName);
+
+      // 1. Try apartment number match (normalized)
+      if (normalizedSlipApt && residents) {
+        const aptMatch = residents.find(r => 
+          normalizeApartment(r.apartment_number) === normalizedSlipApt
         );
-        if (matchedResident) matchType = 'apartment_number';
+        if (aptMatch) {
+          matchedResident = aptMatch;
+          matchType = 'apartment_number';
+          matchReason = `Butas "${parsed.apartmentNumber}" atitinka gyventojo butą "${aptMatch.apartment_number}"`;
+        } else {
+          failedAttempts.push(`Butas "${parsed.apartmentNumber}" – nerastas sistemoje`);
+        }
+      } else if (!normalizedSlipApt) {
+        failedAttempts.push('Nėra buto numerio lapelyje');
       }
 
-      // Then try payment code
-      if (!matchedResident && parsed.paymentCode && residents) {
-        matchedResident = residents.find(r => r.payment_code === parsed.paymentCode);
-        if (matchedResident) matchType = 'payment_code';
-      }
-
-      // Then try name match
-      if (!matchedResident && parsed.buyerName && residents) {
-        const normalizedBuyer = parsed.buyerName.toLowerCase().trim();
-        matchedResident = residents.find(r => 
-          r.full_name?.toLowerCase().trim() === normalizedBuyer
+      // 2. Try payment code match (normalized)
+      if (!matchedResident && normalizedSlipCode && residents) {
+        const codeMatch = residents.find(r => 
+          normalizePaymentCode(r.payment_code) === normalizedSlipCode
         );
-        if (matchedResident) matchType = 'name';
+        if (codeMatch) {
+          matchedResident = codeMatch;
+          matchType = 'payment_code';
+          matchReason = `Mokėtojo kodas "${parsed.paymentCode}" atitinka gyventoją`;
+        } else {
+          failedAttempts.push(`Mokėtojo kodas "${parsed.paymentCode}" – nerastas sistemoje`);
+        }
+      } else if (!normalizedSlipCode && !matchedResident) {
+        failedAttempts.push('Nėra mokėtojo kodo lapelyje');
       }
+
+      // 3. Try exact name match
+      if (!matchedResident && normalizedSlipName && residents) {
+        const exactNameMatch = residents.find(r => 
+          normalizeName(r.full_name) === normalizedSlipName
+        );
+        if (exactNameMatch) {
+          matchedResident = exactNameMatch;
+          matchType = 'name_exact';
+          matchReason = `Pirkėjo vardas tiksliai atitinka "${exactNameMatch.full_name}"`;
+        }
+      }
+
+      // 4. Try fuzzy name match (>70% similarity)
+      if (!matchedResident && normalizedSlipName && residents) {
+        let bestMatch: any = null;
+        let bestScore = 0;
+        
+        for (const r of residents) {
+          const score = nameSimilarity(parsed.buyerName, r.full_name);
+          if (score > bestScore && score >= 0.7) {
+            bestScore = score;
+            bestMatch = r;
+          }
+        }
+        
+        if (bestMatch) {
+          matchedResident = bestMatch;
+          matchType = 'name_fuzzy';
+          matchReason = `Pirkėjo vardas "${parsed.buyerName}" panašus į "${bestMatch.full_name}" (${Math.round(bestScore * 100)}%)`;
+        } else if (normalizedSlipName) {
+          failedAttempts.push(`Vardas "${parsed.buyerName}" – nepanašus į jokį gyventoją`);
+        }
+      } else if (!normalizedSlipName && !matchedResident) {
+        failedAttempts.push('Nėra pirkėjo vardo lapelyje');
+      }
+
+      // Build failure explanation
+      const failureReason = !matchedResident && failedAttempts.length > 0 
+        ? failedAttempts.join('; ') 
+        : '';
 
       return {
         tempId: `temp-${index}`,
@@ -832,6 +940,8 @@ Grąžink TIK JSON su visais rastais lapeliais!`;
           apartment_number: matchedResident.apartment_number
         } : null,
         matchType,
+        matchReason,
+        failureReason,
         // Pre-prepared data for saving
         dataForSave: {
           invoice_number: parsed.invoiceNumber,
