@@ -1,10 +1,20 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+function uint8ToBase64(bytes: Uint8Array): string {
+  const chunkSize = 0x8000;
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
 
 interface ParsedSlip {
   invoiceNumber: string;
@@ -490,7 +500,8 @@ serve(async (req) => {
     const { 
       parsedText, 
       excelData, 
-      pdfBase64, 
+      pdfBase64,
+      pdfStoragePath,
       periodMonth, 
       pdfFileName, 
       pdfUrl, 
@@ -536,12 +547,12 @@ serve(async (req) => {
     let parsedSlips: ParsedSlip[] = [];
     let textToParse = parsedText || '';
 
-    // If PDF base64 is provided, use AI to extract text
-    if (pdfBase64 && !parsedText) {
+    // If PDF is provided, use AI to extract slips
+    if ((pdfBase64 || pdfStoragePath || pdfUrl) && !parsedText) {
       console.log("Processing PDF with AI...");
       try {
         const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-        
+
         if (!LOVABLE_API_KEY) {
           console.log("LOVABLE_API_KEY not set, skipping AI parsing");
           return new Response(JSON.stringify({ error: "AI servisas neprieinamas (LOVABLE_API_KEY)" }), {
@@ -549,25 +560,74 @@ serve(async (req) => {
             headers: { ...corsHeaders, "Content-Type": "application/json" }
           });
         }
-        
+
+        // IMPORTANT: avoid sending huge base64 from the browser. If we have storage path / url,
+        // download the PDF here and encode it.
+        let pdfBase64Effective = pdfBase64 as string | undefined;
+
+        if (!pdfBase64Effective && pdfStoragePath) {
+          console.log("Downloading PDF from storage:", pdfStoragePath);
+          const { data: fileBlob, error: downloadError } = await supabase.storage
+            .from("payment-slips")
+            .download(pdfStoragePath);
+
+          if (downloadError || !fileBlob) {
+            console.error("Storage download error:", downloadError);
+            return new Response(JSON.stringify({
+              error: "Nepavyko atsisiųsti PDF iš failų saugyklos",
+              details: downloadError?.message || "download failed"
+            }), {
+              status: 500,
+              headers: { ...corsHeaders, "Content-Type": "application/json" }
+            });
+          }
+
+          const buffer = await fileBlob.arrayBuffer();
+          pdfBase64Effective = uint8ToBase64(new Uint8Array(buffer));
+        }
+
+        if (!pdfBase64Effective && pdfUrl) {
+          console.log("Downloading PDF via URL...");
+          const res = await fetch(pdfUrl);
+          if (!res.ok) {
+            return new Response(JSON.stringify({
+              error: "Nepavyko atsisiųsti PDF pagal nuorodą",
+              details: `${res.status} ${res.statusText}`
+            }), {
+              status: 500,
+              headers: { ...corsHeaders, "Content-Type": "application/json" }
+            });
+          }
+          const buffer = await res.arrayBuffer();
+          pdfBase64Effective = uint8ToBase64(new Uint8Array(buffer));
+        }
+
+        if (!pdfBase64Effective) {
+          return new Response(JSON.stringify({ error: "Nėra PDF duomenų apdorojimui" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
+
         console.log("Calling Lovable AI for PDF parsing...");
-        
+
         // Process PDF in chunks if it's large
-        const pdfLength = pdfBase64.length;
+        const pdfLength = pdfBase64Effective.length;
         console.log(`Total PDF base64 length: ${pdfLength} characters`);
-        
-        // Use smaller chunk for faster processing (100KB base64 ≈ 75KB binary)
+
+        // Use smaller chunk for faster processing
         const chunkSize = 100000;
         const allParsedSlips: ParsedSlip[] = [];
-        
-        // Process up to 3 chunks to cover most documents
+
+        // Process up to 3 chunks to keep execution time bounded
         const maxChunks = Math.min(3, Math.ceil(pdfLength / chunkSize));
-        
+
         for (let chunkIndex = 0; chunkIndex < maxChunks; chunkIndex++) {
           const startPos = chunkIndex * chunkSize;
-          const pdfChunk = pdfBase64.substring(startPos, startPos + chunkSize);
-          
-          if (pdfChunk.length < 1000) continue; // Skip very small chunks
+          const pdfChunk = pdfBase64Effective.substring(startPos, startPos + chunkSize);
+
+          if (pdfChunk.length < 1000) continue;
+
           
           console.log(`Processing chunk ${chunkIndex + 1}/${maxChunks}, size: ${pdfChunk.length} chars`);
           
