@@ -15,6 +15,7 @@ import { lt } from "date-fns/locale";
 import { FileDropzone } from "@/components/ui/file-dropzone";
 import * as XLSX from "xlsx";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import PaymentSlipBatchHistory from "./PaymentSlipBatchHistory";
 
 interface PaymentSlip {
   id: string;
@@ -93,6 +94,9 @@ export default function AdminPaymentSlips() {
   const [previewSlips, setPreviewSlips] = useState<PreviewSlip[]>([]);
   const [previewResidents, setPreviewResidents] = useState<Resident[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [currentBatchId, setCurrentBatchId] = useState<string | null>(null);
+  const [currentFileName, setCurrentFileName] = useState<string>("");
+  const [currentFileType, setCurrentFileType] = useState<string>("pdf");
   const queryClient = useQueryClient();
 
   // Fetch payment slips
@@ -265,7 +269,7 @@ export default function AdminPaymentSlips() {
       
       if (response.error) throw response.error;
       
-      const { preview, residents: residentsList, stats, message } = response.data;
+      const { preview, residents: residentsList, stats, message, batchId } = response.data;
       
       if (!preview || preview.length === 0) {
         toast.warning(message || "Nepavyko išanalizuoti mokėjimo lapelių. Patikrinkite ar failas teisingas arba bandykite 'Importuoti iš teksto' funkciją.");
@@ -276,6 +280,9 @@ export default function AdminPaymentSlips() {
       // Show preview dialog
       setPreviewSlips(preview);
       setPreviewResidents(residentsList || []);
+      setCurrentBatchId(batchId || null);
+      setCurrentFileName(file.name);
+      setCurrentFileType(isExcel ? 'excel' : 'pdf');
       setIsUploadDialogOpen(false);
       setIsPreviewDialogOpen(true);
       toast.success(`Rasta ${stats.total} lapelių. Peržiūrėkite ir patvirtinkite priskyrimą.`);
@@ -308,7 +315,7 @@ export default function AdminPaymentSlips() {
 
       if (response.error) throw response.error;
 
-      const { preview, residents: residentsList, stats } = response.data;
+      const { preview, residents: residentsList, stats, batchId } = response.data;
       
       if (!preview || preview.length === 0) {
         toast.warning("Nepavyko rasti mokėjimo lapelių tekste.");
@@ -317,6 +324,9 @@ export default function AdminPaymentSlips() {
       
       setPreviewSlips(preview);
       setPreviewResidents(residentsList || []);
+      setCurrentBatchId(batchId || null);
+      setCurrentFileName("Tekstas");
+      setCurrentFileType("text");
       setIsUploadDialogOpen(false);
       setIsPreviewDialogOpen(true);
       toast.info(`Rasta ${stats.total} lapelių. Peržiūrėkite ir patvirtinkite priskyrimą.`);
@@ -360,12 +370,21 @@ export default function AdminPaymentSlips() {
     setIsSaving(true);
     
     try {
-      const slipsToSave = previewSlips.map(p => p.dataForSave);
+      const slipsToSave = previewSlips.map(p => ({
+        ...p.dataForSave,
+        upload_batch_id: null // Will be set by the backend
+      }));
+      
+      const periodMonth = slipsToSave[0]?.period_month || new Date().toISOString().split('T')[0].slice(0, 7) + '-01';
       
       const response = await supabase.functions.invoke("parse-payment-slips", {
         body: {
           action: 'save',
-          slipsToSave
+          slipsToSave,
+          batchId: currentBatchId,
+          pdfFileName: currentFileName,
+          fileType: currentFileType,
+          periodMonth
         }
       });
       
@@ -375,8 +394,11 @@ export default function AdminPaymentSlips() {
       toast.success(`Išsaugota ${stats.total} lapelių. Priskirta: ${stats.matched}, laukia: ${stats.pending}`);
       
       queryClient.invalidateQueries({ queryKey: ["admin-payment-slips"] });
+      queryClient.invalidateQueries({ queryKey: ["upload-batches"] });
       setIsPreviewDialogOpen(false);
       setPreviewSlips([]);
+      setCurrentBatchId(null);
+      setCurrentFileName("");
     } catch (error: any) {
       console.error("Save error:", error);
       toast.error("Klaida išsaugant: " + error.message);
@@ -551,6 +573,9 @@ export default function AdminPaymentSlips() {
           </Select>
         </div>
       </div>
+
+      {/* Batch History */}
+      <PaymentSlipBatchHistory />
 
       {/* Payment Slips Table */}
       <Card>

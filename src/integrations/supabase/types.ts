@@ -350,6 +350,13 @@ export type Database = {
             referencedRelation: "residents"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "payment_slips_upload_batch_fk"
+            columns: ["upload_batch_id"]
+            isOneToOne: false
+            referencedRelation: "upload_batches"
+            referencedColumns: ["id"]
+          },
         ]
       }
       planned_works: {
@@ -687,6 +694,39 @@ export type Database = {
           title?: string
           updated_at?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      upload_batches: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          file_name: string | null
+          file_type: string | null
+          id: string
+          period_month: string | null
+          slip_count: number
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          file_name?: string | null
+          file_type?: string | null
+          id?: string
+          period_month?: string | null
+          slip_count?: number
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          file_name?: string | null
+          file_type?: string | null
+          id?: string
+          period_month?: string | null
+          slip_count?: number
+          status?: string
         }
         Relationships: []
       }
