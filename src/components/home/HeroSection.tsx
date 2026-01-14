@@ -17,10 +17,10 @@ export function HeroSection() {
   }, []);
 
   return (
-    <section className="relative text-primary-foreground py-24 md:py-32 overflow-hidden">
-      {/* Animated gradient background with parallax */}
+    <section className="relative text-foreground py-24 md:py-32 overflow-hidden">
+      {/* White background with parallax */}
       <div 
-        className="absolute inset-0 bg-gradient-to-br from-[#2d2d2d] via-[#3d3d3d] to-[#4a4a4a]"
+        className="absolute inset-0 bg-background"
         style={{
           transform: `translateY(${scrollY * 0.3}px)`,
         }}
@@ -29,15 +29,15 @@ export function HeroSection() {
       {/* Floating animated shapes with parallax */}
       <div className="absolute inset-0 overflow-hidden">
         <div 
-          className="absolute -top-20 -left-20 w-72 h-72 bg-white/[0.02] rounded-full blur-3xl animate-float-slow"
+          className="absolute -top-20 -left-20 w-72 h-72 bg-primary/[0.03] rounded-full blur-3xl animate-float-slow"
           style={{ transform: `translateY(${scrollY * 0.15}px)` }}
         />
         <div 
-          className="absolute top-1/2 -right-32 w-96 h-96 bg-white/[0.02] rounded-full blur-3xl animate-float-medium"
+          className="absolute top-1/2 -right-32 w-96 h-96 bg-primary/[0.03] rounded-full blur-3xl animate-float-medium"
           style={{ transform: `translateY(${scrollY * 0.25}px)` }}
         />
         <div 
-          className="absolute -bottom-32 left-1/3 w-80 h-80 bg-white/[0.015] rounded-full blur-3xl animate-float-fast"
+          className="absolute -bottom-32 left-1/3 w-80 h-80 bg-primary/[0.02] rounded-full blur-3xl animate-float-fast"
           style={{ transform: `translateY(${scrollY * 0.2}px)` }}
         />
       </div>
@@ -46,7 +46,7 @@ export function HeroSection() {
       <div 
         className="absolute inset-0 opacity-[0.03]"
         style={{
-          backgroundImage: `linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)`,
+          backgroundImage: `linear-gradient(hsl(var(--primary)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--primary)) 1px, transparent 1px)`,
           backgroundSize: '60px 60px',
           transform: `translateY(${scrollY * 0.1}px)`,
         }}
@@ -69,19 +69,19 @@ export function HeroSection() {
             />
           </div>
           
-          <p className="text-lg md:text-xl text-white/80 mb-10 max-w-xl mx-auto font-light">
+          <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-xl mx-auto font-light">
             Daugiabučio namo savininkų bendrijos savitarnos portalas
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link to="/tickets">
-              <Button size="xl" className="bg-white text-foreground hover:bg-white/90 w-full sm:w-auto font-medium">
-                <AlertTriangle className="h-5 w-5 text-destructive" />
+              <Button size="xl" className="w-full sm:w-auto font-medium">
+                <AlertTriangle className="h-5 w-5" />
                 Pranešti apie problemą
               </Button>
             </Link>
             <Link to="/news">
-              <Button size="xl" variant="outline" className="border-white/30 text-white hover:bg-white/10 w-full sm:w-auto">
+              <Button size="xl" variant="outline" className="w-full sm:w-auto">
                 Skaityti naujienas
                 <ArrowRight className="h-4 w-4 ml-1" />
               </Button>
