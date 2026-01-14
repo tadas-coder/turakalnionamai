@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Ticket, Newspaper, Vote, Users, LayoutDashboard, ClipboardList, CalendarDays, FileSpreadsheet, Building2 } from "lucide-react";
+import { Ticket, Newspaper, Vote, Users, LayoutDashboard, ClipboardList, CalendarDays, FileSpreadsheet, Building2, Receipt } from "lucide-react";
 import { AdminTickets } from "@/components/admin/AdminTickets";
 import { AdminNews } from "@/components/admin/AdminNews";
 import { AdminPolls } from "@/components/admin/AdminPolls";
@@ -13,6 +13,7 @@ import { AdminResidents } from "@/components/admin/AdminResidents";
 import { AdminReports } from "@/components/admin/AdminReports";
 import { AdminSchedules } from "@/components/admin/AdminSchedules";
 import { AdminMonthlyReports } from "@/components/admin/AdminMonthlyReports";
+import AdminPaymentSlips from "@/components/admin/AdminPaymentSlips";
 import { toast } from "sonner";
 
 export default function Admin() {
@@ -69,7 +70,7 @@ export default function Admin() {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-9 lg:w-auto lg:inline-grid">
+            <TabsList className="grid w-full grid-cols-10 lg:w-auto lg:inline-grid">
               <TabsTrigger value="overview" className="gap-2">
                 <LayoutDashboard className="h-4 w-4" />
                 <span className="hidden sm:inline">Apžvalga</span>
@@ -105,6 +106,10 @@ export default function Admin() {
               <TabsTrigger value="schedules" className="gap-2">
                 <CalendarDays className="h-4 w-4" />
                 <span className="hidden sm:inline">Grafikai</span>
+              </TabsTrigger>
+              <TabsTrigger value="payment-slips" className="gap-2">
+                <Receipt className="h-4 w-4" />
+                <span className="hidden sm:inline">Lapeliai</span>
               </TabsTrigger>
             </TabsList>
 
@@ -142,6 +147,10 @@ export default function Admin() {
 
             <TabsContent value="schedules" className="animate-fade-in">
               <AdminSchedules />
+            </TabsContent>
+
+            <TabsContent value="payment-slips" className="animate-fade-in">
+              <AdminPaymentSlips />
             </TabsContent>
           </Tabs>
         </div>
