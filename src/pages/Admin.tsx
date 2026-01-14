@@ -95,46 +95,46 @@ export default function Admin() {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-10 lg:w-auto lg:inline-grid">
-              <TabsTrigger value="overview" className="gap-2">
+            <TabsList className="flex flex-wrap gap-1 h-auto p-2 bg-background border shadow-sm rounded-lg">
+              <TabsTrigger value="overview" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-3 py-2">
                 <LayoutDashboard className="h-4 w-4" />
-                <span className="hidden sm:inline">Apžvalga</span>
+                <span className="hidden sm:inline font-medium">Apžvalga</span>
               </TabsTrigger>
-              <TabsTrigger value="users" className="gap-2">
+              <TabsTrigger value="users" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-3 py-2">
                 <Users className="h-4 w-4" />
-                <span className="hidden sm:inline">Vartotojai</span>
+                <span className="hidden sm:inline font-medium">Vartotojai</span>
               </TabsTrigger>
-              <TabsTrigger value="residents" className="gap-2">
+              <TabsTrigger value="residents" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-3 py-2">
                 <Building2 className="h-4 w-4" />
-                <span className="hidden sm:inline">Gyventojai</span>
+                <span className="hidden sm:inline font-medium">Gyventojai</span>
               </TabsTrigger>
-              <TabsTrigger value="tickets" className="gap-2">
+              <TabsTrigger value="tickets" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-3 py-2">
                 <Ticket className="h-4 w-4" />
-                <span className="hidden sm:inline">Pranešimai</span>
+                <span className="hidden sm:inline font-medium">Pranešimai</span>
               </TabsTrigger>
-              <TabsTrigger value="news" className="gap-2">
+              <TabsTrigger value="news" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-3 py-2">
                 <Newspaper className="h-4 w-4" />
-                <span className="hidden sm:inline">Naujienos</span>
+                <span className="hidden sm:inline font-medium">Naujienos</span>
               </TabsTrigger>
-              <TabsTrigger value="polls" className="gap-2">
+              <TabsTrigger value="polls" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-3 py-2">
                 <Vote className="h-4 w-4" />
-                <span className="hidden sm:inline">Apklausos</span>
+                <span className="hidden sm:inline font-medium">Apklausos</span>
               </TabsTrigger>
-              <TabsTrigger value="reports" className="gap-2">
+              <TabsTrigger value="reports" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-3 py-2">
                 <ClipboardList className="h-4 w-4" />
-                <span className="hidden sm:inline">Ataskaitos</span>
+                <span className="hidden sm:inline font-medium">Ataskaitos</span>
               </TabsTrigger>
-              <TabsTrigger value="monthly-reports" className="gap-2">
+              <TabsTrigger value="monthly-reports" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-3 py-2">
                 <FileSpreadsheet className="h-4 w-4" />
-                <span className="hidden sm:inline">Mėnesio</span>
+                <span className="hidden sm:inline font-medium">Mėnesio</span>
               </TabsTrigger>
-              <TabsTrigger value="schedules" className="gap-2">
+              <TabsTrigger value="schedules" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-3 py-2">
                 <CalendarDays className="h-4 w-4" />
-                <span className="hidden sm:inline">Grafikai</span>
+                <span className="hidden sm:inline font-medium">Grafikai</span>
               </TabsTrigger>
-              <TabsTrigger value="payment-slips" className="gap-2">
+              <TabsTrigger value="payment-slips" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-3 py-2">
                 <Receipt className="h-4 w-4" />
-                <span className="hidden sm:inline">Lapeliai</span>
+                <span className="hidden sm:inline font-medium">Lapeliai</span>
               </TabsTrigger>
             </TabsList>
 

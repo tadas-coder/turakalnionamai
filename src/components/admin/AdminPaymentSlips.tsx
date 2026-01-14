@@ -914,12 +914,15 @@ export default function AdminPaymentSlips() {
                 <label className="text-sm font-medium text-muted-foreground mb-2 block">
                   Priskirti gyventojui
                 </label>
-                <Select value={selectedResidentId} onValueChange={setSelectedResidentId}>
+                <Select 
+                  value={selectedResidentId || "__none__"} 
+                  onValueChange={(value) => setSelectedResidentId(value === "__none__" ? "" : value)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Pasirinkite gyventoją" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nepriskirta</SelectItem>
+                    <SelectItem value="__none__">Nepriskirta</SelectItem>
                     {residents?.map((resident) => (
                       <SelectItem key={resident.id} value={resident.id}>
                         {resident.apartment_number ? `${resident.apartment_number} - ` : ""}
