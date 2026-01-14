@@ -21,13 +21,13 @@ export function ContactInfo() {
   const isExpanded = (cardId: string) => expandedCard === cardId;
 
   return (
-    <section className="py-16 bg-muted">
+    <section className="py-20 bg-muted/50">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold font-display text-foreground mb-4">
+          <h2 className="text-2xl md:text-3xl font-bold font-display text-foreground mb-3">
             Kontaktinė informacija
           </h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-muted-foreground max-w-2xl mx-auto text-sm">
             {isMobile ? "Paspauskite ant kortelės" : "Užveskite pelę ant kortelės"}, kad pamatytumėte daugiau informacijos
           </p>
         </div>
