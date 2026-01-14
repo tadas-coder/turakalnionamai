@@ -420,6 +420,80 @@ export type Database = {
         }
         Relationships: []
       }
+      residents: {
+        Row: {
+          address: string | null
+          apartment_number: string | null
+          company_code: string | null
+          correspondence_address: string | null
+          created_at: string
+          email: string | null
+          full_name: string
+          id: string
+          invitation_sent_at: string | null
+          invitation_token: string | null
+          is_active: boolean | null
+          linked_profile_id: string | null
+          notes: string | null
+          payment_code: string | null
+          phone: string | null
+          pvm_code: string | null
+          receives_email: boolean | null
+          receives_mail: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          apartment_number?: string | null
+          company_code?: string | null
+          correspondence_address?: string | null
+          created_at?: string
+          email?: string | null
+          full_name: string
+          id?: string
+          invitation_sent_at?: string | null
+          invitation_token?: string | null
+          is_active?: boolean | null
+          linked_profile_id?: string | null
+          notes?: string | null
+          payment_code?: string | null
+          phone?: string | null
+          pvm_code?: string | null
+          receives_email?: boolean | null
+          receives_mail?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          apartment_number?: string | null
+          company_code?: string | null
+          correspondence_address?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string
+          id?: string
+          invitation_sent_at?: string | null
+          invitation_token?: string | null
+          is_active?: boolean | null
+          linked_profile_id?: string | null
+          notes?: string | null
+          payment_code?: string | null
+          phone?: string | null
+          pvm_code?: string | null
+          receives_email?: boolean | null
+          receives_mail?: boolean | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "residents_linked_profile_id_fkey"
+            columns: ["linked_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ticket_photos: {
         Row: {
           created_at: string | null
