@@ -42,6 +42,102 @@ function parseNumber(str: string | undefined): number {
   return isNaN(num) ? 0 : num;
 }
 
+// Try to repair and parse potentially malformed JSON
+function repairAndParseJSON(text: string): { slips: any[] } | null {
+  // First try to find the main JSON object
+  let jsonStr = text;
+  
+  // Try to extract JSON from markdown code blocks
+  const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (codeBlockMatch) {
+    jsonStr = codeBlockMatch[1].trim();
+  }
+  
+  // Try to find the { "slips": [ ... ] } structure
+  const slipsMatch = text.match(/\{\s*"slips"\s*:\s*\[/);
+  if (slipsMatch) {
+    const startIdx = text.indexOf(slipsMatch[0]);
+    jsonStr = text.substring(startIdx);
+  }
+  
+  // Try direct parse first
+  try {
+    const parsed = JSON.parse(jsonStr);
+    if (parsed.slips && Array.isArray(parsed.slips)) {
+      return parsed;
+    }
+  } catch (e) {
+    // Continue to repair attempts
+  }
+  
+  // Try to fix common JSON issues
+  try {
+    // Find where the slips array starts
+    const slipsStart = jsonStr.indexOf('"slips"');
+    if (slipsStart === -1) return null;
+    
+    const arrayStart = jsonStr.indexOf('[', slipsStart);
+    if (arrayStart === -1) return null;
+    
+    // Find valid objects in the array
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    let objectStart = -1;
+    const objects: string[] = [];
+    
+    for (let i = arrayStart; i < jsonStr.length; i++) {
+      const char = jsonStr[i];
+      
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      
+      if (char === '\\') {
+        escaped = true;
+        continue;
+      }
+      
+      if (char === '"' && !escaped) {
+        inString = !inString;
+        continue;
+      }
+      
+      if (inString) continue;
+      
+      if (char === '{') {
+        if (depth === 0) objectStart = i;
+        depth++;
+      } else if (char === '}') {
+        depth--;
+        if (depth === 0 && objectStart !== -1) {
+          const objStr = jsonStr.substring(objectStart, i + 1);
+          try {
+            JSON.parse(objStr); // Validate it's valid JSON
+            objects.push(objStr);
+          } catch (e) {
+            // Skip invalid objects
+            console.log("Skipping invalid object in JSON array");
+          }
+          objectStart = -1;
+        }
+      }
+    }
+    
+    if (objects.length > 0) {
+      const repairedJson = `{"slips": [${objects.join(',')}]}`;
+      const parsed = JSON.parse(repairedJson);
+      console.log(`Repaired JSON: extracted ${parsed.slips.length} valid objects`);
+      return parsed;
+    }
+  } catch (e) {
+    console.error("JSON repair failed:", e);
+  }
+  
+  return null;
+}
+
 function extractApartmentNumber(address: string): string {
   const match = address.match(/(\d+)\s*-\s*(\d+)/);
   if (match) {
@@ -499,37 +595,36 @@ Grąžink TIK JSON!`;
             const aiText = aiResult.choices?.[0]?.message?.content || '';
             console.log("AI response received, length:", aiText.length);
             
-            const jsonMatch = aiText.match(/\{[\s\S]*"slips"[\s\S]*\}/);
-            if (jsonMatch) {
-              try {
-                const parsed = JSON.parse(jsonMatch[0]);
-                parsedSlips = (parsed.slips || []).map((s: any) => ({
-                  invoiceNumber: s.invoiceNumber || '',
-                  invoiceDate: s.invoiceDate || new Date().toISOString().split('T')[0],
-                  dueDate: s.dueDate || new Date().toISOString().split('T')[0],
-                  buyerName: s.buyerName || '',
-                  apartmentAddress: s.apartmentAddress || '',
-                  apartmentNumber: String(s.apartmentNumber || '').padStart(2, '0'),
-                  paymentCode: s.paymentCode || '',
-                  previousAmount: parseNumber(String(s.previousAmount || 0)),
-                  paymentsReceived: parseNumber(String(s.paymentsReceived || 0)),
-                  balance: parseNumber(String(s.balance || 0)),
-                  accruedAmount: parseNumber(String(s.accruedAmount || s.totalDue || 0)),
-                  totalDue: parseNumber(String(s.totalDue || 0)),
-                  lineItems: (s.lineItems || []).map((item: any) => ({
-                    code: item.code || '',
-                    name: item.name || '',
-                    unit: item.unit || 'vnt.',
-                    quantity: item.quantity || 1,
-                    rate: item.rate || 0,
-                    amount: parseNumber(String(item.amount || 0))
-                  })),
-                  utilityReadings: s.utilityReadings || {}
-                }));
-                console.log(`AI parsed ${parsedSlips.length} slips successfully`);
-              } catch (parseError) {
-                console.error("Failed to parse AI JSON:", parseError);
-              }
+            // Use the repair function to handle potentially malformed JSON
+            const parsed = repairAndParseJSON(aiText);
+            
+            if (parsed && parsed.slips && parsed.slips.length > 0) {
+              parsedSlips = parsed.slips.map((s: any) => ({
+                invoiceNumber: s.invoiceNumber || '',
+                invoiceDate: s.invoiceDate || new Date().toISOString().split('T')[0],
+                dueDate: s.dueDate || new Date().toISOString().split('T')[0],
+                buyerName: s.buyerName || '',
+                apartmentAddress: s.apartmentAddress || '',
+                apartmentNumber: String(s.apartmentNumber || '').padStart(2, '0'),
+                paymentCode: s.paymentCode || '',
+                previousAmount: parseNumber(String(s.previousAmount || 0)),
+                paymentsReceived: parseNumber(String(s.paymentsReceived || 0)),
+                balance: parseNumber(String(s.balance || 0)),
+                accruedAmount: parseNumber(String(s.accruedAmount || s.totalDue || 0)),
+                totalDue: parseNumber(String(s.totalDue || 0)),
+                lineItems: (s.lineItems || []).map((item: any) => ({
+                  code: item.code || '',
+                  name: item.name || '',
+                  unit: item.unit || 'vnt.',
+                  quantity: item.quantity || 1,
+                  rate: item.rate || 0,
+                  amount: parseNumber(String(item.amount || 0))
+                })),
+                utilityReadings: s.utilityReadings || {}
+              }));
+              console.log(`AI parsed ${parsedSlips.length} slips successfully`);
+            } else {
+              console.log("No valid slips found in AI response, trying with smaller chunks...");
             }
           } else {
             const errorText = await aiResponse.text();
