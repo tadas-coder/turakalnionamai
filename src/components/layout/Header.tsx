@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Mail, Menu, X, LogIn, LogOut, Settings, ChevronDown, Vote, Newspaper, Receipt, FileText, ScrollText, User, ClipboardList, PieChart, BarChart3, CalendarDays } from "lucide-react";
+import { Home, Mail, Menu, X, LogIn, LogOut, Settings, ChevronDown, Vote, Newspaper, Receipt, FileText, ScrollText, User, ClipboardList, PieChart, BarChart3, CalendarDays, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -23,6 +23,7 @@ const moreItems = [
   { path: "/voting", label: "Balsavimas", icon: Vote },
   { path: "/news", label: "Naujienos", icon: Newspaper },
   { path: "/schedules", label: "Grafikai", icon: CalendarDays },
+  { path: "/payment-slips", label: "Mokėjimo lapeliai", icon: CreditCard, authRequired: true },
   { path: "/invoices", label: "Sąskaitos", icon: Receipt },
   { path: "/documents", label: "Dokumentai", icon: FileText, authRequired: true },
   { path: "/reports", label: "Ataskaitos", icon: ClipboardList },

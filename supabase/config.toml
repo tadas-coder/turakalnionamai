@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.send-resident-invitation]
 verify_jwt = false
+
+[functions.parse-payment-slips]
+verify_jwt = false
