@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, Phone, MapPin, Clock, User, AlertTriangle, Wrench, ChevronDown } from "lucide-react";
+import { Mail, Phone, MapPin, User, AlertTriangle, Wrench, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -139,58 +139,6 @@ export function ContactInfo() {
                     <Phone className="h-4 w-4" />
                     <span>(+370) 636 00008</span>
                   </a>
-                </div>
-              </CardContent>
-            </div>
-          </Card>
-
-          {/* Working Hours Card */}
-          <Card 
-            className="card-elevated cursor-pointer transition-all duration-300 hover:shadow-lg"
-            onMouseEnter={() => handleCardInteraction("hours", true)}
-            onMouseLeave={() => handleCardInteraction("hours", false)}
-            onClick={() => handleCardClick("hours")}
-          >
-            <CardHeader>
-              <CardTitle className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-secondary/10 flex items-center justify-center">
-                  <Clock className="h-5 w-5 text-secondary" />
-                </div>
-                <div className="flex-1">
-                  <span>Darbo laikas</span>
-                  <p className="text-sm font-normal text-muted-foreground">I-V: 8:00 - 17:00</p>
-                </div>
-                <ChevronDown className={cn(
-                  "h-5 w-5 text-muted-foreground transition-transform duration-300",
-                  isExpanded("hours") && "rotate-180"
-                )} />
-              </CardTitle>
-            </CardHeader>
-            <div className={cn(
-              "overflow-hidden transition-all duration-300",
-              isExpanded("hours") ? "max-h-48 opacity-100" : "max-h-0 opacity-0"
-            )}>
-              <CardContent className="space-y-4 pt-0">
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Pirmadienis - Penktadienis</span>
-                    <span className="font-medium">8:00 - 17:00</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Šeštadienis</span>
-                    <span className="font-medium">Nedirbama</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Sekmadienis</span>
-                    <span className="font-medium">Nedirbama</span>
-                  </div>
-                </div>
-                
-                <div className="pt-4 border-t border-border">
-                  <div className="flex items-center gap-3 text-muted-foreground">
-                    <MapPin className="h-4 w-4" />
-                    <span>Vilnius, Lietuva</span>
-                  </div>
                 </div>
               </CardContent>
             </div>
