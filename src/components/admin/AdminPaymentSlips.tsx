@@ -258,16 +258,33 @@ export default function AdminPaymentSlips() {
       } else if (isPDF) {
         // IMPORTANT: do NOT send PDF as base64 in the request body (request size limit).
         // We already uploaded the file to storage; the backend function can download it directly.
-        setUploadProgress("Analizuojamas PDF failas...");
+        setUploadProgress("Analizuojamas PDF failas... (tai gali užtrukti iki 2 min.)");
         requestBody.pdfFileName = file.name;
         requestBody.pdfStoragePath = uploadFileName;
       }
       
-      const response = await supabase.functions.invoke("parse-payment-slips", {
-        body: requestBody
-      });
+      // Use longer timeout for PDF processing
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 180000); // 3 min timeout
       
-      if (response.error) throw response.error;
+      let response;
+      try {
+        response = await supabase.functions.invoke("parse-payment-slips", {
+          body: requestBody
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+      
+      if (response.error) {
+        // Check if it's a timeout or connection error
+        if (response.error.message?.includes('Failed to fetch') || 
+            response.error.message?.includes('connection') ||
+            response.error.message?.includes('timeout')) {
+          throw new Error("Užklausa nutrūko dėl didelio failo. Bandykite įkelti mažesnį PDF (iki 50 puslapių).");
+        }
+        throw response.error;
+      }
       
       const { preview, residents: residentsList, stats, message, batchId } = response.data;
       

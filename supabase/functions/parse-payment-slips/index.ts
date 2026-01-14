@@ -686,8 +686,11 @@ serve(async (req) => {
         const chunkSize = 100000;
         const allParsedSlips: ParsedSlip[] = [];
 
-        // Process up to 3 chunks to keep execution time bounded
-        const maxChunks = Math.min(3, Math.ceil(pdfLength / chunkSize));
+        // Process up to 5 chunks to cover larger PDFs
+        const maxChunks = Math.min(5, Math.ceil(pdfLength / chunkSize));
+
+        // Create promises for parallel processing
+        const chunkPromises: Promise<ParsedSlip[]>[] = [];
 
         for (let chunkIndex = 0; chunkIndex < maxChunks; chunkIndex++) {
           const startPos = chunkIndex * chunkSize;
@@ -695,8 +698,7 @@ serve(async (req) => {
 
           if (pdfChunk.length < 1000) continue;
 
-          
-          console.log(`Processing chunk ${chunkIndex + 1}/${maxChunks}, size: ${pdfChunk.length} chars`);
+          console.log(`Preparing chunk ${chunkIndex + 1}/${maxChunks}, size: ${pdfChunk.length} chars`);
           
           const pdfTextPrompt = `Išanalizuok šį PDF mokėjimo lapelių dokumentą base64 formatu ir ištrauk VISUS mokėjimo lapelius kuriuos randi.
 
@@ -727,76 +729,90 @@ PDF base64 fragmentas: ${pdfChunk}
 
 Grąžink TIK JSON su visais rastais lapeliais!`;
 
-          try {
-            const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-              },
-              body: JSON.stringify({
-                model: "google/gemini-2.5-flash",
-                messages: [
-                  { role: "system", content: "Tu esi dokumentų analizavimo asistentas. Ištrauk VISUS mokėjimo lapelius iš PDF dokumento. Grąžink TIK JSON formatą, be jokio papildomo teksto." },
-                  { role: "user", content: pdfTextPrompt }
-                ],
-                max_tokens: 32000
-              }),
-            });
+          // Create async function for each chunk and run in parallel
+          const processChunk = async (idx: number, prompt: string): Promise<ParsedSlip[]> => {
+            try {
+              const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+                },
+                body: JSON.stringify({
+                  model: "google/gemini-2.5-flash-lite",
+                  messages: [
+                    { role: "system", content: "Tu esi dokumentų analizavimo asistentas. Ištrauk VISUS mokėjimo lapelius iš PDF dokumento. Grąžink TIK JSON formatą, be jokio papildomo teksto." },
+                    { role: "user", content: prompt }
+                  ],
+                  max_tokens: 32000
+                }),
+              });
 
-            if (aiResponse.ok) {
-              const aiResult = await aiResponse.json();
-              const aiText = aiResult.choices?.[0]?.message?.content || '';
-              console.log(`Chunk ${chunkIndex + 1} AI response length: ${aiText.length}`);
-              
-              const parsed = repairAndParseJSON(aiText);
-              
-              if (parsed && parsed.slips && parsed.slips.length > 0) {
-                const chunkSlips = parsed.slips.map((s: any) => ({
-                  invoiceNumber: s.invoiceNumber || '',
-                  invoiceDate: s.invoiceDate || new Date().toISOString().split('T')[0],
-                  dueDate: s.dueDate || new Date().toISOString().split('T')[0],
-                  buyerName: s.buyerName || '',
-                  apartmentAddress: s.apartmentAddress || '',
-                  apartmentNumber: String(s.apartmentNumber || '').padStart(2, '0'),
-                  paymentCode: s.paymentCode || '',
-                  previousAmount: parseNumber(String(s.previousAmount || 0)),
-                  paymentsReceived: parseNumber(String(s.paymentsReceived || 0)),
-                  balance: parseNumber(String(s.balance || 0)),
-                  accruedAmount: parseNumber(String(s.accruedAmount || s.totalDue || 0)),
-                  totalDue: parseNumber(String(s.totalDue || 0)),
-                  lineItems: (s.lineItems || []).map((item: any) => ({
-                    code: item.code || '',
-                    name: item.name || '',
-                    unit: item.unit || 'vnt.',
-                    quantity: item.quantity || 1,
-                    rate: item.rate || 0,
-                    amount: parseNumber(String(item.amount || 0))
-                  })),
-                  utilityReadings: s.utilityReadings || {}
-                }));
+              if (aiResponse.ok) {
+                const aiResult = await aiResponse.json();
+                const aiText = aiResult.choices?.[0]?.message?.content || '';
+                console.log(`Chunk ${idx + 1} AI response length: ${aiText.length}`);
                 
-                // Deduplicate by invoice number
-                for (const slip of chunkSlips) {
-                  const exists = allParsedSlips.some(existing => 
-                    existing.invoiceNumber === slip.invoiceNumber && 
-                    existing.apartmentNumber === slip.apartmentNumber
-                  );
-                  if (!exists) {
-                    allParsedSlips.push(slip);
-                  }
+                const parsed = repairAndParseJSON(aiText);
+                
+                if (parsed && parsed.slips && parsed.slips.length > 0) {
+                  const chunkSlips = parsed.slips.map((s: any) => ({
+                    invoiceNumber: s.invoiceNumber || '',
+                    invoiceDate: s.invoiceDate || new Date().toISOString().split('T')[0],
+                    dueDate: s.dueDate || new Date().toISOString().split('T')[0],
+                    buyerName: s.buyerName || '',
+                    apartmentAddress: s.apartmentAddress || '',
+                    apartmentNumber: String(s.apartmentNumber || '').padStart(2, '0'),
+                    paymentCode: s.paymentCode || '',
+                    previousAmount: parseNumber(String(s.previousAmount || 0)),
+                    paymentsReceived: parseNumber(String(s.paymentsReceived || 0)),
+                    balance: parseNumber(String(s.balance || 0)),
+                    accruedAmount: parseNumber(String(s.accruedAmount || s.totalDue || 0)),
+                    totalDue: parseNumber(String(s.totalDue || 0)),
+                    lineItems: (s.lineItems || []).map((item: any) => ({
+                      code: item.code || '',
+                      name: item.name || '',
+                      unit: item.unit || 'vnt.',
+                      quantity: item.quantity || 1,
+                      rate: item.rate || 0,
+                      amount: parseNumber(String(item.amount || 0))
+                    })),
+                    utilityReadings: s.utilityReadings || {}
+                  }));
+                  
+                  console.log(`Chunk ${idx + 1}: Found ${chunkSlips.length} slips`);
+                  return chunkSlips;
                 }
-                
-                console.log(`Chunk ${chunkIndex + 1}: Found ${chunkSlips.length} slips, total unique: ${allParsedSlips.length}`);
+              } else {
+                const errorText = await aiResponse.text();
+                console.error(`Chunk ${idx + 1} AI error:`, aiResponse.status, errorText);
               }
-            } else {
-              const errorText = await aiResponse.text();
-              console.error(`Chunk ${chunkIndex + 1} AI error:`, aiResponse.status, errorText);
+            } catch (chunkError) {
+              console.error(`Error processing chunk ${idx + 1}:`, chunkError);
             }
-          } catch (chunkError) {
-            console.error(`Error processing chunk ${chunkIndex + 1}:`, chunkError);
+            return [];
+          };
+
+          chunkPromises.push(processChunk(chunkIndex, pdfTextPrompt));
+        }
+
+        // Wait for all chunks to complete in parallel
+        console.log(`Processing ${chunkPromises.length} chunks in parallel...`);
+        const chunkResults = await Promise.all(chunkPromises);
+        
+        // Merge results and deduplicate
+        for (const chunkSlips of chunkResults) {
+          for (const slip of chunkSlips) {
+            const exists = allParsedSlips.some(existing => 
+              existing.invoiceNumber === slip.invoiceNumber && 
+              existing.apartmentNumber === slip.apartmentNumber
+            );
+            if (!exists) {
+              allParsedSlips.push(slip);
+            }
           }
         }
+        console.log(`Total unique slips after parallel processing: ${allParsedSlips.length}`);
         
         if (allParsedSlips.length > 0) {
           parsedSlips = allParsedSlips;
