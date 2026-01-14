@@ -17,42 +17,8 @@ export function HeroSection() {
   }, []);
 
   return (
-    <section className="relative text-foreground py-24 md:py-32 overflow-hidden">
-      {/* White background with parallax */}
-      <div 
-        className="absolute inset-0 bg-background"
-        style={{
-          transform: `translateY(${scrollY * 0.3}px)`,
-        }}
-      />
-      
-      {/* Floating animated shapes with parallax */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div 
-          className="absolute -top-20 -left-20 w-72 h-72 bg-primary/[0.03] rounded-full blur-3xl animate-float-slow"
-          style={{ transform: `translateY(${scrollY * 0.15}px)` }}
-        />
-        <div 
-          className="absolute top-1/2 -right-32 w-96 h-96 bg-primary/[0.03] rounded-full blur-3xl animate-float-medium"
-          style={{ transform: `translateY(${scrollY * 0.25}px)` }}
-        />
-        <div 
-          className="absolute -bottom-32 left-1/3 w-80 h-80 bg-primary/[0.02] rounded-full blur-3xl animate-float-fast"
-          style={{ transform: `translateY(${scrollY * 0.2}px)` }}
-        />
-      </div>
-      
-      {/* Subtle grid pattern with parallax */}
-      <div 
-        className="absolute inset-0 opacity-[0.03]"
-        style={{
-          backgroundImage: `linear-gradient(hsl(var(--primary)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--primary)) 1px, transparent 1px)`,
-          backgroundSize: '60px 60px',
-          transform: `translateY(${scrollY * 0.1}px)`,
-        }}
-      />
-      
-      <div 
+    <section className="relative text-foreground py-24 md:py-32 bg-background">
+      <div
         className="container mx-auto px-4 relative z-10"
         style={{
           transform: `translateY(${scrollY * 0.05}px)`,
