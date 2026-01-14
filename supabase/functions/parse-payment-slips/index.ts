@@ -161,25 +161,28 @@ function parseSlipFromText(text: string): ParsedSlip | null {
 }
 
 function splitIntoSlips(fullText: string): string[] {
-  const pages = fullText.split(/## Page \d+/);
   const slips: string[] = [];
-  let currentSlip = '';
   
-  for (const page of pages) {
-    if (page.includes('SĄSKAITA - FAKTŪRA') || page.includes('Serija:')) {
-      if (currentSlip && currentSlip.includes('SĄSKAITA - FAKTŪRA')) {
-        slips.push(currentSlip);
-      }
-      currentSlip = page;
-    } else if (currentSlip) {
-      currentSlip += '\n' + page;
+  // Split by "SĄSKAITA - FAKTŪRA" headers (each invoice starts with this)
+  const invoiceSplits = fullText.split(/(?=# SĄSKAITA - FAKTŪRA|(?<=\n)SĄSKAITA - FAKTŪRA)/);
+  
+  for (const section of invoiceSplits) {
+    if (section.includes('SĄSKAITA - FAKTŪRA') && section.includes('Serija:')) {
+      slips.push(section.trim());
     }
   }
   
-  if (currentSlip && currentSlip.includes('SĄSKAITA - FAKTŪRA')) {
-    slips.push(currentSlip);
+  // If no slips found with header split, try alternative split by Serija:
+  if (slips.length === 0) {
+    const serijaSpits = fullText.split(/(?=Serija:\s*\w+\s*Nr\.)/);
+    for (const section of serijaSpits) {
+      if (section.includes('Serija:') && (section.includes('MOKĖTINA SUMA') || section.includes('mokėtojo kod'))) {
+        slips.push(section.trim());
+      }
+    }
   }
   
+  console.log(`Split document into ${slips.length} potential slips`);
   return slips;
 }
 
@@ -397,25 +400,132 @@ serve(async (req) => {
       });
     }
 
-    const { parsedText, excelData, periodMonth, pdfFileName, pdfUrl, useAI } = await req.json();
+    const { parsedText, excelData, pdfBase64, periodMonth, pdfFileName, pdfUrl, useAI } = await req.json();
 
     let parsedSlips: ParsedSlip[] = [];
+    let textToParse = parsedText || '';
+
+    // If PDF base64 is provided, use AI to extract text
+    if (pdfBase64 && !parsedText) {
+      console.log("Processing PDF with AI...");
+      try {
+        // Use Lovable AI to extract text from PDF
+        const aiUrl = "https://api.lovable.dev/v1/chat/completions";
+        const aiResponse = await fetch(aiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages: [
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "text",
+                    text: `Išanalizuok šį PDF mokėjimo lapelių dokumentą ir ištrauk VISUS mokėjimo lapelius. Kiekvienam lapeliui grąžink JSON formatu:
+{
+  "slips": [
+    {
+      "invoiceNumber": "Serija-Numeris (pvz. TAUR-000582)",
+      "invoiceDate": "YYYY-MM-DD",
+      "dueDate": "YYYY-MM-DD",
+      "buyerName": "pirkėjo vardas/įmonė",
+      "apartmentAddress": "pilnas adresas su butu",
+      "apartmentNumber": "buto numeris su nuliu (pvz. 01, 02, 10)",
+      "paymentCode": "mokėtojo kodas (pvz. 428567)",
+      "previousAmount": numeris arba 0,
+      "paymentsReceived": numeris arba 0,
+      "balance": numeris arba 0,
+      "accruedAmount": priskaityta suma,
+      "totalDue": mokėtina suma,
+      "lineItems": [{"code": "T1", "name": "paslaugos pavadinimas", "amount": numeris}]
+    }
+  ]
+}
+
+SVARBU: 
+- Kiekvienas lapelis prasideda "SĄSKAITA - FAKTŪRA"
+- Buto numerį ištrauk iš Obj.adresas (pvz. "g. 10 - 01" = butas "01")
+- Mokėtojo kodą rask po tekstu "mokėtojo kodą:"
+- Grąžink TIK JSON, be jokio papildomo teksto!`
+                  },
+                  {
+                    type: "image_url",
+                    image_url: {
+                      url: `data:application/pdf;base64,${pdfBase64}`
+                    }
+                  }
+                ]
+              }
+            ],
+            max_tokens: 16000
+          }),
+        });
+
+        if (aiResponse.ok) {
+          const aiResult = await aiResponse.json();
+          const aiText = aiResult.choices?.[0]?.message?.content || '';
+          console.log("AI response received, length:", aiText.length);
+          
+          // Try to extract JSON from AI response
+          const jsonMatch = aiText.match(/\{[\s\S]*"slips"[\s\S]*\}/);
+          if (jsonMatch) {
+            try {
+              const parsed = JSON.parse(jsonMatch[0]);
+              parsedSlips = (parsed.slips || []).map((s: any) => ({
+                invoiceNumber: s.invoiceNumber || '',
+                invoiceDate: s.invoiceDate || new Date().toISOString().split('T')[0],
+                dueDate: s.dueDate || new Date().toISOString().split('T')[0],
+                buyerName: s.buyerName || '',
+                apartmentAddress: s.apartmentAddress || '',
+                apartmentNumber: String(s.apartmentNumber || '').padStart(2, '0'),
+                paymentCode: s.paymentCode || '',
+                previousAmount: parseNumber(String(s.previousAmount || 0)),
+                paymentsReceived: parseNumber(String(s.paymentsReceived || 0)),
+                balance: parseNumber(String(s.balance || 0)),
+                accruedAmount: parseNumber(String(s.accruedAmount || s.totalDue || 0)),
+                totalDue: parseNumber(String(s.totalDue || 0)),
+                lineItems: (s.lineItems || []).map((item: any) => ({
+                  code: item.code || '',
+                  name: item.name || '',
+                  unit: item.unit || 'vnt.',
+                  quantity: item.quantity || 1,
+                  rate: item.rate || 0,
+                  amount: parseNumber(String(item.amount || 0))
+                })),
+                utilityReadings: s.utilityReadings || {}
+              }));
+              console.log(`AI parsed ${parsedSlips.length} slips successfully`);
+            } catch (parseError) {
+              console.error("Failed to parse AI JSON:", parseError);
+            }
+          }
+        } else {
+          console.log("AI parsing failed:", aiResponse.status, await aiResponse.text());
+        }
+      } catch (aiError) {
+        console.error("AI PDF parsing error:", aiError);
+      }
+    }
 
     // Parse based on input type
-    if (excelData && Array.isArray(excelData)) {
+    if (parsedSlips.length === 0 && excelData && Array.isArray(excelData)) {
       // Excel data provided
       console.log(`Parsing Excel data with ${excelData.length} rows`);
       parsedSlips = parseExcelData(excelData);
-    } else if (parsedText) {
+    } else if (parsedSlips.length === 0 && textToParse) {
       // Try AI parsing first if enabled
       if (useAI) {
-        parsedSlips = await parseWithAI(parsedText, supabaseUrl, supabaseKey);
+        parsedSlips = await parseWithAI(textToParse, supabaseUrl, supabaseKey);
       }
       
       // Fallback to regex parsing
       if (parsedSlips.length === 0) {
-        const slipTexts = splitIntoSlips(parsedText);
-        console.log(`Found ${slipTexts.length} payment slips in document`);
+        console.log('AI parsing not available, falling back to regex');
+        const slipTexts = splitIntoSlips(textToParse);
+        console.log(`Split document into ${slipTexts.length} potential slips`);
         
         for (const slipText of slipTexts) {
           const parsed = parseSlipFromText(slipText);
@@ -424,7 +534,9 @@ serve(async (req) => {
           }
         }
       }
-    } else {
+    }
+    
+    if (parsedSlips.length === 0 && !pdfBase64 && !excelData && !parsedText) {
       return new Response(JSON.stringify({ error: "No data provided" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" }

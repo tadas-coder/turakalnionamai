@@ -194,20 +194,17 @@ export default function AdminPaymentSlips() {
         
         requestBody.excelData = jsonData;
       } else if (isPDF) {
-        // For PDF, we need to read as text or use browser parsing
+        // For PDF files, we need to send the file content as base64
         setUploadProgress("Analizuojamas PDF failas...");
         
-        // Try to read PDF as text (for simple PDFs)
-        const text = await file.text();
+        // Convert PDF to base64 for the edge function
+        const arrayBuffer = await file.arrayBuffer();
+        const base64 = btoa(
+          new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+        );
         
-        // Check if it's a readable PDF (not binary)
-        if (text.includes('%PDF') && !text.includes('SĄSKAITA') && !text.includes('Serija')) {
-          // Binary PDF - need to inform user or use different method
-          toast.info("PDF failas analizuojamas. Jei rezultatų nebus, naudokite 'Importuoti iš teksto' funkciją.");
-          requestBody.parsedText = text;
-        } else {
-          requestBody.parsedText = text;
-        }
+        requestBody.pdfBase64 = base64;
+        requestBody.pdfFileName = file.name;
       }
       
       const response = await supabase.functions.invoke("parse-payment-slips", {
