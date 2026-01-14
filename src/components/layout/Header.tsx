@@ -304,6 +304,12 @@ export function Header() {
                   </Button>
                 </Link>
               )}
+              
+              {/* Theme Toggle in mobile menu */}
+              <div className="border-t border-border pt-2 mt-2 flex items-center justify-between px-4">
+                <span className="text-sm text-muted-foreground">Tamsus režimas</span>
+                <ThemeToggle />
+              </div>
             </div>
           </nav>
         )}
