@@ -622,6 +622,40 @@ serve(async (req) => {
         batchId: batchIdToUse
       };
 
+      // Send email notifications for assigned slips
+      const assignedSlips = (insertedSlips || []).filter((s: any) => s.resident_id || s.profile_id);
+      if (assignedSlips.length > 0) {
+        console.log(`Sending notifications for ${assignedSlips.length} assigned slips`);
+        try {
+          const notificationPayload = {
+            slips: assignedSlips.map((s: any) => ({
+              slipId: s.id,
+              residentId: s.resident_id,
+              profileId: s.profile_id,
+              periodMonth: s.period_month,
+              totalDue: s.total_due,
+              invoiceNumber: s.invoice_number,
+              dueDate: s.due_date
+            }))
+          };
+
+          // Call the notification edge function
+          const { data: notifResult, error: notifError } = await supabase.functions.invoke(
+            "send-payment-slip-notification",
+            { body: notificationPayload }
+          );
+
+          if (notifError) {
+            console.error("Notification error:", notifError);
+          } else {
+            console.log("Notifications sent:", notifResult);
+          }
+        } catch (notifErr: any) {
+          console.error("Failed to send notifications:", notifErr);
+          // Don't fail the whole operation if notifications fail
+        }
+      }
+
       return new Response(JSON.stringify({ 
         success: true, 
         stats,
