@@ -409,101 +409,98 @@ serve(async (req) => {
     if (pdfBase64 && !parsedText) {
       console.log("Processing PDF with AI...");
       try {
-        // Use Lovable AI to extract text from PDF
-        const aiUrl = "https://api.lovable.dev/v1/chat/completions";
-        const aiResponse = await fetch(aiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
-            messages: [
-              {
-                role: "user",
-                content: [
-                  {
-                    type: "text",
-                    text: `Išanalizuok šį PDF mokėjimo lapelių dokumentą ir ištrauk VISUS mokėjimo lapelius. Kiekvienam lapeliui grąžink JSON formatu:
+        const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+        
+        if (!LOVABLE_API_KEY) {
+          console.log("LOVABLE_API_KEY not set, skipping AI parsing");
+        } else {
+          console.log("Calling Lovable AI for PDF parsing...");
+          
+          const pdfTextPrompt = `Išanalizuok šį PDF mokėjimo lapelių dokumentą base64 formatu ir ištrauk VISUS mokėjimo lapelius.
+
+Kiekvienam lapeliui grąžink JSON formatu:
 {
   "slips": [
     {
       "invoiceNumber": "Serija-Numeris (pvz. TAUR-000582)",
       "invoiceDate": "YYYY-MM-DD",
-      "dueDate": "YYYY-MM-DD",
+      "dueDate": "YYYY-MM-DD", 
       "buyerName": "pirkėjo vardas/įmonė",
       "apartmentAddress": "pilnas adresas su butu",
-      "apartmentNumber": "buto numeris su nuliu (pvz. 01, 02, 10)",
-      "paymentCode": "mokėtojo kodas (pvz. 428567)",
-      "previousAmount": numeris arba 0,
-      "paymentsReceived": numeris arba 0,
-      "balance": numeris arba 0,
-      "accruedAmount": priskaityta suma,
-      "totalDue": mokėtina suma,
-      "lineItems": [{"code": "T1", "name": "paslaugos pavadinimas", "amount": numeris}]
+      "apartmentNumber": "buto numeris (pvz. 01, 02, 10)",
+      "paymentCode": "mokėtojo kodas",
+      "previousAmount": 0,
+      "paymentsReceived": 0,
+      "balance": 0,
+      "accruedAmount": priskaityta_suma,
+      "totalDue": mokėtina_suma,
+      "lineItems": [{"code": "T1", "name": "pavadinimas", "amount": suma}]
     }
   ]
 }
 
-SVARBU: 
-- Kiekvienas lapelis prasideda "SĄSKAITA - FAKTŪRA"
-- Buto numerį ištrauk iš Obj.adresas (pvz. "g. 10 - 01" = butas "01")
-- Mokėtojo kodą rask po tekstu "mokėtojo kodą:"
-- Grąžink TIK JSON, be jokio papildomo teksto!`
-                  },
-                  {
-                    type: "image_url",
-                    image_url: {
-                      url: `data:application/pdf;base64,${pdfBase64}`
-                    }
-                  }
-                ]
-              }
-            ],
-            max_tokens: 16000
-          }),
-        });
+PDF base64 (pirmieji 30000 simbolių): ${pdfBase64.substring(0, 30000)}
 
-        if (aiResponse.ok) {
-          const aiResult = await aiResponse.json();
-          const aiText = aiResult.choices?.[0]?.message?.content || '';
-          console.log("AI response received, length:", aiText.length);
-          
-          // Try to extract JSON from AI response
-          const jsonMatch = aiText.match(/\{[\s\S]*"slips"[\s\S]*\}/);
-          if (jsonMatch) {
-            try {
-              const parsed = JSON.parse(jsonMatch[0]);
-              parsedSlips = (parsed.slips || []).map((s: any) => ({
-                invoiceNumber: s.invoiceNumber || '',
-                invoiceDate: s.invoiceDate || new Date().toISOString().split('T')[0],
-                dueDate: s.dueDate || new Date().toISOString().split('T')[0],
-                buyerName: s.buyerName || '',
-                apartmentAddress: s.apartmentAddress || '',
-                apartmentNumber: String(s.apartmentNumber || '').padStart(2, '0'),
-                paymentCode: s.paymentCode || '',
-                previousAmount: parseNumber(String(s.previousAmount || 0)),
-                paymentsReceived: parseNumber(String(s.paymentsReceived || 0)),
-                balance: parseNumber(String(s.balance || 0)),
-                accruedAmount: parseNumber(String(s.accruedAmount || s.totalDue || 0)),
-                totalDue: parseNumber(String(s.totalDue || 0)),
-                lineItems: (s.lineItems || []).map((item: any) => ({
-                  code: item.code || '',
-                  name: item.name || '',
-                  unit: item.unit || 'vnt.',
-                  quantity: item.quantity || 1,
-                  rate: item.rate || 0,
-                  amount: parseNumber(String(item.amount || 0))
-                })),
-                utilityReadings: s.utilityReadings || {}
-              }));
-              console.log(`AI parsed ${parsedSlips.length} slips successfully`);
-            } catch (parseError) {
-              console.error("Failed to parse AI JSON:", parseError);
+Grąžink TIK JSON!`;
+
+          const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            },
+            body: JSON.stringify({
+              model: "google/gemini-2.5-flash",
+              messages: [
+                { role: "system", content: "Tu esi dokumentų analizavimo asistentas. Grąžink TIK JSON formatą, be jokio papildomo teksto." },
+                { role: "user", content: pdfTextPrompt }
+              ],
+              max_tokens: 16000
+            }),
+          });
+
+          if (aiResponse.ok) {
+            const aiResult = await aiResponse.json();
+            const aiText = aiResult.choices?.[0]?.message?.content || '';
+            console.log("AI response received, length:", aiText.length);
+            
+            // Try to extract JSON from AI response
+            const jsonMatch = aiText.match(/\{[\s\S]*"slips"[\s\S]*\}/);
+            if (jsonMatch) {
+              try {
+                const parsed = JSON.parse(jsonMatch[0]);
+                parsedSlips = (parsed.slips || []).map((s: any) => ({
+                  invoiceNumber: s.invoiceNumber || '',
+                  invoiceDate: s.invoiceDate || new Date().toISOString().split('T')[0],
+                  dueDate: s.dueDate || new Date().toISOString().split('T')[0],
+                  buyerName: s.buyerName || '',
+                  apartmentAddress: s.apartmentAddress || '',
+                  apartmentNumber: String(s.apartmentNumber || '').padStart(2, '0'),
+                  paymentCode: s.paymentCode || '',
+                  previousAmount: parseNumber(String(s.previousAmount || 0)),
+                  paymentsReceived: parseNumber(String(s.paymentsReceived || 0)),
+                  balance: parseNumber(String(s.balance || 0)),
+                  accruedAmount: parseNumber(String(s.accruedAmount || s.totalDue || 0)),
+                  totalDue: parseNumber(String(s.totalDue || 0)),
+                  lineItems: (s.lineItems || []).map((item: any) => ({
+                    code: item.code || '',
+                    name: item.name || '',
+                    unit: item.unit || 'vnt.',
+                    quantity: item.quantity || 1,
+                    rate: item.rate || 0,
+                    amount: parseNumber(String(item.amount || 0))
+                  })),
+                  utilityReadings: s.utilityReadings || {}
+                }));
+                console.log(`AI parsed ${parsedSlips.length} slips successfully`);
+              } catch (parseError) {
+                console.error("Failed to parse AI JSON:", parseError);
+              }
             }
+          } else {
+            const errorText = await aiResponse.text();
+            console.log("AI parsing failed:", aiResponse.status, errorText);
           }
-        } else {
-          console.log("AI parsing failed:", aiResponse.status, await aiResponse.text());
         }
       } catch (aiError) {
         console.error("AI PDF parsing error:", aiError);
