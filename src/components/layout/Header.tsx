@@ -51,7 +51,7 @@ export function Header() {
             <img 
               src={logo} 
               alt="Taurakalnio Namai" 
-              className="h-16 w-auto"
+              className="h-16 w-auto dark:invert dark:brightness-200"
             />
           </Link>
 
