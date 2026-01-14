@@ -23,6 +23,7 @@ import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
 import PaymentSlips from "./pages/PaymentSlips";
 import NotFound from "./pages/NotFound";
+import { AdminErrorBoundary } from "@/components/AdminErrorBoundary";
 
 const queryClient = new QueryClient();
 
@@ -50,7 +51,14 @@ const App = () => (
               <Route path="/profile" element={<Profile />} />
               <Route path="/pending-approval" element={<PendingApproval />} />
               <Route path="/auth" element={<Auth />} />
-              <Route path="/admin" element={<Admin />} />
+              <Route
+                path="/admin"
+                element={
+                  <AdminErrorBoundary>
+                    <Admin />
+                  </AdminErrorBoundary>
+                }
+              />
               <Route path="/payment-slips" element={<PaymentSlips />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
