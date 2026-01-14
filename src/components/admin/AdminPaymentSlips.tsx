@@ -250,15 +250,11 @@ export default function AdminPaymentSlips() {
         
         requestBody.excelData = jsonData;
       } else if (isPDF) {
+        // IMPORTANT: do NOT send PDF as base64 in the request body (request size limit).
+        // We already uploaded the file to storage; the backend function can download it directly.
         setUploadProgress("Analizuojamas PDF failas...");
-        
-        const arrayBuffer = await file.arrayBuffer();
-        const base64 = btoa(
-          new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
-        );
-        
-        requestBody.pdfBase64 = base64;
         requestBody.pdfFileName = file.name;
+        requestBody.pdfStoragePath = uploadFileName;
       }
       
       const response = await supabase.functions.invoke("parse-payment-slips", {
