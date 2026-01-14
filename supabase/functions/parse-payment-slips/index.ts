@@ -697,153 +697,132 @@ serve(async (req) => {
             headers: { ...corsHeaders, "Content-Type": "application/json" }
           });
         }
+        console.log("Calling Lovable AI for PDF parsing with multimodal...");
 
-        console.log("Calling Lovable AI for PDF parsing...");
+        // Send the ENTIRE PDF as a multimodal document to Gemini
+        // This allows the AI to actually READ the PDF content
+        const pdfDataUrl = `data:application/pdf;base64,${pdfBase64Effective}`;
+        console.log(`PDF data URL length: ${pdfDataUrl.length} characters`);
 
-        // Process PDF in chunks if it's large
-        const pdfLength = pdfBase64Effective.length;
-        console.log(`Total PDF base64 length: ${pdfLength} characters`);
+        const systemPrompt = `Tu esi dokumentų analizavimo asistentas, specializuojantis lietuviškuose mokėjimo lapeliuose.
+Tavo užduotis: išanalizuoti PDF dokumentą ir tiksliai ištraukti VISUS mokėjimo lapelius.
 
-        // Use smaller chunk for faster processing
-        const chunkSize = 100000;
-        const allParsedSlips: ParsedSlip[] = [];
+SVARBU - tikslūs duomenys:
+- Sąskaitos numeris: Serija-Numeris formatą (pvz. TAUR-000582)
+- Data: iš "2025 m. gruodžio 31 d." paversk į "2025-12-31"  
+- Apmokėjimo terminas: iš "Apmokėti iki: 2026-01-28"
+- Buto adresas: pilnas adresas iš "Obj.adresas:" lauko
+- Mokėtojo kodas: skaičius iš "mokėtojo kodą: XXXXXX"
+- Sumos: tikslūs skaičiai su centais
 
-        // Process up to 5 chunks to cover larger PDFs
-        const maxChunks = Math.min(5, Math.ceil(pdfLength / chunkSize));
+Grąžink TIK JSON formatą, be jokio papildomo teksto ar paaiškinimų.`;
 
-        // Create promises for parallel processing
-        const chunkPromises: Promise<ParsedSlip[]>[] = [];
-
-        for (let chunkIndex = 0; chunkIndex < maxChunks; chunkIndex++) {
-          const startPos = chunkIndex * chunkSize;
-          const pdfChunk = pdfBase64Effective.substring(startPos, startPos + chunkSize);
-
-          if (pdfChunk.length < 1000) continue;
-
-          console.log(`Preparing chunk ${chunkIndex + 1}/${maxChunks}, size: ${pdfChunk.length} chars`);
-          
-          const pdfTextPrompt = `Išanalizuok šį PDF mokėjimo lapelių dokumentą base64 formatu ir ištrauk VISUS mokėjimo lapelius kuriuos randi.
-
-SVARBU: Grąžink VISUS lapelius kuriuos matai šiame PDF fragmente!
+        const userPrompt = `Išanalizuok šį PDF mokėjimo lapelių dokumentą ir ištrauk VISUS mokėjimo lapelius.
 
 Kiekvienam lapeliui grąžink JSON formatu:
 {
   "slips": [
     {
       "invoiceNumber": "Serija-Numeris (pvz. TAUR-000582)",
-      "invoiceDate": "YYYY-MM-DD",
-      "dueDate": "YYYY-MM-DD", 
+      "invoiceDate": "YYYY-MM-DD (sąskaitos data)",
+      "dueDate": "YYYY-MM-DD (apmokėjimo terminas)", 
       "buyerName": "pirkėjo vardas/įmonė",
-      "apartmentAddress": "pilnas adresas su butu",
+      "apartmentAddress": "pilnas objekto adresas",
       "apartmentNumber": "buto numeris (pvz. 01, 02, 10)",
-      "paymentCode": "mokėtojo kodas",
-      "previousAmount": 0,
-      "paymentsReceived": 0,
-      "balance": 0,
+      "paymentCode": "mokėtojo kodas (6 skaitmenys)",
+      "previousAmount": skaicius,
+      "paymentsReceived": skaicius,
+      "balance": skaicius,
       "accruedAmount": priskaityta_suma,
-      "totalDue": mokėtina_suma,
-      "lineItems": [{"code": "T1", "name": "pavadinimas", "amount": suma}]
+      "totalDue": moketina_suma,
+      "lineItems": [{"code": "T1", "name": "paslaugos pavadinimas", "amount": suma}]
     }
   ]
 }
 
-PDF base64 fragmentas: ${pdfChunk}
+SVARBU: Ištrauk VISUS lapelius iš PDF! Jei yra 85 butai - turi būti 85 lapeliai!`;
 
-Grąžink TIK JSON su visais rastais lapeliais!`;
-
-          // Create async function for each chunk and run in parallel
-          const processChunk = async (idx: number, prompt: string): Promise<ParsedSlip[]> => {
-            try {
-              const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-                },
-                body: JSON.stringify({
-                  model: "google/gemini-2.5-flash-lite",
-                  messages: [
-                    { role: "system", content: "Tu esi dokumentų analizavimo asistentas. Ištrauk VISUS mokėjimo lapelius iš PDF dokumento. Grąžink TIK JSON formatą, be jokio papildomo teksto." },
-                    { role: "user", content: prompt }
-                  ],
-                  max_tokens: 32000
-                }),
-              });
-
-              if (aiResponse.ok) {
-                const aiResult = await aiResponse.json();
-                const aiText = aiResult.choices?.[0]?.message?.content || '';
-                console.log(`Chunk ${idx + 1} AI response length: ${aiText.length}`);
-                
-                const parsed = repairAndParseJSON(aiText);
-                
-                if (parsed && parsed.slips && parsed.slips.length > 0) {
-                  const chunkSlips = parsed.slips.map((s: any) => ({
-                    invoiceNumber: s.invoiceNumber || '',
-                    invoiceDate: coerceISODate(s.invoiceDate, todayIso()),
-                    dueDate: coerceISODate(s.dueDate, todayIso()),
-                    buyerName: s.buyerName || '',
-                    apartmentAddress: s.apartmentAddress || '',
-                    apartmentNumber: String(s.apartmentNumber || '').padStart(2, '0'),
-                    paymentCode: s.paymentCode || '',
-                    previousAmount: parseNumber(String(s.previousAmount || 0)),
-                    paymentsReceived: parseNumber(String(s.paymentsReceived || 0)),
-                    balance: parseNumber(String(s.balance || 0)),
-                    accruedAmount: parseNumber(String(s.accruedAmount || s.totalDue || 0)),
-                    totalDue: parseNumber(String(s.totalDue || 0)),
-                    lineItems: (s.lineItems || []).map((item: any) => ({
-                      code: item.code || '',
-                      name: item.name || '',
-                      unit: item.unit || 'vnt.',
-                      quantity: item.quantity || 1,
-                      rate: item.rate || 0,
-                      amount: parseNumber(String(item.amount || 0))
-                    })),
-                    utilityReadings: s.utilityReadings || {}
-                  }));
-                  
-                  console.log(`Chunk ${idx + 1}: Found ${chunkSlips.length} slips`);
-                  return chunkSlips;
+        try {
+          // Use gemini-2.5-flash which has good multimodal PDF support
+          const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            },
+            body: JSON.stringify({
+              model: "google/gemini-2.5-flash",
+              messages: [
+                { role: "system", content: systemPrompt },
+                { 
+                  role: "user", 
+                  content: [
+                    { type: "text", text: userPrompt },
+                    { 
+                      type: "image_url", 
+                      image_url: { 
+                        url: pdfDataUrl 
+                      }
+                    }
+                  ]
                 }
-              } else {
-                const errorText = await aiResponse.text();
-                console.error(`Chunk ${idx + 1} AI error:`, aiResponse.status, errorText);
-              }
-            } catch (chunkError) {
-              console.error(`Error processing chunk ${idx + 1}:`, chunkError);
-            }
-            return [];
-          };
+              ],
+              max_tokens: 100000
+            }),
+          });
 
-          chunkPromises.push(processChunk(chunkIndex, pdfTextPrompt));
-        }
+          if (aiResponse.ok) {
+            const aiResult = await aiResponse.json();
+            const aiText = aiResult.choices?.[0]?.message?.content || '';
+            console.log(`AI response length: ${aiText.length} characters`);
 
-        // Wait for all chunks to complete in parallel
-        console.log(`Processing ${chunkPromises.length} chunks in parallel...`);
-        const chunkResults = await Promise.all(chunkPromises);
-        
-        // Merge results and deduplicate
-        for (const chunkSlips of chunkResults) {
-          for (const slip of chunkSlips) {
-            const exists = allParsedSlips.some(existing => 
-              existing.invoiceNumber === slip.invoiceNumber && 
-              existing.apartmentNumber === slip.apartmentNumber
-            );
-            if (!exists) {
-              allParsedSlips.push(slip);
+            // Log first 500 chars for debugging
+            console.log(`AI response preview: ${aiText.substring(0, 500)}`);
+            
+            const parsed = repairAndParseJSON(aiText);
+            
+            if (parsed && parsed.slips && parsed.slips.length > 0) {
+              parsedSlips = parsed.slips.map((s: any) => ({
+                invoiceNumber: s.invoiceNumber || '',
+                invoiceDate: coerceISODate(s.invoiceDate, todayIso()),
+                dueDate: coerceISODate(s.dueDate, todayIso()),
+                buyerName: s.buyerName || '',
+                apartmentAddress: s.apartmentAddress || '',
+                apartmentNumber: String(s.apartmentNumber || '').padStart(2, '0'),
+                paymentCode: s.paymentCode || '',
+                previousAmount: parseNumber(String(s.previousAmount || 0)),
+                paymentsReceived: parseNumber(String(s.paymentsReceived || 0)),
+                balance: parseNumber(String(s.balance || 0)),
+                accruedAmount: parseNumber(String(s.accruedAmount || s.totalDue || 0)),
+                totalDue: parseNumber(String(s.totalDue || 0)),
+                lineItems: (s.lineItems || []).map((item: any) => ({
+                  code: item.code || '',
+                  name: item.name || '',
+                  unit: item.unit || 'vnt.',
+                  quantity: item.quantity || 1,
+                  rate: item.rate || 0,
+                  amount: parseNumber(String(item.amount || 0))
+                })),
+                utilityReadings: s.utilityReadings || {}
+              }));
+              
+              console.log(`Successfully parsed ${parsedSlips.length} slips from PDF`);
+            } else {
+              console.log("No slips found in AI response, parsed result:", parsed ? "exists but no slips" : "null");
             }
+          } else {
+            const errorText = await aiResponse.text();
+            console.error(`AI multimodal error: ${aiResponse.status}`, errorText);
           }
+        } catch (aiError) {
+          console.error("AI multimodal processing error:", aiError);
         }
-        console.log(`Total unique slips after parallel processing: ${allParsedSlips.length}`);
-        
-        if (allParsedSlips.length > 0) {
-          parsedSlips = allParsedSlips;
-          console.log(`Total slips parsed from PDF: ${parsedSlips.length}`);
-        } else {
-          console.log("No slips found in PDF, returning error");
+
+        if (parsedSlips.length === 0) {
+          console.log("Multimodal parsing failed, returning error");
           return new Response(JSON.stringify({ 
             error: "Nepavyko išanalizuoti PDF - nerasta mokėjimo lapelių",
-            details: "AI negalėjo išskirti duomenų iš PDF. Bandykite įkelti mažesnį failą arba patikrinkite ar failas yra tinkamo formato."
+            details: "AI negalėjo išskirti duomenų iš PDF. Bandykite įkelti mažesnį failą (iki 50 puslapių) arba patikrinkite ar failas yra tinkamo formato."
           }), {
             status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" }
