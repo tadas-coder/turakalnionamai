@@ -544,16 +544,36 @@ serve(async (req) => {
         
         if (!LOVABLE_API_KEY) {
           console.log("LOVABLE_API_KEY not set, skipping AI parsing");
-        } else {
-          console.log("Calling Lovable AI for PDF parsing...");
+          return new Response(JSON.stringify({ error: "AI servisas neprieinamas (LOVABLE_API_KEY)" }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
+        
+        console.log("Calling Lovable AI for PDF parsing...");
+        
+        // Process PDF in chunks if it's large
+        const pdfLength = pdfBase64.length;
+        console.log(`Total PDF base64 length: ${pdfLength} characters`);
+        
+        // Use smaller chunk for faster processing (100KB base64 ≈ 75KB binary)
+        const chunkSize = 100000;
+        const allParsedSlips: ParsedSlip[] = [];
+        
+        // Process up to 3 chunks to cover most documents
+        const maxChunks = Math.min(3, Math.ceil(pdfLength / chunkSize));
+        
+        for (let chunkIndex = 0; chunkIndex < maxChunks; chunkIndex++) {
+          const startPos = chunkIndex * chunkSize;
+          const pdfChunk = pdfBase64.substring(startPos, startPos + chunkSize);
           
-          // Use larger chunk of PDF for better parsing - up to 200KB base64
-          const pdfChunk = pdfBase64.substring(0, 200000);
-          console.log(`Sending PDF chunk of ${pdfChunk.length} characters to AI`);
+          if (pdfChunk.length < 1000) continue; // Skip very small chunks
           
-          const pdfTextPrompt = `Išanalizuok šį PDF mokėjimo lapelių dokumentą base64 formatu ir ištrauk VISUS mokėjimo lapelius. Dokumentas gali turėti daug puslapių su skirtingais lapeliais.
+          console.log(`Processing chunk ${chunkIndex + 1}/${maxChunks}, size: ${pdfChunk.length} chars`);
+          
+          const pdfTextPrompt = `Išanalizuok šį PDF mokėjimo lapelių dokumentą base64 formatu ir ištrauk VISUS mokėjimo lapelius kuriuos randi.
 
-SVARBU: Ištrauk VISUS lapelius iš dokumento, ne tik pirmuosius!
+SVARBU: Grąžink VISUS lapelius kuriuos matai šiame PDF fragmente!
 
 Kiekvienam lapeliui grąžink JSON formatu:
 {
@@ -576,69 +596,102 @@ Kiekvienam lapeliui grąžink JSON formatu:
   ]
 }
 
-PDF base64: ${pdfChunk}
+PDF base64 fragmentas: ${pdfChunk}
 
-Grąžink TIK JSON su VISAIS lapeliais!`;
+Grąžink TIK JSON su visais rastais lapeliais!`;
 
-          const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-            },
+          try {
+            const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+              },
               body: JSON.stringify({
-                model: "google/gemini-2.5-pro",
+                model: "google/gemini-2.5-flash",
                 messages: [
                   { role: "system", content: "Tu esi dokumentų analizavimo asistentas. Ištrauk VISUS mokėjimo lapelius iš PDF dokumento. Grąžink TIK JSON formatą, be jokio papildomo teksto." },
                   { role: "user", content: pdfTextPrompt }
                 ],
-                max_tokens: 64000
+                max_tokens: 32000
               }),
-          });
+            });
 
-          if (aiResponse.ok) {
-            const aiResult = await aiResponse.json();
-            const aiText = aiResult.choices?.[0]?.message?.content || '';
-            console.log("AI response received, length:", aiText.length);
-            
-            // Use the repair function to handle potentially malformed JSON
-            const parsed = repairAndParseJSON(aiText);
-            
-            if (parsed && parsed.slips && parsed.slips.length > 0) {
-              parsedSlips = parsed.slips.map((s: any) => ({
-                invoiceNumber: s.invoiceNumber || '',
-                invoiceDate: s.invoiceDate || new Date().toISOString().split('T')[0],
-                dueDate: s.dueDate || new Date().toISOString().split('T')[0],
-                buyerName: s.buyerName || '',
-                apartmentAddress: s.apartmentAddress || '',
-                apartmentNumber: String(s.apartmentNumber || '').padStart(2, '0'),
-                paymentCode: s.paymentCode || '',
-                previousAmount: parseNumber(String(s.previousAmount || 0)),
-                paymentsReceived: parseNumber(String(s.paymentsReceived || 0)),
-                balance: parseNumber(String(s.balance || 0)),
-                accruedAmount: parseNumber(String(s.accruedAmount || s.totalDue || 0)),
-                totalDue: parseNumber(String(s.totalDue || 0)),
-                lineItems: (s.lineItems || []).map((item: any) => ({
-                  code: item.code || '',
-                  name: item.name || '',
-                  unit: item.unit || 'vnt.',
-                  quantity: item.quantity || 1,
-                  rate: item.rate || 0,
-                  amount: parseNumber(String(item.amount || 0))
-                })),
-                utilityReadings: s.utilityReadings || {}
-              }));
-              console.log(`AI parsed ${parsedSlips.length} slips successfully`);
+            if (aiResponse.ok) {
+              const aiResult = await aiResponse.json();
+              const aiText = aiResult.choices?.[0]?.message?.content || '';
+              console.log(`Chunk ${chunkIndex + 1} AI response length: ${aiText.length}`);
+              
+              const parsed = repairAndParseJSON(aiText);
+              
+              if (parsed && parsed.slips && parsed.slips.length > 0) {
+                const chunkSlips = parsed.slips.map((s: any) => ({
+                  invoiceNumber: s.invoiceNumber || '',
+                  invoiceDate: s.invoiceDate || new Date().toISOString().split('T')[0],
+                  dueDate: s.dueDate || new Date().toISOString().split('T')[0],
+                  buyerName: s.buyerName || '',
+                  apartmentAddress: s.apartmentAddress || '',
+                  apartmentNumber: String(s.apartmentNumber || '').padStart(2, '0'),
+                  paymentCode: s.paymentCode || '',
+                  previousAmount: parseNumber(String(s.previousAmount || 0)),
+                  paymentsReceived: parseNumber(String(s.paymentsReceived || 0)),
+                  balance: parseNumber(String(s.balance || 0)),
+                  accruedAmount: parseNumber(String(s.accruedAmount || s.totalDue || 0)),
+                  totalDue: parseNumber(String(s.totalDue || 0)),
+                  lineItems: (s.lineItems || []).map((item: any) => ({
+                    code: item.code || '',
+                    name: item.name || '',
+                    unit: item.unit || 'vnt.',
+                    quantity: item.quantity || 1,
+                    rate: item.rate || 0,
+                    amount: parseNumber(String(item.amount || 0))
+                  })),
+                  utilityReadings: s.utilityReadings || {}
+                }));
+                
+                // Deduplicate by invoice number
+                for (const slip of chunkSlips) {
+                  const exists = allParsedSlips.some(existing => 
+                    existing.invoiceNumber === slip.invoiceNumber && 
+                    existing.apartmentNumber === slip.apartmentNumber
+                  );
+                  if (!exists) {
+                    allParsedSlips.push(slip);
+                  }
+                }
+                
+                console.log(`Chunk ${chunkIndex + 1}: Found ${chunkSlips.length} slips, total unique: ${allParsedSlips.length}`);
+              }
             } else {
-              console.log("No valid slips found in AI response, trying with smaller chunks...");
+              const errorText = await aiResponse.text();
+              console.error(`Chunk ${chunkIndex + 1} AI error:`, aiResponse.status, errorText);
             }
-          } else {
-            const errorText = await aiResponse.text();
-            console.log("AI parsing failed:", aiResponse.status, errorText);
+          } catch (chunkError) {
+            console.error(`Error processing chunk ${chunkIndex + 1}:`, chunkError);
           }
+        }
+        
+        if (allParsedSlips.length > 0) {
+          parsedSlips = allParsedSlips;
+          console.log(`Total slips parsed from PDF: ${parsedSlips.length}`);
+        } else {
+          console.log("No slips found in PDF, returning error");
+          return new Response(JSON.stringify({ 
+            error: "Nepavyko išanalizuoti PDF - nerasta mokėjimo lapelių",
+            details: "AI negalėjo išskirti duomenų iš PDF. Bandykite įkelti mažesnį failą arba patikrinkite ar failas yra tinkamo formato."
+          }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
         }
       } catch (aiError) {
         console.error("AI PDF parsing error:", aiError);
+        return new Response(JSON.stringify({ 
+          error: "AI apdorojimo klaida: " + (aiError instanceof Error ? aiError.message : String(aiError))
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
       }
     }
 
