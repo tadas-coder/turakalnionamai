@@ -18,11 +18,11 @@ export function HeroSection() {
       <div className="container mx-auto px-4 relative z-10">
         <div className="max-w-3xl mx-auto text-center animate-fade-in">
           {/* Logo */}
-          <div className="mb-8 flex justify-center">
+          <div className="mb-6 flex justify-center">
             <img 
               src={logo} 
               alt="Taurakalnio Namai" 
-              className="h-32 md:h-40 w-auto brightness-0 invert opacity-95"
+              className="h-20 md:h-24 w-auto brightness-0 invert opacity-95"
             />
           </div>
           
