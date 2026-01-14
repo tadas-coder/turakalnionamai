@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Upload, FileText, Check, X, AlertCircle, Search, Eye, Loader2 } from "lucide-react";
+import { Upload, FileText, Check, X, AlertCircle, Search, Eye, Loader2, CheckCheck } from "lucide-react";
 import { format } from "date-fns";
 import { lt } from "date-fns/locale";
 import { FileDropzone } from "@/components/ui/file-dropzone";
@@ -140,6 +140,36 @@ export default function AdminPaymentSlips() {
       toast.error("Klaida: " + error.message);
     }
   });
+
+  // Bulk confirm mutation
+  const bulkConfirmMutation = useMutation({
+    mutationFn: async (slipIds: string[]) => {
+      const { error } = await supabase
+        .from("payment_slips")
+        .update({ assignment_status: "confirmed" })
+        .in("id", slipIds);
+      if (error) throw error;
+      return slipIds.length;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-payment-slips"] });
+      toast.success(`Patvirtinta ${count} lapelių`);
+    },
+    onError: (error: any) => {
+      toast.error("Klaida: " + error.message);
+    }
+  });
+
+  // Get auto-matched slips that can be bulk confirmed
+  const autoMatchedSlips = paymentSlips?.filter(s => s.assignment_status === "auto_matched") || [];
+
+  const handleBulkConfirm = () => {
+    if (autoMatchedSlips.length === 0) {
+      toast.info("Nėra automatiškai priskirtų lapelių patvirtinimui");
+      return;
+    }
+    bulkConfirmMutation.mutate(autoMatchedSlips.map(s => s.id));
+  };
 
   // Handle file upload (PDF or Excel)
   const handleFilesSelected = useCallback(async (files: File[]) => {
@@ -350,6 +380,21 @@ export default function AdminPaymentSlips() {
             <Upload className="h-4 w-4 mr-2" />
             Įkelti lapelius
           </Button>
+          {autoMatchedSlips.length > 0 && (
+            <Button 
+              variant="outline" 
+              onClick={handleBulkConfirm}
+              disabled={bulkConfirmMutation.isPending}
+              className="text-green-600 border-green-300 hover:bg-green-50"
+            >
+              {bulkConfirmMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <CheckCheck className="h-4 w-4 mr-2" />
+              )}
+              Patvirtinti visus ({autoMatchedSlips.length})
+            </Button>
+          )}
         </div>
         <div className="flex gap-2 flex-wrap">
           <div className="relative">
