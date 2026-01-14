@@ -179,25 +179,19 @@ export default function PaymentSlipBatchHistory() {
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
-                    {index === 0 ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => handleDeleteClick(batch)}
-                        disabled={deleteBatchMutation.isPending}
-                      >
-                        {deleteBatchMutation.isPending && batchToDelete?.id === batch.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-4 w-4" />
-                        )}
-                      </Button>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">
-                        Tik paskutinis
-                      </span>
-                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => handleDeleteClick(batch)}
+                      disabled={deleteBatchMutation.isPending}
+                    >
+                      {deleteBatchMutation.isPending && batchToDelete?.id === batch.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
