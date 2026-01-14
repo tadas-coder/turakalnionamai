@@ -547,7 +547,13 @@ serve(async (req) => {
         } else {
           console.log("Calling Lovable AI for PDF parsing...");
           
-          const pdfTextPrompt = `Išanalizuok šį PDF mokėjimo lapelių dokumentą base64 formatu ir ištrauk VISUS mokėjimo lapelius.
+          // Use larger chunk of PDF for better parsing - up to 200KB base64
+          const pdfChunk = pdfBase64.substring(0, 200000);
+          console.log(`Sending PDF chunk of ${pdfChunk.length} characters to AI`);
+          
+          const pdfTextPrompt = `Išanalizuok šį PDF mokėjimo lapelių dokumentą base64 formatu ir ištrauk VISUS mokėjimo lapelius. Dokumentas gali turėti daug puslapių su skirtingais lapeliais.
+
+SVARBU: Ištrauk VISUS lapelius iš dokumento, ne tik pirmuosius!
 
 Kiekvienam lapeliui grąžink JSON formatu:
 {
@@ -570,9 +576,9 @@ Kiekvienam lapeliui grąžink JSON formatu:
   ]
 }
 
-PDF base64 (pirmieji 30000 simbolių): ${pdfBase64.substring(0, 30000)}
+PDF base64: ${pdfChunk}
 
-Grąžink TIK JSON!`;
+Grąžink TIK JSON su VISAIS lapeliais!`;
 
           const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
             method: 'POST',
@@ -580,14 +586,14 @@ Grąžink TIK JSON!`;
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${LOVABLE_API_KEY}`,
             },
-            body: JSON.stringify({
-              model: "google/gemini-2.5-flash",
-              messages: [
-                { role: "system", content: "Tu esi dokumentų analizavimo asistentas. Grąžink TIK JSON formatą, be jokio papildomo teksto." },
-                { role: "user", content: pdfTextPrompt }
-              ],
-              max_tokens: 16000
-            }),
+              body: JSON.stringify({
+                model: "google/gemini-2.5-pro",
+                messages: [
+                  { role: "system", content: "Tu esi dokumentų analizavimo asistentas. Ištrauk VISUS mokėjimo lapelius iš PDF dokumento. Grąžink TIK JSON formatą, be jokio papildomo teksto." },
+                  { role: "user", content: pdfTextPrompt }
+                ],
+                max_tokens: 64000
+              }),
           });
 
           if (aiResponse.ok) {
