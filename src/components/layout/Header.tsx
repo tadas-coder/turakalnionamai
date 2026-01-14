@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUnreadNews } from "@/hooks/useUnreadNews";
 import { useUnreadTickets } from "@/hooks/useUnreadTickets";
 import { Badge } from "@/components/ui/badge";
-import { ThemeToggle } from "@/components/ThemeToggle";
+
 import logo from "@/assets/logo.png";
 import {
   DropdownMenu,
@@ -193,7 +193,6 @@ export function Header() {
                 </Button>
               </Link>
             )}
-            <ThemeToggle />
           </nav>
 
           {/* Mobile Menu Button */}
@@ -305,11 +304,6 @@ export function Header() {
                 </Link>
               )}
               
-              {/* Theme Toggle in mobile menu */}
-              <div className="border-t border-border pt-2 mt-2 flex items-center justify-between px-4">
-                <span className="text-sm text-muted-foreground">Tamsus režimas</span>
-                <ThemeToggle />
-              </div>
             </div>
           </nav>
         )}
