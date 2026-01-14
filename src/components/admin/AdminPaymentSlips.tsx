@@ -270,7 +270,8 @@ export default function AdminPaymentSlips() {
       const { preview, residents: residentsList, stats, message } = response.data;
       
       if (!preview || preview.length === 0) {
-        toast.warning(message || "Nepavyko rasti mokėjimo lapelių. Bandykite 'Importuoti iš teksto' funkciją.");
+        toast.warning(message || "Nepavyko išanalizuoti mokėjimo lapelių. Patikrinkite ar failas teisingas arba bandykite 'Importuoti iš teksto' funkciją.");
+        setIsUploadDialogOpen(false);
         return;
       }
       
@@ -279,7 +280,7 @@ export default function AdminPaymentSlips() {
       setPreviewResidents(residentsList || []);
       setIsUploadDialogOpen(false);
       setIsPreviewDialogOpen(true);
-      toast.info(`Rasta ${stats.total} lapelių. Peržiūrėkite ir patvirtinkite priskyrimą.`);
+      toast.success(`Rasta ${stats.total} lapelių. Peržiūrėkite ir patvirtinkite priskyrimą.`);
       
     } catch (error: any) {
       console.error("Upload error:", error);
