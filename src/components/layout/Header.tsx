@@ -85,14 +85,6 @@ export function Header() {
                   );
                 })}
 
-                {isAdmin && (
-                  <Link to="/admin">
-                    <Button variant={location.pathname === "/admin" ? "default" : "ghost"} size="sm" className="gap-2">
-                      <Settings className="h-4 w-4" />
-                      Administravimas
-                    </Button>
-                  </Link>
-                )}
 
                 {/* More Dropdown */}
                 <DropdownMenu>
@@ -271,14 +263,6 @@ export function Header() {
                       })}
                   </div>
 
-                  {isAdmin && (
-                    <Link to="/admin" onClick={() => setMobileMenuOpen(false)}>
-                      <Button variant={location.pathname === "/admin" ? "default" : "ghost"} className="w-full justify-start gap-3">
-                        <Settings className="h-4 w-4" />
-                        Administravimas
-                      </Button>
-                    </Link>
-                  )}
                   <Link to="/profile" onClick={() => setMobileMenuOpen(false)}>
                     <Button variant={location.pathname === "/profile" ? "default" : "ghost"} className="w-full justify-start gap-3">
                       <User className="h-4 w-4" />
