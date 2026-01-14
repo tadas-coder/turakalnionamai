@@ -20,7 +20,8 @@ import {
   Edit2,
   X,
   Save,
-  FileSpreadsheet
+  FileSpreadsheet,
+  FileText
 } from "lucide-react";
 import {
   Dialog,
@@ -102,6 +103,32 @@ export function AdminResidents() {
         .order("apartment_number", { ascending: true });
       if (error) throw error;
       return data as Resident[];
+    },
+  });
+
+  // Fetch payment slips for all residents
+  const { data: paymentSlipsMap = {} } = useQuery({
+    queryKey: ["admin-residents-payment-slips"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("payment_slips")
+        .select("resident_id, period_month, total_due")
+        .order("period_month", { ascending: false });
+      if (error) throw error;
+      
+      // Group by resident_id
+      const map: Record<string, { total: number; latest: { period: string; amount: number } | null }> = {};
+      for (const slip of data || []) {
+        if (!slip.resident_id) continue;
+        if (!map[slip.resident_id]) {
+          map[slip.resident_id] = { 
+            total: 0, 
+            latest: { period: slip.period_month, amount: slip.total_due }
+          };
+        }
+        map[slip.resident_id].total++;
+      }
+      return map;
     },
   });
 
@@ -602,6 +629,7 @@ export function AdminResidents() {
                     <TableHead>Vardas, pavardė</TableHead>
                     <TableHead>El. paštas</TableHead>
                     <TableHead>Telefonas</TableHead>
+                    <TableHead>Lapeliai</TableHead>
                     <TableHead>Būsena</TableHead>
                     <TableHead className="text-right">Veiksmai</TableHead>
                   </TableRow>
@@ -658,6 +686,23 @@ export function AdminResidents() {
                           />
                         ) : (
                           <span className="text-sm">{resident.phone || "-"}</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {paymentSlipsMap[resident.id] ? (
+                          <div className="flex items-center gap-1.5">
+                            <FileText className="h-4 w-4 text-muted-foreground" />
+                            <div className="text-sm">
+                              <span className="font-medium">{paymentSlipsMap[resident.id].total}</span>
+                              {paymentSlipsMap[resident.id].latest && (
+                                <span className="text-muted-foreground text-xs ml-1">
+                                  ({new Intl.NumberFormat('lt-LT', { style: 'currency', currency: 'EUR' }).format(paymentSlipsMap[resident.id].latest.amount)})
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">-</span>
                         )}
                       </TableCell>
                       <TableCell>
