@@ -250,6 +250,108 @@ export type Database = {
           },
         ]
       }
+      payment_slips: {
+        Row: {
+          accrued_amount: number
+          apartment_address: string
+          apartment_number: string | null
+          assignment_status: string
+          balance: number | null
+          buyer_name: string | null
+          created_at: string
+          due_date: string
+          id: string
+          invoice_date: string
+          invoice_number: string
+          line_items: Json
+          matched_by: string | null
+          payment_code: string | null
+          payments_received: number | null
+          pdf_file_name: string | null
+          pdf_url: string | null
+          period_month: string
+          previous_amount: number | null
+          profile_id: string | null
+          resident_id: string | null
+          total_due: number
+          updated_at: string
+          upload_batch_id: string | null
+          uploaded_by: string | null
+          utility_readings: Json | null
+        }
+        Insert: {
+          accrued_amount: number
+          apartment_address: string
+          apartment_number?: string | null
+          assignment_status?: string
+          balance?: number | null
+          buyer_name?: string | null
+          created_at?: string
+          due_date: string
+          id?: string
+          invoice_date: string
+          invoice_number: string
+          line_items?: Json
+          matched_by?: string | null
+          payment_code?: string | null
+          payments_received?: number | null
+          pdf_file_name?: string | null
+          pdf_url?: string | null
+          period_month: string
+          previous_amount?: number | null
+          profile_id?: string | null
+          resident_id?: string | null
+          total_due: number
+          updated_at?: string
+          upload_batch_id?: string | null
+          uploaded_by?: string | null
+          utility_readings?: Json | null
+        }
+        Update: {
+          accrued_amount?: number
+          apartment_address?: string
+          apartment_number?: string | null
+          assignment_status?: string
+          balance?: number | null
+          buyer_name?: string | null
+          created_at?: string
+          due_date?: string
+          id?: string
+          invoice_date?: string
+          invoice_number?: string
+          line_items?: Json
+          matched_by?: string | null
+          payment_code?: string | null
+          payments_received?: number | null
+          pdf_file_name?: string | null
+          pdf_url?: string | null
+          period_month?: string
+          previous_amount?: number | null
+          profile_id?: string | null
+          resident_id?: string | null
+          total_due?: number
+          updated_at?: string
+          upload_batch_id?: string | null
+          uploaded_by?: string | null
+          utility_readings?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_slips_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_slips_resident_id_fkey"
+            columns: ["resident_id"]
+            isOneToOne: false
+            referencedRelation: "residents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       planned_works: {
         Row: {
           created_at: string

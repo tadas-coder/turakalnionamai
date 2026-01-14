@@ -20,6 +20,7 @@ import Profile from "./pages/Profile";
 import PendingApproval from "./pages/PendingApproval";
 import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
+import PaymentSlips from "./pages/PaymentSlips";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -48,6 +49,7 @@ const App = () => (
             <Route path="/pending-approval" element={<PendingApproval />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/payment-slips" element={<PaymentSlips />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
