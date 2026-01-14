@@ -52,6 +52,19 @@ function parseNumber(str: string | undefined): number {
   return isNaN(num) ? 0 : num;
 }
 
+function todayIso(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
+function coerceISODate(value: unknown, fallback: string): string {
+  const str = String(value ?? '').trim();
+  if (!str || str === 'YYYY-MM-DD') return fallback;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(str)) return fallback;
+  const d = new Date(`${str}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return fallback;
+  return str;
+}
+
 // Try to repair and parse potentially malformed JSON
 function repairAndParseJSON(text: string): { slips: any[] } | null {
   // First try to find the main JSON object
@@ -434,8 +447,8 @@ ${text.substring(0, 15000)}`,
       const parsed = JSON.parse(jsonMatch[0]);
       return (parsed.slips || []).map((s: any) => ({
         invoiceNumber: s.invoiceNumber || '',
-        invoiceDate: s.invoiceDate || new Date().toISOString().split('T')[0],
-        dueDate: s.dueDate || new Date().toISOString().split('T')[0],
+        invoiceDate: coerceISODate(s.invoiceDate, todayIso()),
+        dueDate: coerceISODate(s.dueDate, todayIso()),
         buyerName: s.buyerName || '',
         apartmentAddress: s.apartmentAddress || '',
         apartmentNumber: s.apartmentNumber || '',
@@ -566,15 +579,24 @@ serve(async (req) => {
         });
       }
 
-      // Update slips with correct batch ID
-      const slipsWithBatch = slipsToSave.map((s: any) => ({
+      // Update slips with correct batch ID + sanitize dates (AI sometimes returns "YYYY-MM-DD")
+      const today = todayIso();
+      const periodFallback = coerceISODate(
+        periodMonth || today.slice(0, 7) + '-01',
+        today.slice(0, 7) + '-01'
+      );
+
+      const slipsSanitized = slipsToSave.map((s: any) => ({
         ...s,
-        upload_batch_id: batchIdToUse
+        upload_batch_id: batchIdToUse,
+        invoice_date: coerceISODate(s.invoice_date, today),
+        due_date: coerceISODate(s.due_date, today),
+        period_month: coerceISODate(s.period_month, periodFallback),
       }));
       
       const { data: insertedSlips, error: insertError } = await supabase
         .from("payment_slips")
-        .insert(slipsWithBatch)
+        .insert(slipsSanitized)
         .select();
 
       if (insertError) {
@@ -758,8 +780,8 @@ Grąžink TIK JSON su visais rastais lapeliais!`;
                 if (parsed && parsed.slips && parsed.slips.length > 0) {
                   const chunkSlips = parsed.slips.map((s: any) => ({
                     invoiceNumber: s.invoiceNumber || '',
-                    invoiceDate: s.invoiceDate || new Date().toISOString().split('T')[0],
-                    dueDate: s.dueDate || new Date().toISOString().split('T')[0],
+                    invoiceDate: coerceISODate(s.invoiceDate, todayIso()),
+                    dueDate: coerceISODate(s.dueDate, todayIso()),
                     buyerName: s.buyerName || '',
                     apartmentAddress: s.apartmentAddress || '',
                     apartmentNumber: String(s.apartmentNumber || '').padStart(2, '0'),
