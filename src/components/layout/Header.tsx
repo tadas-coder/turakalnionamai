@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUnreadNews } from "@/hooks/useUnreadNews";
 import { useUnreadTickets } from "@/hooks/useUnreadTickets";
 import { Badge } from "@/components/ui/badge";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import logo from "@/assets/logo.png";
 import {
   DropdownMenu,
@@ -192,6 +193,7 @@ export function Header() {
                 </Button>
               </Link>
             )}
+            <ThemeToggle />
           </nav>
 
           {/* Mobile Menu Button */}
