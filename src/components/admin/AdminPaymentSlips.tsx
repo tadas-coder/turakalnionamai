@@ -68,6 +68,8 @@ interface PreviewSlip {
     paymentCode: string;
     totalDue: number;
     accruedAmount: number;
+    lineItemsPreview?: Array<{ name: string; amount: number }>;
+    lineItemsCount?: number;
   };
   matchedResident: {
     id: string;
@@ -299,27 +301,27 @@ export default function AdminPaymentSlips() {
         requestBody.pdfStoragePath = uploadFileName;
       }
       
-      // Use longer timeout for PDF processing
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 180000); // 3 min timeout
-      
-      let response;
-      try {
-        response = await supabase.functions.invoke("parse-payment-slips", {
-          body: requestBody
-        });
-      } finally {
-        clearTimeout(timeoutId);
-      }
+      // Call edge function with standard invocation
+      const response = await supabase.functions.invoke("parse-payment-slips", {
+        body: requestBody
+      });
       
       if (response.error) {
         // Check if it's a timeout or connection error
-        if (response.error.message?.includes('Failed to fetch') || 
-            response.error.message?.includes('connection') ||
-            response.error.message?.includes('timeout')) {
-          throw new Error("Užklausa nutrūko dėl didelio failo. Bandykite įkelti mažesnį PDF (iki 50 puslapių).");
+        const errMsg = response.error.message || '';
+        if (errMsg.includes('Failed to') || 
+            errMsg.includes('connection') ||
+            errMsg.includes('timeout') ||
+            errMsg.includes('edge function') ||
+            errMsg.includes('aborted')) {
+          throw new Error("Užklausa nutrūko. PDF apdorojimas gali užtrukti iki 2 min. Bandykite dar kartą.");
         }
         throw response.error;
+      }
+      
+      // Check for error in response data
+      if (response.data?.error) {
+        throw new Error(response.data.error);
       }
       
       const { preview, residents: residentsList, stats, message, batchId } = response.data;

@@ -966,6 +966,7 @@ SVARBU: Ištrauk VISUS lapelius iš PDF! Jei yra 85 butai - turi būti 85 lapeli
     }
 
     // Prepare slips with matching info for preview
+    // OPTIMIZATION: Only include essential data for preview to reduce response size
     const previewSlips = parsedSlips.map((parsed, index) => {
       let matchedResident: any = null;
       let matchType = 'none';
@@ -1049,9 +1050,28 @@ SVARBU: Ištrauk VISUS lapelius iš PDF! Jei yra 85 butai - turi būti 85 lapeli
         ? failedAttempts.join('; ') 
         : '';
 
+      // OPTIMIZATION: Limit lineItems to first 5 for preview, keep full for save
+      const previewLineItems = (parsed.lineItems || []).slice(0, 5).map((item: any) => ({
+        name: item.name || '',
+        amount: item.amount || 0
+      }));
+
       return {
         tempId: `temp-${index}`,
-        slip: parsed,
+        // OPTIMIZATION: Only essential slip data for preview
+        slip: {
+          invoiceNumber: parsed.invoiceNumber,
+          invoiceDate: parsed.invoiceDate,
+          dueDate: parsed.dueDate,
+          buyerName: parsed.buyerName,
+          apartmentAddress: parsed.apartmentAddress,
+          apartmentNumber: parsed.apartmentNumber,
+          paymentCode: parsed.paymentCode,
+          totalDue: parsed.totalDue,
+          accruedAmount: parsed.accruedAmount,
+          lineItemsPreview: previewLineItems,
+          lineItemsCount: (parsed.lineItems || []).length
+        },
         matchedResident: matchedResident ? {
           id: matchedResident.id,
           full_name: matchedResident.full_name,
@@ -1060,7 +1080,7 @@ SVARBU: Ištrauk VISUS lapelius iš PDF! Jei yra 85 butai - turi būti 85 lapeli
         matchType,
         matchReason,
         failureReason,
-        // Pre-prepared data for saving
+        // Full data for saving (stored but not sent in preview response)
         dataForSave: {
           invoice_number: parsed.invoiceNumber,
           invoice_date: parsed.invoiceDate || new Date().toISOString().split('T')[0],
@@ -1109,11 +1129,20 @@ SVARBU: Ištrauk VISUS lapelius iš PDF! Jei yra 85 butai - turi būti 85 lapeli
       batchId
     };
 
+    // OPTIMIZATION: Only send essential residents data (not full list)
+    const relevantResidentIds = new Set(previewSlips.map(p => p.matchedResident?.id).filter(Boolean));
+    const minimalResidents = (residents || []).map(r => ({
+      id: r.id,
+      full_name: r.full_name,
+      apartment_number: r.apartment_number,
+      linked_profile_id: r.linked_profile_id
+    }));
+
     // Return preview data instead of saving immediately
     return new Response(JSON.stringify({ 
       success: true, 
       preview: previewSlips,
-      residents: residents || [],
+      residents: minimalResidents,
       stats,
       batchId
     }), {
