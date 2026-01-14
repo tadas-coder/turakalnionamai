@@ -65,7 +65,7 @@ export function HeroSection() {
             <img 
               src={logo} 
               alt="Taurakalnio Namai" 
-              className="h-24 md:h-32 w-auto brightness-0 invert opacity-95"
+              className="h-24 md:h-32 w-auto"
             />
           </div>
           
