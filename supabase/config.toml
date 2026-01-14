@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.parse-payment-slips]
 verify_jwt = false
+
+[functions.send-payment-slip-notification]
+verify_jwt = false

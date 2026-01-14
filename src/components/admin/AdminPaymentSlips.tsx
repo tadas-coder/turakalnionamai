@@ -151,20 +151,56 @@ export default function AdminPaymentSlips() {
   // Update assignment mutation
   const updateAssignmentMutation = useMutation({
     mutationFn: async ({ slipId, residentId, status }: { slipId: string; residentId: string | null; status: string }) => {
-      const { error } = await supabase
+      // First get the resident's profile_id if exists
+      let profileId = null;
+      if (residentId) {
+        const { data: resident } = await supabase
+          .from("residents")
+          .select("linked_profile_id")
+          .eq("id", residentId)
+          .maybeSingle();
+        profileId = resident?.linked_profile_id || null;
+      }
+
+      const { data: updatedSlip, error } = await supabase
         .from("payment_slips")
         .update({
           resident_id: residentId,
-          profile_id: null,
+          profile_id: profileId,
           assignment_status: status,
           matched_by: residentId ? "manual" : null
         })
-        .eq("id", slipId);
+        .eq("id", slipId)
+        .select()
+        .single();
       if (error) throw error;
+
+      // Send notification if assigned
+      if (residentId && updatedSlip) {
+        try {
+          await supabase.functions.invoke("send-payment-slip-notification", {
+            body: {
+              slips: [{
+                slipId: updatedSlip.id,
+                residentId: updatedSlip.resident_id,
+                profileId: updatedSlip.profile_id,
+                periodMonth: updatedSlip.period_month,
+                totalDue: updatedSlip.total_due,
+                invoiceNumber: updatedSlip.invoice_number,
+                dueDate: updatedSlip.due_date
+              }]
+            }
+          });
+        } catch (notifErr) {
+          console.error("Failed to send notification:", notifErr);
+        }
+      }
+
+      return updatedSlip;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-payment-slips"] });
-      toast.success("Priskyrimas atnaujintas");
+      toast.success("Priskyrimas atnaujintas ir pranešimas išsiųstas");
       setIsAssignDialogOpen(false);
       setSelectedSlip(null);
       setSelectedResidentId("");
