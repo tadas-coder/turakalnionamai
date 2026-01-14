@@ -618,6 +618,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      link_existing_users_with_residents: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "resident"
