@@ -507,30 +507,97 @@ serve(async (req) => {
       pdfUrl, 
       useAI,
       action,
-      slipsToSave
+      slipsToSave,
+      batchId: providedBatchId,
+      fileType
     } = await req.json();
+
+    // DELETE BATCH action - delete all slips from a batch
+    if (action === 'delete_batch' && providedBatchId) {
+      console.log(`Deleting batch: ${providedBatchId}`);
+      
+      // Delete the batch (will cascade to payment_slips)
+      const { error: deleteError } = await supabase
+        .from("upload_batches")
+        .delete()
+        .eq("id", providedBatchId);
+
+      if (deleteError) {
+        console.error("Delete batch error:", deleteError);
+        return new Response(JSON.stringify({ error: deleteError.message }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: "Įkėlimas ištrintas"
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
 
     // SAVE action - save confirmed slips to database
     if (action === 'save' && slipsToSave) {
-      console.log(`Saving ${slipsToSave.length} confirmed slips`);
+      console.log(`Saving ${slipsToSave.length} confirmed slips with batch ${providedBatchId}`);
+      
+      // First, create the batch record
+      const batchIdToUse = providedBatchId || crypto.randomUUID();
+      
+      const { error: batchError } = await supabase
+        .from("upload_batches")
+        .insert({
+          id: batchIdToUse,
+          created_by: user.id,
+          file_name: pdfFileName || 'Unknown',
+          file_type: fileType || 'pdf',
+          slip_count: slipsToSave.length,
+          period_month: periodMonth || new Date().toISOString().split('T')[0].slice(0, 7) + '-01',
+          status: 'completed'
+        });
+
+      if (batchError) {
+        console.error("Batch insert error:", batchError);
+        return new Response(JSON.stringify({ error: "Nepavyko sukurti įkėlimo įrašo: " + batchError.message }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+
+      // Update slips with correct batch ID
+      const slipsWithBatch = slipsToSave.map((s: any) => ({
+        ...s,
+        upload_batch_id: batchIdToUse
+      }));
       
       const { data: insertedSlips, error: insertError } = await supabase
         .from("payment_slips")
-        .insert(slipsToSave)
+        .insert(slipsWithBatch)
         .select();
 
       if (insertError) {
         console.error("Insert error:", insertError);
+        // Try to clean up the batch
+        await supabase.from("upload_batches").delete().eq("id", batchIdToUse);
         return new Response(JSON.stringify({ error: insertError.message }), {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
       }
 
+      // Update batch with actual count
+      await supabase
+        .from("upload_batches")
+        .update({ slip_count: insertedSlips?.length || 0 })
+        .eq("id", batchIdToUse);
+
       const stats = {
         total: insertedSlips?.length || 0,
         matched: slipsToSave.filter((s: any) => s.resident_id).length,
-        pending: slipsToSave.filter((s: any) => !s.resident_id).length
+        pending: slipsToSave.filter((s: any) => !s.resident_id).length,
+        batchId: batchIdToUse
       };
 
       return new Response(JSON.stringify({ 
