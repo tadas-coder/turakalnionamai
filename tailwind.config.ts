@@ -68,7 +68,7 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
-        display: ['Playfair Display', 'serif'],
+        display: ['Libre Baskerville', 'serif'],
       },
       keyframes: {
         "accordion-down": {

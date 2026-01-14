@@ -13,8 +13,6 @@ const actions = [
     description: "Praneškite apie gedimus, pažeidimus ar kitas problemas name",
     icon: AlertTriangle,
     path: "/tickets",
-    color: "text-destructive",
-    bgColor: "bg-destructive/10",
     authRequired: true,
   },
   {
@@ -22,32 +20,24 @@ const actions = [
     description: "Dalyvaukite bendrijos sprendimuose ir apklausose",
     icon: Vote,
     path: "/voting",
-    color: "text-secondary",
-    bgColor: "bg-secondary/10",
   },
   {
     title: "Naujienos",
     description: "Skaitykite svarbiausias bendrijos naujienas ir pranešimus",
     icon: Newspaper,
     path: "/news",
-    color: "text-info",
-    bgColor: "bg-info/10",
   },
   {
     title: "Sąskaitos",
     description: "Peržiūrėkite ir apmokėkite komunalines sąskaitas",
     icon: Receipt,
     path: "/invoices",
-    color: "text-warning",
-    bgColor: "bg-warning/10",
   },
   {
     title: "Vidaus tvarkos taisyklės",
     description: "Susipažinkite su namo vidaus tvarkos taisyklėmis",
     icon: ScrollText,
     path: "/rules",
-    color: "text-primary",
-    bgColor: "bg-primary/10",
     showAiPrompt: true,
   },
   {
@@ -55,8 +45,6 @@ const actions = [
     description: "Peržiūrėkite bendrijos dokumentus ir aktus",
     icon: FileText,
     path: "/documents",
-    color: "text-accent",
-    bgColor: "bg-accent/10",
     showAiPrompt: true,
   },
   {
@@ -64,8 +52,6 @@ const actions = [
     description: "Peržiūrėkite finansines ir veiklos ataskaitas",
     icon: BarChart3,
     path: "/reports",
-    color: "text-muted-foreground",
-    bgColor: "bg-muted",
     showAiPrompt: true,
   },
   {
@@ -73,8 +59,6 @@ const actions = [
     description: "Planuojami ir vykdomi darbai name",
     icon: CalendarDays,
     path: "/schedules",
-    color: "text-secondary",
-    bgColor: "bg-secondary/10",
   },
 ];
 
@@ -140,9 +124,17 @@ export function QuickActions() {
         </DialogContent>
       </Dialog>
 
-      <section className="py-16 bg-background">
+      <section className="py-20 bg-background">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="text-center mb-12">
+            <h2 className="text-2xl md:text-3xl font-display font-bold text-foreground mb-3">
+              Paslaugos
+            </h2>
+            <p className="text-muted-foreground max-w-xl mx-auto">
+              Greitai pasiekite dažniausiai naudojamas funkcijas
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
             {actions.map((action, index) => {
               const Icon = action.icon;
               return (
@@ -152,18 +144,18 @@ export function QuickActions() {
                   onClick={(e) => handleActionClick(action, e)}
                 >
                   <Card 
-                    className="card-elevated h-full cursor-pointer group border-border hover:border-primary/30"
-                    style={{ animationDelay: `${index * 100}ms` }}
+                    className="card-elevated h-full cursor-pointer group border hover:border-foreground/20 bg-card"
+                    style={{ animationDelay: `${index * 50}ms` }}
                   >
-                    <CardHeader>
-                      <div className={`w-12 h-12 rounded-xl ${action.bgColor} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-                        <Icon className={`h-6 w-6 ${action.color}`} />
+                    <CardHeader className="pb-3">
+                      <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center mb-3 group-hover:bg-foreground group-hover:text-background transition-colors">
+                        <Icon className="h-5 w-5" />
                       </div>
-                      <CardTitle className="text-lg flex items-center justify-between">
+                      <CardTitle className="text-base flex items-center justify-between font-medium">
                         {action.title}
-                        <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                        <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all text-muted-foreground" />
                       </CardTitle>
-                      <CardDescription>{action.description}</CardDescription>
+                      <CardDescription className="text-sm">{action.description}</CardDescription>
                     </CardHeader>
                   </Card>
                 </Link>

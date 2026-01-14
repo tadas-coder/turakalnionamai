@@ -45,15 +45,15 @@ export function Header() {
     <header className="sticky top-0 z-50 glass-effect border-b border-border">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
-          <Link to="/" className="flex items-center gap-3">
+          <Link to="/" className="flex items-center gap-4">
             <img 
               src="/favicon.png" 
               alt="Taurakalnio Namai" 
-              className="h-16 w-16 object-contain hover-scale"
+              className="h-12 w-12 object-contain"
             />
             <div className="hidden sm:flex flex-col">
-              <h1 className="text-base font-display font-semibold tracking-wide text-foreground">DNSB Taurakalnio Namai, Vilnius</h1>
-              <span className="text-xs text-muted-foreground">Gyventojų savitarnos portalas</span>
+              <h1 className="text-lg font-display font-bold tracking-tight text-foreground">Taurakalnio Namai</h1>
+              <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Gyventojų savitarna</span>
             </div>
           </Link>
 
