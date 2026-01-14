@@ -37,14 +37,12 @@ interface ParsedSlip {
 
 function parseNumber(str: string | undefined): number {
   if (!str) return 0;
-  // Handle Lithuanian number format (comma as decimal separator)
   const cleaned = str.replace(/\s/g, '').replace(',', '.').replace(/[^\d.-]/g, '');
   const num = parseFloat(cleaned);
   return isNaN(num) ? 0 : num;
 }
 
 function extractApartmentNumber(address: string): string {
-  // Extract apartment number from address like "V. Mykolaičio-Putino g. 10 - 01"
   const match = address.match(/(\d+)\s*-\s*(\d+)/);
   if (match) {
     return match[2].padStart(2, '0');
@@ -54,11 +52,9 @@ function extractApartmentNumber(address: string): string {
 
 function parseSlipFromText(text: string): ParsedSlip | null {
   try {
-    // Extract invoice number
     const invoiceMatch = text.match(/Serija:\s*(\w+)\s*Nr\.\s*(\d+)/);
     const invoiceNumber = invoiceMatch ? `${invoiceMatch[1]}-${invoiceMatch[2]}` : '';
     
-    // Extract dates
     const dateMatch = text.match(/(\d{4})\s*m\.\s*(\w+)\s*(\d+)\s*d\./);
     let invoiceDate = '';
     if (dateMatch) {
@@ -74,20 +70,16 @@ function parseSlipFromText(text: string): ParsedSlip | null {
     const dueDateMatch = text.match(/Apmokėti iki:\s*(\d{4}-\d{2}-\d{2})/);
     const dueDate = dueDateMatch ? dueDateMatch[1] : '';
     
-    // Extract buyer name
     const buyerMatch = text.match(/Pirkėjas:\s*\n\s*(.+?)(?:\n|$)/);
     const buyerName = buyerMatch ? buyerMatch[1].trim() : '';
     
-    // Extract apartment address
     const objAddressMatch = text.match(/Obj\.adresas:\s*\n\s*(.+?)(?:\n|$)/);
     const apartmentAddress = objAddressMatch ? objAddressMatch[1].trim() : '';
     const apartmentNumber = extractApartmentNumber(apartmentAddress);
     
-    // Extract payment code
     const paymentCodeMatch = text.match(/mokėtojo kodą:\s*(\d+)/);
     const paymentCode = paymentCodeMatch ? paymentCodeMatch[1] : '';
     
-    // Extract financial amounts
     const previousMatch = text.match(/Paskutinė mokėtina suma buvo,?\s*€?:\s*([\d\s,.-]+)/);
     const previousAmount = parseNumber(previousMatch?.[1]);
     
@@ -103,7 +95,6 @@ function parseSlipFromText(text: string): ParsedSlip | null {
     const totalMatch = text.match(/MOKĖTINA SUMA,?\s*€?:\s*([\d\s,.-]+)/);
     const totalDue = parseNumber(totalMatch?.[1]);
     
-    // Parse line items from table
     const lineItems: ParsedSlip['lineItems'] = [];
     const tableMatch = text.match(/\| Pavadinimas[\s\S]*?\n([\s\S]*?)(?=\n\nPaskutinė|\n\n#)/);
     if (tableMatch) {
@@ -127,7 +118,6 @@ function parseSlipFromText(text: string): ParsedSlip | null {
       }
     }
     
-    // Parse utility readings
     const utilityReadings: ParsedSlip['utilityReadings'] = {};
     
     const hotWaterMatch = text.match(/# Karštas vanduo[\s\S]*?\|\s*[\d.]+\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|/);
@@ -171,7 +161,6 @@ function parseSlipFromText(text: string): ParsedSlip | null {
 }
 
 function splitIntoSlips(fullText: string): string[] {
-  // Split by page markers that start new invoices
   const pages = fullText.split(/## Page \d+/);
   const slips: string[] = [];
   let currentSlip = '';
@@ -183,7 +172,6 @@ function splitIntoSlips(fullText: string): string[] {
       }
       currentSlip = page;
     } else if (currentSlip) {
-      // This might be a continuation page (utilities readings)
       currentSlip += '\n' + page;
     }
   }
@@ -193,6 +181,179 @@ function splitIntoSlips(fullText: string): string[] {
   }
   
   return slips;
+}
+
+// Parse Excel data from rows
+function parseExcelData(rows: any[]): ParsedSlip[] {
+  const slips: ParsedSlip[] = [];
+  
+  // Try to find header row and map columns
+  let headerRowIndex = -1;
+  let columnMap: Record<string, number> = {};
+  
+  for (let i = 0; i < Math.min(rows.length, 10); i++) {
+    const row = rows[i];
+    if (!row) continue;
+    
+    const headers = Object.values(row).map(v => String(v || '').toLowerCase());
+    
+    // Look for common column names
+    const hasInvoice = headers.some(h => h.includes('sąskait') || h.includes('nr') || h.includes('invoice'));
+    const hasAmount = headers.some(h => h.includes('suma') || h.includes('amount') || h.includes('mokėti'));
+    const hasApartment = headers.some(h => h.includes('but') || h.includes('adres') || h.includes('apart'));
+    
+    if (hasInvoice || hasAmount || hasApartment) {
+      headerRowIndex = i;
+      
+      // Map columns
+      Object.entries(row).forEach(([key, value], idx) => {
+        const val = String(value || '').toLowerCase();
+        if (val.includes('sąskait') || val.includes('nr') || val.includes('invoice')) {
+          columnMap['invoice'] = idx;
+        }
+        if (val.includes('suma') || val.includes('mokėti') || val.includes('amount')) {
+          columnMap['amount'] = idx;
+        }
+        if (val.includes('but') || val.includes('apart')) {
+          columnMap['apartment'] = idx;
+        }
+        if (val.includes('adres')) {
+          columnMap['address'] = idx;
+        }
+        if (val.includes('pirk') || val.includes('vard') || val.includes('name')) {
+          columnMap['buyer'] = idx;
+        }
+        if (val.includes('data') || val.includes('date')) {
+          if (!columnMap['invoiceDate']) {
+            columnMap['invoiceDate'] = idx;
+          } else {
+            columnMap['dueDate'] = idx;
+          }
+        }
+        if (val.includes('termin') || val.includes('iki') || val.includes('due')) {
+          columnMap['dueDate'] = idx;
+        }
+        if (val.includes('kod') || val.includes('code')) {
+          columnMap['paymentCode'] = idx;
+        }
+      });
+      break;
+    }
+  }
+  
+  // Parse data rows
+  const dataStartIndex = headerRowIndex >= 0 ? headerRowIndex + 1 : 0;
+  const keys = Object.keys(rows[0] || {});
+  
+  for (let i = dataStartIndex; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row) continue;
+    
+    const values = Object.values(row);
+    
+    const getValue = (colName: string) => {
+      const idx = columnMap[colName];
+      if (idx !== undefined && values[idx] !== undefined) {
+        return String(values[idx] || '');
+      }
+      return '';
+    };
+    
+    const invoiceNumber = getValue('invoice') || `EXCEL-${i}`;
+    const apartmentNumber = getValue('apartment') || extractApartmentNumber(getValue('address'));
+    const totalDue = parseNumber(getValue('amount'));
+    
+    if (!apartmentNumber && !getValue('buyer')) continue;
+    
+    slips.push({
+      invoiceNumber,
+      invoiceDate: getValue('invoiceDate') || new Date().toISOString().split('T')[0],
+      dueDate: getValue('dueDate') || new Date().toISOString().split('T')[0],
+      buyerName: getValue('buyer'),
+      apartmentAddress: getValue('address'),
+      apartmentNumber,
+      paymentCode: getValue('paymentCode'),
+      previousAmount: 0,
+      paymentsReceived: 0,
+      balance: 0,
+      accruedAmount: totalDue,
+      totalDue,
+      lineItems: [],
+      utilityReadings: {}
+    });
+  }
+  
+  return slips;
+}
+
+// Use AI to parse complex documents
+async function parseWithAI(text: string, supabaseUrl: string, supabaseKey: string): Promise<ParsedSlip[]> {
+  try {
+    const response = await fetch(`${supabaseUrl}/functions/v1/chat-assistant`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabaseKey}`,
+      },
+      body: JSON.stringify({
+        message: `Išanalizuok šį mokėjimo lapelių dokumentą ir ištrauk visus mokėjimo lapelius. Kiekvienam lapeliui grąžink JSON formatu:
+{
+  "slips": [
+    {
+      "invoiceNumber": "sąskaitos numeris",
+      "invoiceDate": "data YYYY-MM-DD",
+      "dueDate": "mokėjimo terminas YYYY-MM-DD", 
+      "buyerName": "pirkėjo vardas",
+      "apartmentAddress": "adresas",
+      "apartmentNumber": "buto numeris (du skaitmenys, pvz. 01, 02)",
+      "paymentCode": "mokėtojo kodas",
+      "totalDue": numeris,
+      "accruedAmount": numeris,
+      "lineItems": [{"name": "paslaugos pavadinimas", "amount": numeris}]
+    }
+  ]
+}
+
+Dokumentas:
+${text.substring(0, 15000)}`,
+        systemPrompt: "Tu esi dokumentų analizavimo asistentas. Grąžink TIK JSON formatą, be jokio papildomo teksto."
+      }),
+    });
+
+    if (!response.ok) {
+      console.log('AI parsing not available, falling back to regex');
+      return [];
+    }
+
+    const result = await response.json();
+    const aiResponse = result.response || '';
+    
+    // Try to extract JSON from response
+    const jsonMatch = aiResponse.match(/\{[\s\S]*"slips"[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return (parsed.slips || []).map((s: any) => ({
+        invoiceNumber: s.invoiceNumber || '',
+        invoiceDate: s.invoiceDate || new Date().toISOString().split('T')[0],
+        dueDate: s.dueDate || new Date().toISOString().split('T')[0],
+        buyerName: s.buyerName || '',
+        apartmentAddress: s.apartmentAddress || '',
+        apartmentNumber: s.apartmentNumber || '',
+        paymentCode: s.paymentCode || '',
+        previousAmount: s.previousAmount || 0,
+        paymentsReceived: s.paymentsReceived || 0,
+        balance: s.balance || 0,
+        accruedAmount: s.accruedAmount || s.totalDue || 0,
+        totalDue: s.totalDue || 0,
+        lineItems: s.lineItems || [],
+        utilityReadings: s.utilityReadings || {}
+      }));
+    }
+  } catch (error) {
+    console.error('AI parsing error:', error);
+  }
+  
+  return [];
 }
 
 serve(async (req) => {
@@ -213,7 +374,6 @@ serve(async (req) => {
       });
     }
 
-    // Get user from token
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
     if (userError || !user) {
@@ -223,7 +383,6 @@ serve(async (req) => {
       });
     }
 
-    // Check if user is admin
     const { data: roleData } = await supabase
       .from("user_roles")
       .select("role")
@@ -238,18 +397,41 @@ serve(async (req) => {
       });
     }
 
-    const { parsedText, periodMonth, pdfFileName, pdfUrl } = await req.json();
+    const { parsedText, excelData, periodMonth, pdfFileName, pdfUrl, useAI } = await req.json();
 
-    if (!parsedText) {
-      return new Response(JSON.stringify({ error: "No parsed text provided" }), {
+    let parsedSlips: ParsedSlip[] = [];
+
+    // Parse based on input type
+    if (excelData && Array.isArray(excelData)) {
+      // Excel data provided
+      console.log(`Parsing Excel data with ${excelData.length} rows`);
+      parsedSlips = parseExcelData(excelData);
+    } else if (parsedText) {
+      // Try AI parsing first if enabled
+      if (useAI) {
+        parsedSlips = await parseWithAI(parsedText, supabaseUrl, supabaseKey);
+      }
+      
+      // Fallback to regex parsing
+      if (parsedSlips.length === 0) {
+        const slipTexts = splitIntoSlips(parsedText);
+        console.log(`Found ${slipTexts.length} payment slips in document`);
+        
+        for (const slipText of slipTexts) {
+          const parsed = parseSlipFromText(slipText);
+          if (parsed) {
+            parsedSlips.push(parsed);
+          }
+        }
+      }
+    } else {
+      return new Response(JSON.stringify({ error: "No data provided" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
 
-    // Split the full document into individual slips
-    const slipTexts = splitIntoSlips(parsedText);
-    console.log(`Found ${slipTexts.length} payment slips in document`);
+    console.log(`Successfully parsed ${parsedSlips.length} slips`);
 
     // Get all residents for matching
     const { data: residents } = await supabase
@@ -263,11 +445,7 @@ serve(async (req) => {
       matchType: string;
     }> = [];
 
-    for (const slipText of slipTexts) {
-      const parsed = parseSlipFromText(slipText);
-      if (!parsed) continue;
-
-      // Try to match with resident
+    for (const parsed of parsedSlips) {
       let matchedResident = null;
       let matchType = 'none';
 
@@ -328,6 +506,17 @@ serve(async (req) => {
       upload_batch_id: batchId,
       uploaded_by: user.id
     }));
+
+    if (slipsToInsert.length === 0) {
+      return new Response(JSON.stringify({ 
+        success: true, 
+        stats: { total: 0, matched: 0, pending: 0 },
+        message: "Nepavyko rasti mokėjimo lapelių duomenyse"
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
 
     const { data: insertedSlips, error: insertError } = await supabase
       .from("payment_slips")

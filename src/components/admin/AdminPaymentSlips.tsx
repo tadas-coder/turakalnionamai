@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,9 +9,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Upload, FileText, Check, X, AlertCircle, Search, Download, Eye } from "lucide-react";
+import { Upload, FileText, Check, X, AlertCircle, Search, Eye, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { lt } from "date-fns/locale";
+import { FileDropzone } from "@/components/ui/file-dropzone";
+import * as XLSX from "xlsx";
 
 interface PaymentSlip {
   id: string;
@@ -139,54 +141,99 @@ export default function AdminPaymentSlips() {
     }
   });
 
-  // Handle PDF upload and parsing
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !file.name.endsWith('.pdf')) {
-      toast.error("Prašome pasirinkti PDF failą");
+  // Handle file upload (PDF or Excel)
+  const handleFilesSelected = useCallback(async (files: File[]) => {
+    if (files.length === 0) return;
+    
+    const file = files[0];
+    const fileName = file.name.toLowerCase();
+    const isPDF = fileName.endsWith('.pdf');
+    const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
+    
+    if (!isPDF && !isExcel) {
+      toast.error("Prašome pasirinkti PDF arba Excel failą");
       return;
     }
-
+    
     setIsUploading(true);
     setUploadProgress("Įkeliamas failas...");
-
+    
     try {
-      // Upload PDF to storage
-      const fileName = `${Date.now()}-${file.name}`;
+      // Upload file to storage
+      const uploadFileName = `${Date.now()}-${file.name}`;
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from("payment-slips")
-        .upload(fileName, file);
-
+        .upload(uploadFileName, file);
+      
       if (uploadError) throw uploadError;
-
+      
       const { data: { publicUrl } } = supabase.storage
         .from("payment-slips")
-        .getPublicUrl(fileName);
-
-      setUploadProgress("Analizuojamas PDF...");
-
-      // Read PDF as text (simplified - in production you'd use a proper PDF parser)
-      // For now, we'll send to edge function which will parse it
-      const formData = new FormData();
-      formData.append('file', file);
-
-      // Since we can't parse PDF directly in browser, we'll use a manual approach
-      // The user will need to provide parsed text or we'll store the PDF and parse later
+        .getPublicUrl(uploadFileName);
       
-      // For now, let's create a simple entry with the PDF attached
-      toast.info("PDF įkeltas. Naudokite 'Importuoti iš teksto' funkciją duomenims įvesti.");
+      setUploadProgress("Analizuojami duomenys...");
       
-      setUploadProgress("");
-      setIsUploading(false);
+      const { data: session } = await supabase.auth.getSession();
+      if (!session.session) throw new Error("Neprisijungta");
+      
+      let requestBody: any = {
+        periodMonth: new Date().toISOString().split('T')[0].slice(0, 7) + '-01',
+        pdfFileName: file.name,
+        pdfUrl: publicUrl,
+        useAI: true
+      };
+      
+      if (isExcel) {
+        // Parse Excel file
+        setUploadProgress("Analizuojamas Excel failas...");
+        const arrayBuffer = await file.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        
+        requestBody.excelData = jsonData;
+      } else if (isPDF) {
+        // For PDF, we need to read as text or use browser parsing
+        setUploadProgress("Analizuojamas PDF failas...");
+        
+        // Try to read PDF as text (for simple PDFs)
+        const text = await file.text();
+        
+        // Check if it's a readable PDF (not binary)
+        if (text.includes('%PDF') && !text.includes('SĄSKAITA') && !text.includes('Serija')) {
+          // Binary PDF - need to inform user or use different method
+          toast.info("PDF failas analizuojamas. Jei rezultatų nebus, naudokite 'Importuoti iš teksto' funkciją.");
+          requestBody.parsedText = text;
+        } else {
+          requestBody.parsedText = text;
+        }
+      }
+      
+      const response = await supabase.functions.invoke("parse-payment-slips", {
+        body: requestBody
+      });
+      
+      if (response.error) throw response.error;
+      
+      const { stats, message } = response.data;
+      
+      if (stats.total === 0) {
+        toast.warning(message || "Nepavyko rasti mokėjimo lapelių. Bandykite 'Importuoti iš teksto' funkciją.");
+      } else {
+        toast.success(`Importuota ${stats.total} lapelių. Priskirta: ${stats.matched}, laukia: ${stats.pending}`);
+      }
+      
+      queryClient.invalidateQueries({ queryKey: ["admin-payment-slips"] });
       setIsUploadDialogOpen(false);
-      
     } catch (error: any) {
       console.error("Upload error:", error);
       toast.error("Klaida įkeliant failą: " + error.message);
+    } finally {
       setIsUploading(false);
       setUploadProgress("");
     }
-  };
+  }, [queryClient]);
 
   // Handle text-based import (from parsed document)
   const handleTextImport = async (parsedText: string) => {
@@ -200,7 +247,8 @@ export default function AdminPaymentSlips() {
       const response = await supabase.functions.invoke("parse-payment-slips", {
         body: {
           parsedText,
-          periodMonth: new Date().toISOString().split('T')[0].slice(0, 7) + '-01'
+          periodMonth: new Date().toISOString().split('T')[0].slice(0, 7) + '-01',
+          useAI: true
         }
       });
 
@@ -452,27 +500,49 @@ export default function AdminPaymentSlips() {
           <DialogHeader>
             <DialogTitle>Įkelti mokėjimo lapelius</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="border-2 border-dashed rounded-lg p-8 text-center">
-              <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-muted-foreground mb-4">
-                Įkopijuokite išanalizuotą PDF tekstą žemiau
-              </p>
-              <textarea
-                className="w-full h-64 p-3 border rounded-md font-mono text-sm"
-                placeholder="Įklijuokite mokėjimo lapelių tekstą čia..."
-                id="parsedTextInput"
+          <div className="space-y-6">
+            {/* File Drop Zone */}
+            <div>
+              <h4 className="text-sm font-medium mb-3">1. Įkelkite PDF arba Excel failą</h4>
+              <FileDropzone
+                onFilesSelected={handleFilesSelected}
+                accept=".pdf,.xlsx,.xls"
+                title="Nutempkite PDF arba Excel failą čia"
+                description="arba spustelėkite norėdami pasirinkti"
+                icon="file"
+                disabled={isUploading}
               />
             </div>
+            
+            {/* Or text import */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">arba</span>
+              </div>
+            </div>
+            
+            <div>
+              <h4 className="text-sm font-medium mb-3">2. Įklijuokite tekstą rankiniu būdu</h4>
+              <textarea
+                className="w-full h-40 p-3 border rounded-md font-mono text-sm bg-muted/30"
+                placeholder="Įklijuokite išanalizuoto PDF tekstą čia..."
+                id="parsedTextInput"
+                disabled={isUploading}
+              />
+            </div>
+            
             {uploadProgress && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
+              <div className="flex items-center gap-2 text-sm text-primary">
+                <Loader2 className="h-4 w-4 animate-spin" />
                 {uploadProgress}
               </div>
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsUploadDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsUploadDialogOpen(false)} disabled={isUploading}>
               Atšaukti
             </Button>
             <Button
@@ -481,12 +551,12 @@ export default function AdminPaymentSlips() {
                 if (textarea?.value) {
                   handleTextImport(textarea.value);
                 } else {
-                  toast.error("Prašome įvesti tekstą");
+                  toast.error("Prašome įvesti tekstą arba įkelti failą");
                 }
               }}
               disabled={isUploading}
             >
-              Importuoti
+              Importuoti tekstą
             </Button>
           </DialogFooter>
         </DialogContent>
