@@ -10,7 +10,8 @@ export function Footer() {
             <img 
               src={logo} 
               alt="Taurakalnio Namai" 
-              className="h-16 w-auto brightness-0 invert opacity-90 mb-4"
+              className="h-16 w-auto mb-4"
+              style={{ filter: 'brightness(0) invert(1)' }}
             />
             <p className="text-background/70 text-sm leading-relaxed">
               Daugiabučio namo savininkų bendrija, skirta užtikrinti patogų ir saugų gyvenimą visiems gyventojams.
