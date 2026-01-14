@@ -776,8 +776,13 @@ export default function AdminPaymentSlips() {
                     </TableCell>
                     <TableCell>
                       <Select 
-                        value={preview.matchedResident?.id || ""} 
-                        onValueChange={(value) => updatePreviewAssignment(preview.tempId, value || null)}
+                        value={preview.matchedResident?.id ?? "__none__"}
+                        onValueChange={(value) =>
+                          updatePreviewAssignment(
+                            preview.tempId,
+                            value === "__none__" ? null : value
+                          )
+                        }
                       >
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Pasirinkite gyventoją">
@@ -796,7 +801,7 @@ export default function AdminPaymentSlips() {
                           </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">
+                          <SelectItem value="__none__">
                             <span className="text-muted-foreground">Nepriskirta</span>
                           </SelectItem>
                           {previewResidents.map((resident) => (

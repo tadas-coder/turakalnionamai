@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { Ticket, Newspaper, Vote, Users, LayoutDashboard, ClipboardList, CalendarDays, FileSpreadsheet, Building2, Receipt } from "lucide-react";
 import { AdminTickets } from "@/components/admin/AdminTickets";
 import { AdminNews } from "@/components/admin/AdminNews";
@@ -52,8 +53,32 @@ export default function Admin() {
     );
   }
 
+  if (!user) {
+    return (
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center px-4">
+          <div className="text-center space-y-4 max-w-md">
+            <h1 className="text-2xl font-bold">Reikia prisijungti</h1>
+            <p className="text-muted-foreground">Administratoriaus skiltis pasiekiama tik prisijungus.</p>
+            <Button onClick={() => navigate("/auth")}>Prisijungti</Button>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   if (!isAdmin) {
-    return null;
+    return (
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center px-4">
+          <div className="text-center space-y-4 max-w-md">
+            <h1 className="text-2xl font-bold">Nėra prieigos</h1>
+            <p className="text-muted-foreground">Jūsų paskyra neturi administratoriaus teisių.</p>
+            <Button variant="outline" onClick={() => navigate("/")}>Grįžti į pradžią</Button>
+          </div>
+        </div>
+      </Layout>
+    );
   }
 
   return (
