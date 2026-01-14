@@ -9,11 +9,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Upload, FileText, Check, X, AlertCircle, Search, Eye, Loader2, CheckCheck } from "lucide-react";
+import { Upload, FileText, Check, X, AlertCircle, Search, Eye, Loader2, CheckCheck, UserCheck, UserX } from "lucide-react";
 import { format } from "date-fns";
 import { lt } from "date-fns/locale";
 import { FileDropzone } from "@/components/ui/file-dropzone";
 import * as XLSX from "xlsx";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface PaymentSlip {
   id: string;
@@ -51,6 +52,29 @@ interface Resident {
   full_name: string;
   apartment_number: string | null;
   payment_code: string | null;
+  linked_profile_id?: string | null;
+}
+
+interface PreviewSlip {
+  tempId: string;
+  slip: {
+    invoiceNumber: string;
+    invoiceDate: string;
+    dueDate: string;
+    buyerName: string;
+    apartmentAddress: string;
+    apartmentNumber: string;
+    paymentCode: string;
+    totalDue: number;
+    accruedAmount: number;
+  };
+  matchedResident: {
+    id: string;
+    full_name: string;
+    apartment_number: string | null;
+  } | null;
+  matchType: string;
+  dataForSave: any;
 }
 
 export default function AdminPaymentSlips() {
@@ -58,11 +82,15 @@ export default function AdminPaymentSlips() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [periodFilter, setPeriodFilter] = useState<string>("all");
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedSlip, setSelectedSlip] = useState<PaymentSlip | null>(null);
   const [selectedResidentId, setSelectedResidentId] = useState<string>("");
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState("");
+  const [previewSlips, setPreviewSlips] = useState<PreviewSlip[]>([]);
+  const [previewResidents, setPreviewResidents] = useState<Resident[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
   const queryClient = useQueryClient();
 
   // Fetch payment slips
@@ -117,12 +145,11 @@ export default function AdminPaymentSlips() {
   // Update assignment mutation
   const updateAssignmentMutation = useMutation({
     mutationFn: async ({ slipId, residentId, status }: { slipId: string; residentId: string | null; status: string }) => {
-      const resident = residents?.find(r => r.id === residentId);
       const { error } = await supabase
         .from("payment_slips")
         .update({
           resident_id: residentId,
-          profile_id: null, // Will be updated when resident links their profile
+          profile_id: null,
           assignment_status: status,
           matched_by: residentId ? "manual" : null
         })
@@ -171,7 +198,7 @@ export default function AdminPaymentSlips() {
     bulkConfirmMutation.mutate(autoMatchedSlips.map(s => s.id));
   };
 
-  // Handle file upload (PDF or Excel)
+  // Handle file upload - now returns preview
   const handleFilesSelected = useCallback(async (files: File[]) => {
     if (files.length === 0) return;
     
@@ -214,7 +241,6 @@ export default function AdminPaymentSlips() {
       };
       
       if (isExcel) {
-        // Parse Excel file
         setUploadProgress("Analizuojamas Excel failas...");
         const arrayBuffer = await file.arrayBuffer();
         const workbook = XLSX.read(arrayBuffer, { type: 'array' });
@@ -224,10 +250,8 @@ export default function AdminPaymentSlips() {
         
         requestBody.excelData = jsonData;
       } else if (isPDF) {
-        // For PDF files, we need to send the file content as base64
         setUploadProgress("Analizuojamas PDF failas...");
         
-        // Convert PDF to base64 for the edge function
         const arrayBuffer = await file.arrayBuffer();
         const base64 = btoa(
           new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
@@ -243,16 +267,20 @@ export default function AdminPaymentSlips() {
       
       if (response.error) throw response.error;
       
-      const { stats, message } = response.data;
+      const { preview, residents: residentsList, stats, message } = response.data;
       
-      if (stats.total === 0) {
+      if (!preview || preview.length === 0) {
         toast.warning(message || "Nepavyko rasti mokėjimo lapelių. Bandykite 'Importuoti iš teksto' funkciją.");
-      } else {
-        toast.success(`Importuota ${stats.total} lapelių. Priskirta: ${stats.matched}, laukia: ${stats.pending}`);
+        return;
       }
       
-      queryClient.invalidateQueries({ queryKey: ["admin-payment-slips"] });
+      // Show preview dialog
+      setPreviewSlips(preview);
+      setPreviewResidents(residentsList || []);
       setIsUploadDialogOpen(false);
+      setIsPreviewDialogOpen(true);
+      toast.info(`Rasta ${stats.total} lapelių. Peržiūrėkite ir patvirtinkite priskyrimą.`);
+      
     } catch (error: any) {
       console.error("Upload error:", error);
       toast.error("Klaida įkeliant failą: " + error.message);
@@ -260,9 +288,9 @@ export default function AdminPaymentSlips() {
       setIsUploading(false);
       setUploadProgress("");
     }
-  }, [queryClient]);
+  }, []);
 
-  // Handle text-based import (from parsed document)
+  // Handle text-based import
   const handleTextImport = async (parsedText: string) => {
     setIsUploading(true);
     setUploadProgress("Apdorojami mokėjimo lapeliai...");
@@ -281,16 +309,80 @@ export default function AdminPaymentSlips() {
 
       if (response.error) throw response.error;
 
-      const { stats } = response.data;
-      toast.success(`Importuota ${stats.total} lapelių. Priskirta: ${stats.matched}, laukia: ${stats.pending}`);
-      queryClient.invalidateQueries({ queryKey: ["admin-payment-slips"] });
+      const { preview, residents: residentsList, stats } = response.data;
+      
+      if (!preview || preview.length === 0) {
+        toast.warning("Nepavyko rasti mokėjimo lapelių tekste.");
+        return;
+      }
+      
+      setPreviewSlips(preview);
+      setPreviewResidents(residentsList || []);
       setIsUploadDialogOpen(false);
+      setIsPreviewDialogOpen(true);
+      toast.info(`Rasta ${stats.total} lapelių. Peržiūrėkite ir patvirtinkite priskyrimą.`);
     } catch (error: any) {
       console.error("Import error:", error);
       toast.error("Klaida importuojant: " + error.message);
     } finally {
       setIsUploading(false);
       setUploadProgress("");
+    }
+  };
+
+  // Update preview slip resident assignment
+  const updatePreviewAssignment = (tempId: string, residentId: string | null) => {
+    setPreviewSlips(prev => prev.map(slip => {
+      if (slip.tempId !== tempId) return slip;
+      
+      const resident = residentId ? previewResidents.find(r => r.id === residentId) : null;
+      
+      return {
+        ...slip,
+        matchedResident: resident ? {
+          id: resident.id,
+          full_name: resident.full_name,
+          apartment_number: resident.apartment_number
+        } : null,
+        matchType: resident ? 'manual' : 'none',
+        dataForSave: {
+          ...slip.dataForSave,
+          resident_id: resident?.id || null,
+          profile_id: resident?.linked_profile_id || null,
+          assignment_status: resident ? 'confirmed' : 'pending',
+          matched_by: resident ? 'manual' : null
+        }
+      };
+    }));
+  };
+
+  // Save confirmed slips
+  const handleSaveSlips = async () => {
+    setIsSaving(true);
+    
+    try {
+      const slipsToSave = previewSlips.map(p => p.dataForSave);
+      
+      const response = await supabase.functions.invoke("parse-payment-slips", {
+        body: {
+          action: 'save',
+          slipsToSave
+        }
+      });
+      
+      if (response.error) throw response.error;
+      
+      const { stats } = response.data;
+      toast.success(`Išsaugota ${stats.total} lapelių. Priskirta: ${stats.matched}, laukia: ${stats.pending}`);
+      
+      queryClient.invalidateQueries({ queryKey: ["admin-payment-slips"] });
+      setIsPreviewDialogOpen(false);
+      setPreviewSlips([]);
+    } catch (error: any) {
+      console.error("Save error:", error);
+      toast.error("Klaida išsaugant: " + error.message);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -323,6 +415,21 @@ export default function AdminPaymentSlips() {
     }
   };
 
+  const getMatchTypeBadge = (matchType: string) => {
+    switch (matchType) {
+      case "apartment_number":
+        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">Pagal butą</Badge>;
+      case "payment_code":
+        return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">Pagal kodą</Badge>;
+      case "name":
+        return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-300">Pagal vardą</Badge>;
+      case "manual":
+        return <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-300">Rankiniu</Badge>;
+      default:
+        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">Nepriskirta</Badge>;
+    }
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('lt-LT', { style: 'currency', currency: 'EUR' }).format(amount);
   };
@@ -333,6 +440,14 @@ export default function AdminPaymentSlips() {
     pending: paymentSlips?.filter(s => s.assignment_status === "pending").length || 0,
     matched: paymentSlips?.filter(s => ["auto_matched", "manually_assigned", "confirmed"].includes(s.assignment_status)).length || 0,
     totalAmount: paymentSlips?.reduce((sum, s) => sum + (s.total_due || 0), 0) || 0
+  };
+
+  // Preview stats
+  const previewStats = {
+    total: previewSlips.length,
+    matched: previewSlips.filter(s => s.matchedResident).length,
+    pending: previewSlips.filter(s => !s.matchedResident).length,
+    totalAmount: previewSlips.reduce((sum, s) => sum + (s.slip.totalDue || 0), 0)
   };
 
   return (
@@ -543,7 +658,6 @@ export default function AdminPaymentSlips() {
             <DialogTitle>Įkelti mokėjimo lapelius</DialogTitle>
           </DialogHeader>
           <div className="space-y-6">
-            {/* File Drop Zone */}
             <div>
               <h4 className="text-sm font-medium mb-3">1. Įkelkite PDF arba Excel failą</h4>
               <FileDropzone
@@ -556,7 +670,6 @@ export default function AdminPaymentSlips() {
               />
             </div>
             
-            {/* Or text import */}
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
@@ -599,6 +712,134 @@ export default function AdminPaymentSlips() {
               disabled={isUploading}
             >
               Importuoti tekstą
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Preview & Confirm Dialog */}
+      <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>
+        <DialogContent className="max-w-5xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Patvirtinti mokėjimo lapelių priskyrimą</DialogTitle>
+          </DialogHeader>
+          
+          {/* Preview Stats */}
+          <div className="grid grid-cols-4 gap-4 mb-4">
+            <div className="bg-muted/50 p-3 rounded-lg text-center">
+              <div className="text-2xl font-bold">{previewStats.total}</div>
+              <div className="text-xs text-muted-foreground">Viso lapelių</div>
+            </div>
+            <div className="bg-green-50 p-3 rounded-lg text-center">
+              <div className="text-2xl font-bold text-green-600">{previewStats.matched}</div>
+              <div className="text-xs text-muted-foreground">Priskirta</div>
+            </div>
+            <div className="bg-yellow-50 p-3 rounded-lg text-center">
+              <div className="text-2xl font-bold text-yellow-600">{previewStats.pending}</div>
+              <div className="text-xs text-muted-foreground">Nepriskirta</div>
+            </div>
+            <div className="bg-muted/50 p-3 rounded-lg text-center">
+              <div className="text-2xl font-bold">{formatCurrency(previewStats.totalAmount)}</div>
+              <div className="text-xs text-muted-foreground">Bendra suma</div>
+            </div>
+          </div>
+
+          <ScrollArea className="h-[400px] border rounded-lg">
+            <Table>
+              <TableHeader className="sticky top-0 bg-background">
+                <TableRow>
+                  <TableHead className="w-[80px]">Butas</TableHead>
+                  <TableHead>Pirkėjas (faile)</TableHead>
+                  <TableHead className="text-right">Suma</TableHead>
+                  <TableHead>Priskyrimo būdas</TableHead>
+                  <TableHead className="w-[250px]">Priskirti gyventojui</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {previewSlips.map((preview) => (
+                  <TableRow key={preview.tempId} className={preview.matchedResident ? "bg-green-50/30" : "bg-yellow-50/30"}>
+                    <TableCell className="font-medium">
+                      {preview.slip.apartmentNumber || "-"}
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{preview.slip.buyerName || "-"}</div>
+                        <div className="text-xs text-muted-foreground">{preview.slip.invoiceNumber}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      {formatCurrency(preview.slip.totalDue)}
+                    </TableCell>
+                    <TableCell>
+                      {getMatchTypeBadge(preview.matchType)}
+                    </TableCell>
+                    <TableCell>
+                      <Select 
+                        value={preview.matchedResident?.id || ""} 
+                        onValueChange={(value) => updatePreviewAssignment(preview.tempId, value || null)}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Pasirinkite gyventoją">
+                            {preview.matchedResident ? (
+                              <span className="flex items-center gap-2">
+                                <UserCheck className="h-4 w-4 text-green-600" />
+                                {preview.matchedResident.apartment_number && `${preview.matchedResident.apartment_number} - `}
+                                {preview.matchedResident.full_name}
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-2 text-muted-foreground">
+                                <UserX className="h-4 w-4" />
+                                Nepriskirta
+                              </span>
+                            )}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">
+                            <span className="text-muted-foreground">Nepriskirta</span>
+                          </SelectItem>
+                          {previewResidents.map((resident) => (
+                            <SelectItem key={resident.id} value={resident.id}>
+                              {resident.apartment_number ? `${resident.apartment_number} - ` : ""}
+                              {resident.full_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setIsPreviewDialogOpen(false);
+                setPreviewSlips([]);
+              }}
+              disabled={isSaving}
+            >
+              Atšaukti
+            </Button>
+            <Button
+              onClick={handleSaveSlips}
+              disabled={isSaving || previewSlips.length === 0}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saugoma...
+                </>
+              ) : (
+                <>
+                  <Check className="h-4 w-4 mr-2" />
+                  Patvirtinti ir išsaugoti ({previewSlips.length})
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

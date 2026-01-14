@@ -163,7 +163,6 @@ function parseSlipFromText(text: string): ParsedSlip | null {
 function splitIntoSlips(fullText: string): string[] {
   const slips: string[] = [];
   
-  // Split by "SĄSKAITA - FAKTŪRA" headers (each invoice starts with this)
   const invoiceSplits = fullText.split(/(?=# SĄSKAITA - FAKTŪRA|(?<=\n)SĄSKAITA - FAKTŪRA)/);
   
   for (const section of invoiceSplits) {
@@ -172,7 +171,6 @@ function splitIntoSlips(fullText: string): string[] {
     }
   }
   
-  // If no slips found with header split, try alternative split by Serija:
   if (slips.length === 0) {
     const serijaSpits = fullText.split(/(?=Serija:\s*\w+\s*Nr\.)/);
     for (const section of serijaSpits) {
@@ -186,11 +184,9 @@ function splitIntoSlips(fullText: string): string[] {
   return slips;
 }
 
-// Parse Excel data from rows
 function parseExcelData(rows: any[]): ParsedSlip[] {
   const slips: ParsedSlip[] = [];
   
-  // Try to find header row and map columns
   let headerRowIndex = -1;
   let columnMap: Record<string, number> = {};
   
@@ -200,7 +196,6 @@ function parseExcelData(rows: any[]): ParsedSlip[] {
     
     const headers = Object.values(row).map(v => String(v || '').toLowerCase());
     
-    // Look for common column names
     const hasInvoice = headers.some(h => h.includes('sąskait') || h.includes('nr') || h.includes('invoice'));
     const hasAmount = headers.some(h => h.includes('suma') || h.includes('amount') || h.includes('mokėti'));
     const hasApartment = headers.some(h => h.includes('but') || h.includes('adres') || h.includes('apart'));
@@ -208,7 +203,6 @@ function parseExcelData(rows: any[]): ParsedSlip[] {
     if (hasInvoice || hasAmount || hasApartment) {
       headerRowIndex = i;
       
-      // Map columns
       Object.entries(row).forEach(([key, value], idx) => {
         const val = String(value || '').toLowerCase();
         if (val.includes('sąskait') || val.includes('nr') || val.includes('invoice')) {
@@ -244,7 +238,6 @@ function parseExcelData(rows: any[]): ParsedSlip[] {
     }
   }
   
-  // Parse data rows
   const dataStartIndex = headerRowIndex >= 0 ? headerRowIndex + 1 : 0;
   const keys = Object.keys(rows[0] || {});
   
@@ -289,7 +282,6 @@ function parseExcelData(rows: any[]): ParsedSlip[] {
   return slips;
 }
 
-// Use AI to parse complex documents
 async function parseWithAI(text: string, supabaseUrl: string, supabaseKey: string): Promise<ParsedSlip[]> {
   try {
     const response = await fetch(`${supabaseUrl}/functions/v1/chat-assistant`, {
@@ -331,7 +323,6 @@ ${text.substring(0, 15000)}`,
     const result = await response.json();
     const aiResponse = result.response || '';
     
-    // Try to extract JSON from response
     const jsonMatch = aiResponse.match(/\{[\s\S]*"slips"[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
@@ -400,8 +391,52 @@ serve(async (req) => {
       });
     }
 
-    const { parsedText, excelData, pdfBase64, periodMonth, pdfFileName, pdfUrl, useAI } = await req.json();
+    const { 
+      parsedText, 
+      excelData, 
+      pdfBase64, 
+      periodMonth, 
+      pdfFileName, 
+      pdfUrl, 
+      useAI,
+      action,
+      slipsToSave
+    } = await req.json();
 
+    // SAVE action - save confirmed slips to database
+    if (action === 'save' && slipsToSave) {
+      console.log(`Saving ${slipsToSave.length} confirmed slips`);
+      
+      const { data: insertedSlips, error: insertError } = await supabase
+        .from("payment_slips")
+        .insert(slipsToSave)
+        .select();
+
+      if (insertError) {
+        console.error("Insert error:", insertError);
+        return new Response(JSON.stringify({ error: insertError.message }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+
+      const stats = {
+        total: insertedSlips?.length || 0,
+        matched: slipsToSave.filter((s: any) => s.resident_id).length,
+        pending: slipsToSave.filter((s: any) => !s.resident_id).length
+      };
+
+      return new Response(JSON.stringify({ 
+        success: true, 
+        stats,
+        slips: insertedSlips 
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
+    // PARSE action - parse and return for preview (default)
     let parsedSlips: ParsedSlip[] = [];
     let textToParse = parsedText || '';
 
@@ -464,7 +499,6 @@ Grąžink TIK JSON!`;
             const aiText = aiResult.choices?.[0]?.message?.content || '';
             console.log("AI response received, length:", aiText.length);
             
-            // Try to extract JSON from AI response
             const jsonMatch = aiText.match(/\{[\s\S]*"slips"[\s\S]*\}/);
             if (jsonMatch) {
               try {
@@ -509,16 +543,13 @@ Grąžink TIK JSON!`;
 
     // Parse based on input type
     if (parsedSlips.length === 0 && excelData && Array.isArray(excelData)) {
-      // Excel data provided
       console.log(`Parsing Excel data with ${excelData.length} rows`);
       parsedSlips = parseExcelData(excelData);
     } else if (parsedSlips.length === 0 && textToParse) {
-      // Try AI parsing first if enabled
       if (useAI) {
         parsedSlips = await parseWithAI(textToParse, supabaseUrl, supabaseKey);
       }
       
-      // Fallback to regex parsing
       if (parsedSlips.length === 0) {
         console.log('AI parsing not available, falling back to regex');
         const slipTexts = splitIntoSlips(textToParse);
@@ -548,13 +579,9 @@ Grąžink TIK JSON!`;
       .select("id, apartment_number, full_name, payment_code, linked_profile_id");
 
     const batchId = crypto.randomUUID();
-    const results: Array<{
-      slip: ParsedSlip;
-      resident: any;
-      matchType: string;
-    }> = [];
-
-    for (const parsed of parsedSlips) {
+    
+    // Prepare slips with matching info for preview
+    const previewSlips = parsedSlips.map((parsed, index) => {
       let matchedResident = null;
       let matchType = 'none';
 
@@ -582,43 +609,49 @@ Grąžink TIK JSON!`;
         if (matchedResident) matchType = 'name';
       }
 
-      results.push({
+      return {
+        tempId: `temp-${index}`,
         slip: parsed,
-        resident: matchedResident,
-        matchType
-      });
-    }
+        matchedResident: matchedResident ? {
+          id: matchedResident.id,
+          full_name: matchedResident.full_name,
+          apartment_number: matchedResident.apartment_number
+        } : null,
+        matchType,
+        // Pre-prepared data for saving
+        dataForSave: {
+          invoice_number: parsed.invoiceNumber,
+          invoice_date: parsed.invoiceDate || new Date().toISOString().split('T')[0],
+          due_date: parsed.dueDate || new Date().toISOString().split('T')[0],
+          period_month: periodMonth || new Date().toISOString().split('T')[0].slice(0, 7) + '-01',
+          buyer_name: parsed.buyerName,
+          apartment_address: parsed.apartmentAddress,
+          apartment_number: parsed.apartmentNumber,
+          payment_code: parsed.paymentCode,
+          previous_amount: parsed.previousAmount,
+          payments_received: parsed.paymentsReceived,
+          balance: parsed.balance,
+          accrued_amount: parsed.accruedAmount,
+          total_due: parsed.totalDue,
+          line_items: parsed.lineItems,
+          utility_readings: parsed.utilityReadings,
+          pdf_url: pdfUrl,
+          pdf_file_name: pdfFileName,
+          resident_id: matchedResident?.id || null,
+          profile_id: matchedResident?.linked_profile_id || null,
+          assignment_status: matchedResident ? 'auto_matched' : 'pending',
+          matched_by: matchType !== 'none' ? matchType : null,
+          upload_batch_id: batchId,
+          uploaded_by: user.id
+        }
+      };
+    });
 
-    // Insert all slips into database
-    const slipsToInsert = results.map(({ slip, resident, matchType }) => ({
-      invoice_number: slip.invoiceNumber,
-      invoice_date: slip.invoiceDate || new Date().toISOString().split('T')[0],
-      due_date: slip.dueDate || new Date().toISOString().split('T')[0],
-      period_month: periodMonth || new Date().toISOString().split('T')[0].slice(0, 7) + '-01',
-      buyer_name: slip.buyerName,
-      apartment_address: slip.apartmentAddress,
-      apartment_number: slip.apartmentNumber,
-      payment_code: slip.paymentCode,
-      previous_amount: slip.previousAmount,
-      payments_received: slip.paymentsReceived,
-      balance: slip.balance,
-      accrued_amount: slip.accruedAmount,
-      total_due: slip.totalDue,
-      line_items: slip.lineItems,
-      utility_readings: slip.utilityReadings,
-      pdf_url: pdfUrl,
-      pdf_file_name: pdfFileName,
-      resident_id: resident?.id || null,
-      profile_id: resident?.linked_profile_id || null,
-      assignment_status: resident ? 'auto_matched' : 'pending',
-      matched_by: matchType !== 'none' ? matchType : null,
-      upload_batch_id: batchId,
-      uploaded_by: user.id
-    }));
-
-    if (slipsToInsert.length === 0) {
+    if (previewSlips.length === 0) {
       return new Response(JSON.stringify({ 
         success: true, 
+        preview: [],
+        residents: [],
         stats: { total: 0, matched: 0, pending: 0 },
         message: "Nepavyko rasti mokėjimo lapelių duomenyse"
       }), {
@@ -627,30 +660,20 @@ Grąžink TIK JSON!`;
       });
     }
 
-    const { data: insertedSlips, error: insertError } = await supabase
-      .from("payment_slips")
-      .insert(slipsToInsert)
-      .select();
-
-    if (insertError) {
-      console.error("Insert error:", insertError);
-      return new Response(JSON.stringify({ error: insertError.message }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      });
-    }
-
     const stats = {
-      total: results.length,
-      matched: results.filter(r => r.resident).length,
-      pending: results.filter(r => !r.resident).length,
+      total: previewSlips.length,
+      matched: previewSlips.filter(r => r.matchedResident).length,
+      pending: previewSlips.filter(r => !r.matchedResident).length,
       batchId
     };
 
+    // Return preview data instead of saving immediately
     return new Response(JSON.stringify({ 
       success: true, 
+      preview: previewSlips,
+      residents: residents || [],
       stats,
-      slips: insertedSlips 
+      batchId
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
