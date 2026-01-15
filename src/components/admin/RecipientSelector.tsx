@@ -256,7 +256,6 @@ export function RecipientSelector({ selectedResidentIds, onSelectionChange }: Re
                 >
                   <Checkbox
                     checked={selectedResidentIds.includes(resident.id)}
-                    onCheckedChange={() => toggleResident(resident.id)}
                   />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{resident.full_name}</p>
@@ -431,7 +430,7 @@ export function RecipientSelector({ selectedResidentIds, onSelectionChange }: Re
                     className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer"
                     onClick={() => toggleResidentInSegment(resident.id)}
                   >
-                    <Checkbox checked={isInSegment} />
+                    <Checkbox checked={isInSegment} onCheckedChange={() => {}} />
                     <div className="flex-1">
                       <p className="text-sm font-medium">{resident.full_name}</p>
                       <p className="text-xs text-muted-foreground">
