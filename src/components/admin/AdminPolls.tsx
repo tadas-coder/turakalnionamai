@@ -33,6 +33,7 @@ export function AdminPolls() {
   const [polls, setPolls] = useState<Poll[]>([]);
   const [pollVotes, setPollVotes] = useState<{ [pollId: string]: PollVote[] }>({});
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
   const [formData, setFormData] = useState({
@@ -139,6 +140,7 @@ export function AdminPolls() {
       return;
     }
 
+    setSubmitting(true);
     try {
       // Create the poll
       const { data: poll, error: pollError } = await supabase
@@ -167,12 +169,50 @@ export function AdminPolls() {
 
       if (recipientError) throw recipientError;
 
-      toast.success(`Apklausa sukurta ir išsiųsta ${selectedRecipients.length} gavėjams`);
+      // Get residents with emails for notification
+      const { data: residents, error: residentsError } = await supabase
+        .from("residents")
+        .select("id, full_name, email")
+        .in("id", selectedRecipients)
+        .not("email", "is", null);
+
+      if (residentsError) throw residentsError;
+
+      // Send email notifications via edge function
+      const residentsWithEmail = residents?.filter(r => r.email) || [];
+      
+      if (residentsWithEmail.length > 0) {
+        const { error: notifyError } = await supabase.functions.invoke("send-poll-notification", {
+          body: {
+            pollId: poll.id,
+            pollTitle: formData.title,
+            pollDescription: formData.description || null,
+            pollOptions: validOptions,
+            endsAt: formData.ends_at || null,
+            recipients: residentsWithEmail.map(r => ({
+              name: r.full_name,
+              email: r.email,
+            })),
+          },
+        });
+
+        if (notifyError) {
+          console.error("Error sending notifications:", notifyError);
+          toast.warning(`Apklausa sukurta, bet el. laiškų siuntimas nepavyko: ${notifyError.message}`);
+        } else {
+          toast.success(`Apklausa sukurta ir išsiųsta ${residentsWithEmail.length} gavėjams el. paštu`);
+        }
+      } else {
+        toast.success(`Apklausa sukurta ${selectedRecipients.length} gavėjams (el. paštų nėra)`);
+      }
+
       setDialogOpen(false);
       fetchPolls();
     } catch (error) {
       console.error("Error creating poll:", error);
       toast.error("Nepavyko sukurti apklausos");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -316,10 +356,12 @@ export function AdminPolls() {
                 />
               </div>
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={submitting}>
                   Atšaukti
                 </Button>
-                <Button type="submit">Sukurti</Button>
+                <Button type="submit" disabled={submitting}>
+                  {submitting ? "Kuriama..." : "Sukurti"}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>
