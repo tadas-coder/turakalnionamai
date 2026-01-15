@@ -9,7 +9,6 @@ import Index from "./pages/Index";
 import Tickets from "./pages/Tickets";
 import Voting from "./pages/Voting";
 import News from "./pages/News";
-import Invoices from "./pages/Invoices";
 import Rules from "./pages/Rules";
 import Documents from "./pages/Documents";
 import Reports from "./pages/Reports";
@@ -40,7 +39,6 @@ const App = () => (
               <Route path="/tickets" element={<Tickets />} />
               <Route path="/voting" element={<Voting />} />
               <Route path="/news" element={<News />} />
-              <Route path="/invoices" element={<Invoices />} />
               <Route path="/rules" element={<Rules />} />
               <Route path="/documents" element={<Documents />} />
               <Route path="/reports" element={<Reports />} />
