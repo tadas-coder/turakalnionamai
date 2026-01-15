@@ -151,8 +151,20 @@ export default function AdminPaymentSlips() {
     : [];
 
   // Update assignment mutation
-  const updateAssignmentMutation = useMutation({
-    mutationFn: async ({ slipId, residentId, status }: { slipId: string; residentId: string | null; status: string }) => {
+  const updateAssignmentMutation = useMutation<
+    { updatedSlip: PaymentSlip; notificationResult: any | null },
+    any,
+    { slipId: string; residentId: string | null; status: string }
+  >({
+    mutationFn: async ({
+      slipId,
+      residentId,
+      status,
+    }: {
+      slipId: string;
+      residentId: string | null;
+      status: string;
+    }) => {
       // First get the resident's profile_id if exists
       let profileId = null;
       if (residentId) {
@@ -170,46 +182,81 @@ export default function AdminPaymentSlips() {
           resident_id: residentId,
           profile_id: profileId,
           assignment_status: status,
-          matched_by: residentId ? "manual" : null
+          matched_by: residentId ? "manual" : null,
         })
         .eq("id", slipId)
         .select()
         .single();
       if (error) throw error;
 
+      let notificationResult: any | null = null;
+
       // Send notification if assigned
       if (residentId && updatedSlip) {
-        try {
-          await supabase.functions.invoke("send-payment-slip-notification", {
+        const { data, error: notifError } = await supabase.functions.invoke(
+          "send-payment-slip-notification",
+          {
             body: {
-              slips: [{
-                slipId: updatedSlip.id,
-                residentId: updatedSlip.resident_id,
-                profileId: updatedSlip.profile_id,
-                periodMonth: updatedSlip.period_month,
-                totalDue: updatedSlip.total_due,
-                invoiceNumber: updatedSlip.invoice_number,
-                dueDate: updatedSlip.due_date
-              }]
-            }
-          });
-        } catch (notifErr) {
-          console.error("Failed to send notification:", notifErr);
+              slips: [
+                {
+                  slipId: updatedSlip.id,
+                  residentId: updatedSlip.resident_id,
+                  profileId: updatedSlip.profile_id,
+                  periodMonth: updatedSlip.period_month,
+                  totalDue: updatedSlip.total_due,
+                  invoiceNumber: updatedSlip.invoice_number,
+                  dueDate: updatedSlip.due_date,
+                },
+              ],
+            },
+          }
+        );
+
+        notificationResult = notifError
+          ? { success: false, error: notifError.message }
+          : data;
+
+        if (notifError) {
+          console.error("Failed to send notification:", notifError);
+        } else if (data?.success === false) {
+          console.error("Notification function returned an error:", data);
+        } else if (data?.failed > 0) {
+          console.warn("Some notifications failed:", data);
         }
       }
 
-      return updatedSlip;
+      return { updatedSlip: updatedSlip as PaymentSlip, notificationResult };
     },
-    onSuccess: () => {
+    onSuccess: ({ updatedSlip, notificationResult }) => {
       queryClient.invalidateQueries({ queryKey: ["admin-payment-slips"] });
-      toast.success("Priskyrimas atnaujintas ir pranešimas išsiųstas");
+
+      const isAssigned = Boolean(updatedSlip?.resident_id);
+
+      if (isAssigned && notificationResult) {
+        if (notificationResult.success === false) {
+          toast.warning(
+            `Priskyrimas atnaujintas, bet laiško išsiųsti nepavyko: ${
+              notificationResult.error || "nežinoma klaida"
+            }`
+          );
+        } else if (notificationResult.failed > 0) {
+          toast.warning(
+            "Priskyrimas atnaujintas, bet dalies laiškų išsiųsti nepavyko (žr. konsolę)."
+          );
+        } else {
+          toast.success("Priskyrimas atnaujintas ir pranešimas išsiųstas");
+        }
+      } else {
+        toast.success("Priskyrimas atnaujintas");
+      }
+
       setIsAssignDialogOpen(false);
       setSelectedSlip(null);
       setSelectedResidentId("");
     },
     onError: (error: any) => {
       toast.error("Klaida: " + error.message);
-    }
+    },
   });
 
   // Bulk confirm mutation
