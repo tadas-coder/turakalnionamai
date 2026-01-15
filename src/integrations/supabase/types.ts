@@ -392,6 +392,42 @@ export type Database = {
         }
         Relationships: []
       }
+      poll_recipients: {
+        Row: {
+          created_at: string
+          id: string
+          poll_id: string
+          resident_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          poll_id: string
+          resident_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          poll_id?: string
+          resident_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poll_recipients_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "polls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "poll_recipients_resident_id_fkey"
+            columns: ["resident_id"]
+            isOneToOne: false
+            referencedRelation: "residents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       poll_votes: {
         Row: {
           created_at: string | null
@@ -602,6 +638,72 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      segment_members: {
+        Row: {
+          created_at: string
+          id: string
+          resident_id: string
+          segment_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          resident_id: string
+          segment_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          resident_id?: string
+          segment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "segment_members_resident_id_fkey"
+            columns: ["resident_id"]
+            isOneToOne: false
+            referencedRelation: "residents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "segment_members_segment_id_fkey"
+            columns: ["segment_id"]
+            isOneToOne: false
+            referencedRelation: "segments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      segments: {
+        Row: {
+          color: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       ticket_attachments: {
         Row: {
