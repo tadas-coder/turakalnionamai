@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Send, AlertTriangle, X, History, Clock, CheckCircle, Loader2, Calendar, MapPin, Camera } from "lucide-react";
+import { Upload, Send, AlertTriangle, X, History, Clock, CheckCircle, Loader2, Calendar, MapPin, Camera, FileText, Paperclip } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -65,11 +65,13 @@ export default function Tickets() {
   const { isTicketUnread, markAsRead, markAllAsRead, unreadCount } = useUnreadTickets();
   const [images, setImages] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
+  const [attachments, setAttachments] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState("new");
   const autoMarkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -142,6 +144,41 @@ export default function Tickets() {
     setPreviews(newPreviews);
   };
 
+  const handleAttachmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ];
+    
+    const validFiles = files.filter(f => allowedTypes.includes(f.type));
+    if (validFiles.length !== files.length) {
+      toast.error("Leidžiami tik PDF, Word ir Excel failai");
+    }
+    
+    if (validFiles.length + attachments.length > 3) {
+      toast.error("Galima prisegti ne daugiau kaip 3 dokumentus");
+      return;
+    }
+    
+    setAttachments([...attachments, ...validFiles]);
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(attachments.filter((_, i) => i !== index));
+  };
+
+  const getAttachmentIcon = (fileName: string) => {
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    if (ext === 'pdf') return 'PDF';
+    if (ext === 'doc' || ext === 'docx') return 'DOC';
+    if (ext === 'xls' || ext === 'xlsx') return 'XLS';
+    return 'FILE';
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -188,6 +225,35 @@ export default function Tickets() {
         }
       }
 
+      // Upload attachments (PDF, Word, Excel) if any
+      if (attachments.length > 0 && ticket) {
+        for (const attachment of attachments) {
+          const fileName = `${ticket.id}/docs/${Date.now()}-${attachment.name}`;
+          const { error: uploadError } = await supabase.storage
+            .from("ticket-photos")
+            .upload(fileName, attachment);
+
+          if (uploadError) {
+            console.error("Error uploading attachment:", uploadError);
+            continue;
+          }
+
+          // Get public URL
+          const { data: urlData } = supabase.storage
+            .from("ticket-photos")
+            .getPublicUrl(fileName);
+
+          // Save attachment reference in database
+          await supabase.from("ticket_attachments").insert({
+            ticket_id: ticket.id,
+            file_name: attachment.name,
+            file_url: urlData.publicUrl,
+            file_size: attachment.size,
+            file_type: attachment.type,
+          });
+        }
+      }
+
       // Send email notification
       const { error: emailError } = await supabase.functions.invoke("send-ticket-notification", {
         body: {
@@ -214,6 +280,7 @@ export default function Tickets() {
       setImages([]);
       previews.forEach(preview => URL.revokeObjectURL(preview));
       setPreviews([]);
+      setAttachments([]);
       refetchTickets();
     } catch (error: any) {
       console.error("Error submitting ticket:", error);
@@ -434,6 +501,61 @@ export default function Tickets() {
                                   type="button"
                                   onClick={() => removeImage(index)}
                                   className="absolute top-2 right-2 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 md:opacity-100 transition-opacity"
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Document attachments section */}
+                      <div className="space-y-3">
+                        <Label>Dokumentai (neprivaloma)</Label>
+                        
+                        <input
+                          ref={attachmentInputRef}
+                          type="file"
+                          accept=".pdf,.doc,.docx,.xls,.xlsx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                          multiple
+                          onChange={handleAttachmentChange}
+                          className="hidden"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full gap-2"
+                          onClick={() => attachmentInputRef.current?.click()}
+                          disabled={attachments.length >= 3}
+                        >
+                          <Paperclip className="h-5 w-5" />
+                          Prisegti dokumentą
+                        </Button>
+                        
+                        <p className="text-xs text-muted-foreground text-center">
+                          Iki 3 dokumentų (PDF, Word, Excel)
+                        </p>
+
+                        {attachments.length > 0 && (
+                          <div className="space-y-2 mt-4">
+                            {attachments.map((file, index) => (
+                              <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 bg-primary/10 rounded flex items-center justify-center">
+                                    <FileText className="h-5 w-5 text-primary" />
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium truncate max-w-[200px]">{file.name}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {getAttachmentIcon(file.name)} • {(file.size / 1024).toFixed(0)} KB
+                                    </p>
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => removeAttachment(index)}
+                                  className="w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center hover:bg-destructive/80 transition-colors"
                                 >
                                   <X className="h-4 w-4" />
                                 </button>

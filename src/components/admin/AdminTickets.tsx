@@ -5,8 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Clock, CheckCircle2, AlertTriangle, XCircle, MapPin, Calendar, Image } from "lucide-react";
+import { Clock, CheckCircle2, AlertTriangle, XCircle, MapPin, Calendar, Image, FileText, Download, Paperclip } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Ticket {
   id: string;
@@ -22,6 +23,14 @@ interface Ticket {
 interface TicketPhoto {
   id: string;
   photo_url: string;
+}
+
+interface TicketAttachment {
+  id: string;
+  file_name: string;
+  file_url: string;
+  file_size: number | null;
+  file_type: string | null;
 }
 
 const statusOptions = [
@@ -48,7 +57,8 @@ export function AdminTickets() {
   const [loading, setLoading] = useState(true);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [ticketPhotos, setTicketPhotos] = useState<TicketPhoto[]>([]);
-  const [photoDialogOpen, setPhotoDialogOpen] = useState(false);
+  const [ticketAttachments, setTicketAttachments] = useState<TicketAttachment[]>([]);
+  const [mediaDialogOpen, setMediaDialogOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
   useEffect(() => {
@@ -132,21 +142,40 @@ export function AdminTickets() {
     }
   };
 
-  const viewPhotos = async (ticket: Ticket) => {
+  const viewMedia = async (ticket: Ticket) => {
     setSelectedTicket(ticket);
     try {
-      const { data, error } = await supabase
+      // Fetch photos
+      const { data: photos, error: photosError } = await supabase
         .from("ticket_photos")
         .select("*")
         .eq("ticket_id", ticket.id);
 
-      if (error) throw error;
-      setTicketPhotos(data || []);
-      setPhotoDialogOpen(true);
+      if (photosError) throw photosError;
+      setTicketPhotos(photos || []);
+
+      // Fetch attachments
+      const { data: attachments, error: attachmentsError } = await supabase
+        .from("ticket_attachments")
+        .select("*")
+        .eq("ticket_id", ticket.id);
+
+      if (attachmentsError) throw attachmentsError;
+      setTicketAttachments(attachments || []);
+
+      setMediaDialogOpen(true);
     } catch (error) {
-      console.error("Error fetching photos:", error);
-      toast.error("Nepavyko užkrauti nuotraukų");
+      console.error("Error fetching media:", error);
+      toast.error("Nepavyko užkrauti priedų");
     }
+  };
+
+  const getAttachmentIcon = (fileName: string) => {
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    if (ext === 'pdf') return 'PDF';
+    if (ext === 'doc' || ext === 'docx') return 'DOC';
+    if (ext === 'xls' || ext === 'xlsx') return 'XLS';
+    return 'FILE';
   };
 
   const getStatusBadge = (status: string) => {
@@ -309,9 +338,9 @@ export function AdminTickets() {
                   </SelectContent>
                 </Select>
 
-                <Button variant="outline" onClick={() => viewPhotos(ticket)}>
-                  <Image className="h-4 w-4" />
-                  Nuotraukos
+                <Button variant="outline" onClick={() => viewMedia(ticket)}>
+                  <Paperclip className="h-4 w-4 mr-1" />
+                  Priedai
                 </Button>
               </div>
             </CardContent>
@@ -320,27 +349,94 @@ export function AdminTickets() {
         )}
       </div>
 
-      <Dialog open={photoDialogOpen} onOpenChange={setPhotoDialogOpen}>
-        <DialogContent className="max-w-2xl">
+      <Dialog open={mediaDialogOpen} onOpenChange={setMediaDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Pranešimo nuotraukos</DialogTitle>
+            <DialogTitle>Pranešimo priedai</DialogTitle>
           </DialogHeader>
-          {ticketPhotos.length > 0 ? (
-            <div className="grid grid-cols-2 gap-4">
-              {ticketPhotos.map((photo) => (
-                <img
-                  key={photo.id}
-                  src={photo.photo_url}
-                  alt="Pranešimo nuotrauka"
-                  className="w-full h-48 object-cover rounded-lg"
-                />
-              ))}
-            </div>
-          ) : (
-            <p className="text-center text-muted-foreground py-8">
-              Šis pranešimas neturi nuotraukų
-            </p>
-          )}
+          
+          <Tabs defaultValue="photos" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="photos" className="gap-2">
+                <Image className="h-4 w-4" />
+                Nuotraukos ({ticketPhotos.length})
+              </TabsTrigger>
+              <TabsTrigger value="documents" className="gap-2">
+                <FileText className="h-4 w-4" />
+                Dokumentai ({ticketAttachments.length})
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="photos" className="mt-4">
+              {ticketPhotos.length > 0 ? (
+                <div className="grid grid-cols-2 gap-4">
+                  {ticketPhotos.map((photo) => (
+                    <a
+                      key={photo.id}
+                      href={photo.photo_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <img
+                        src={photo.photo_url}
+                        alt="Pranešimo nuotrauka"
+                        className="w-full h-48 object-cover rounded-lg hover:opacity-80 transition-opacity cursor-pointer"
+                      />
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-muted-foreground py-8">
+                  Šis pranešimas neturi nuotraukų
+                </p>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="documents" className="mt-4">
+              {ticketAttachments.length > 0 ? (
+                <div className="space-y-3">
+                  {ticketAttachments.map((attachment) => (
+                    <div
+                      key={attachment.id}
+                      className="flex items-center justify-between p-4 bg-muted rounded-lg"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-primary/10 rounded flex items-center justify-center">
+                          <FileText className="h-6 w-6 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{attachment.file_name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {getAttachmentIcon(attachment.file_name)}
+                            {attachment.file_size && ` • ${(attachment.file_size / 1024).toFixed(0)} KB`}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        asChild
+                      >
+                        <a
+                          href={attachment.file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          download={attachment.file_name}
+                        >
+                          <Download className="h-4 w-4 mr-1" />
+                          Atsisiųsti
+                        </a>
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-muted-foreground py-8">
+                  Šis pranešimas neturi dokumentų
+                </p>
+              )}
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
     </>
