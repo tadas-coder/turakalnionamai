@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Plus, Trash2, Calendar, Users, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { RecipientSelector } from "./RecipientSelector";
 
 interface Poll {
   id: string;
@@ -21,6 +22,7 @@ interface Poll {
   active: boolean;
   ends_at: string | null;
   created_at: string;
+  recipient_count?: number;
 }
 
 interface PollVote {
@@ -32,6 +34,7 @@ export function AdminPolls() {
   const [pollVotes, setPollVotes] = useState<{ [pollId: string]: PollVote[] }>({});
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -46,32 +49,35 @@ export function AdminPolls() {
 
   const fetchPolls = async () => {
     try {
-      const { data: pollsData, error: pollsError } = await supabase
-        .from("polls")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const [pollsRes, votesRes, recipientsRes] = await Promise.all([
+        supabase.from("polls").select("*").order("created_at", { ascending: false }),
+        supabase.from("poll_votes").select("poll_id, option_index"),
+        supabase.from("poll_recipients").select("poll_id, resident_id"),
+      ]);
 
-      if (pollsError) throw pollsError;
+      if (pollsRes.error) throw pollsRes.error;
+      if (votesRes.error) throw votesRes.error;
+      if (recipientsRes.error) throw recipientsRes.error;
+
+      // Count recipients per poll
+      const recipientCounts: { [pollId: string]: number } = {};
+      (recipientsRes.data || []).forEach(r => {
+        recipientCounts[r.poll_id] = (recipientCounts[r.poll_id] || 0) + 1;
+      });
       
       // Parse options from JSONB
-      const parsedPolls: Poll[] = (pollsData || []).map(poll => ({
+      const parsedPolls: Poll[] = (pollsRes.data || []).map(poll => ({
         ...poll,
         options: Array.isArray(poll.options) 
           ? poll.options.map(opt => String(opt)) 
           : [],
+        recipient_count: recipientCounts[poll.id] || 0,
       }));
       
       setPolls(parsedPolls);
 
-      // Fetch votes for all polls
-      const { data: votesData, error: votesError } = await supabase
-        .from("poll_votes")
-        .select("poll_id, option_index");
-
-      if (votesError) throw votesError;
-
       const votesByPoll: { [pollId: string]: PollVote[] } = {};
-      (votesData || []).forEach(vote => {
+      (votesRes.data || []).forEach(vote => {
         if (!votesByPoll[vote.poll_id]) {
           votesByPoll[vote.poll_id] = [];
         }
@@ -94,6 +100,7 @@ export function AdminPolls() {
       active: true,
       ends_at: "",
     });
+    setSelectedRecipients([]);
     setDialogOpen(true);
   };
 
@@ -127,8 +134,14 @@ export function AdminPolls() {
       return;
     }
 
+    if (selectedRecipients.length === 0) {
+      toast.error("Pasirinkite bent vieną gavėją");
+      return;
+    }
+
     try {
-      const { error } = await supabase
+      // Create the poll
+      const { data: poll, error: pollError } = await supabase
         .from("polls")
         .insert({
           title: formData.title,
@@ -136,10 +149,25 @@ export function AdminPolls() {
           options: validOptions,
           active: formData.active,
           ends_at: formData.ends_at || null,
-        });
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
-      toast.success("Apklausa sukurta");
+      if (pollError) throw pollError;
+
+      // Add recipients
+      const recipientInserts = selectedRecipients.map(residentId => ({
+        poll_id: poll.id,
+        resident_id: residentId,
+      }));
+
+      const { error: recipientError } = await supabase
+        .from("poll_recipients")
+        .insert(recipientInserts);
+
+      if (recipientError) throw recipientError;
+
+      toast.success(`Apklausa sukurta ir išsiųsta ${selectedRecipients.length} gavėjams`);
       setDialogOpen(false);
       fetchPolls();
     } catch (error) {
@@ -209,7 +237,7 @@ export function AdminPolls() {
               Nauja apklausa
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Nauja apklausa</DialogTitle>
             </DialogHeader>
@@ -272,6 +300,13 @@ export function AdminPolls() {
                   onChange={(e) => setFormData({ ...formData, ends_at: e.target.value })}
                 />
               </div>
+              
+              {/* Recipient Selector */}
+              <RecipientSelector
+                selectedResidentIds={selectedRecipients}
+                onSelectionChange={setSelectedRecipients}
+              />
+
               <div className="flex items-center justify-between">
                 <Label htmlFor="poll-active">Aktyvuoti iš karto</Label>
                 <Switch
@@ -350,6 +385,12 @@ export function AdminPolls() {
                     <Users className="h-4 w-4" />
                     <span>{totalVotes} balsų</span>
                   </div>
+                  {poll.recipient_count !== undefined && poll.recipient_count > 0 && (
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      <span>{poll.recipient_count} gavėjų</span>
+                    </div>
+                  )}
                   {poll.ends_at && (
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4" />
