@@ -9,9 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Calendar, Eye, EyeOff } from "lucide-react";
+import { Plus, Pencil, Trash2, Calendar, Eye, EyeOff, Send, Users } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { RecipientSelector } from "./RecipientSelector";
 
 interface NewsItem {
   id: string;
@@ -19,6 +20,7 @@ interface NewsItem {
   content: string;
   published: boolean;
   created_at: string;
+  recipient_count?: number;
 }
 
 export function AdminNews() {
@@ -26,6 +28,10 @@ export function AdminNews() {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const [selectedNewsForSend, setSelectedNewsForSend] = useState<NewsItem | null>(null);
+  const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
+  const [sendingNotification, setSendingNotification] = useState(false);
   const [editingNews, setEditingNews] = useState<NewsItem | null>(null);
   const [formData, setFormData] = useState({
     title: "",
@@ -39,13 +45,26 @@ export function AdminNews() {
 
   const fetchNews = async () => {
     try {
-      const { data, error } = await supabase
-        .from("news")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const [newsRes, recipientsRes] = await Promise.all([
+        supabase.from("news").select("*").order("created_at", { ascending: false }),
+        supabase.from("news_recipients").select("news_id, resident_id"),
+      ]);
 
-      if (error) throw error;
-      setNews(data || []);
+      if (newsRes.error) throw newsRes.error;
+      if (recipientsRes.error) throw recipientsRes.error;
+
+      // Count recipients per news
+      const recipientCounts: { [newsId: string]: number } = {};
+      (recipientsRes.data || []).forEach(r => {
+        recipientCounts[r.news_id] = (recipientCounts[r.news_id] || 0) + 1;
+      });
+
+      const newsWithCounts = (newsRes.data || []).map(item => ({
+        ...item,
+        recipient_count: recipientCounts[item.id] || 0,
+      }));
+
+      setNews(newsWithCounts);
     } catch (error) {
       console.error("Error fetching news:", error);
       toast.error("Nepavyko užkrauti naujienų");
@@ -140,6 +159,85 @@ export function AdminNews() {
     } catch (error) {
       console.error("Error toggling publish:", error);
       toast.error("Nepavyko pakeisti būsenos");
+    }
+  };
+
+  const openSendDialog = (item: NewsItem) => {
+    setSelectedNewsForSend(item);
+    setSelectedRecipients([]);
+    setSendDialogOpen(true);
+  };
+
+  const handleSendNotification = async () => {
+    if (!selectedNewsForSend || selectedRecipients.length === 0) {
+      toast.error("Pasirinkite bent vieną gavėją");
+      return;
+    }
+
+    setSendingNotification(true);
+    try {
+      // Insert recipients
+      const recipientInserts = selectedRecipients.map(residentId => ({
+        news_id: selectedNewsForSend.id,
+        resident_id: residentId,
+      }));
+
+      const { error: recipientError } = await supabase
+        .from("news_recipients")
+        .upsert(recipientInserts, { onConflict: 'news_id,resident_id' });
+
+      if (recipientError) throw recipientError;
+
+      // Get residents with emails for notification
+      const { data: residents, error: residentsError } = await supabase
+        .from("residents")
+        .select("id, full_name, email")
+        .in("id", selectedRecipients)
+        .not("email", "is", null);
+
+      if (residentsError) throw residentsError;
+
+      // Send email notifications via edge function
+      const residentsWithEmail = residents?.filter(r => r.email) || [];
+      
+      if (residentsWithEmail.length > 0) {
+        const { error: notifyError } = await supabase.functions.invoke("send-news-notification", {
+          body: {
+            newsId: selectedNewsForSend.id,
+            newsTitle: selectedNewsForSend.title,
+            newsContent: selectedNewsForSend.content,
+            recipients: residentsWithEmail.map(r => ({
+              name: r.full_name,
+              email: r.email,
+            })),
+          },
+        });
+
+        if (notifyError) {
+          console.error("Error sending notifications:", notifyError);
+          // Don't throw - recipients are saved even if email fails
+          toast.warning(`Gavėjai išsaugoti, bet el. laiškų siuntimas nepavyko: ${notifyError.message}`);
+        } else {
+          toast.success(`Pranešimas išsiųstas ${residentsWithEmail.length} gavėjams`);
+        }
+      } else {
+        toast.success(`${selectedRecipients.length} gavėjų pridėta (el. paštų nėra)`);
+      }
+
+      // Update notified_at timestamp
+      await supabase
+        .from("news_recipients")
+        .update({ notified_at: new Date().toISOString() })
+        .eq("news_id", selectedNewsForSend.id)
+        .in("resident_id", selectedRecipients);
+
+      setSendDialogOpen(false);
+      fetchNews();
+    } catch (error) {
+      console.error("Error sending notification:", error);
+      toast.error("Nepavyko išsiųsti pranešimo");
+    } finally {
+      setSendingNotification(false);
     }
   };
 
@@ -261,7 +359,22 @@ export function AdminNews() {
             <CardContent className="space-y-4">
               <p className="text-foreground/80 line-clamp-3">{item.content}</p>
               
+              {item.recipient_count !== undefined && item.recipient_count > 0 && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Users className="h-4 w-4" />
+                  <span>Išsiųsta {item.recipient_count} gavėjams</span>
+                </div>
+              )}
+              
               <div className="flex flex-wrap gap-2 pt-4 border-t">
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => openSendDialog(item)}
+                >
+                  <Send className="h-4 w-4" />
+                  Siųsti pranešimą
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -314,6 +427,54 @@ export function AdminNews() {
           </Card>
         ))
       )}
+
+      {/* Send Notification Dialog */}
+      <Dialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Siųsti pranešimą</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {selectedNewsForSend && (
+              <div className="p-4 bg-muted rounded-lg">
+                <h4 className="font-medium">{selectedNewsForSend.title}</h4>
+                <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                  {selectedNewsForSend.content}
+                </p>
+              </div>
+            )}
+            
+            <RecipientSelector
+              selectedResidentIds={selectedRecipients}
+              onSelectionChange={setSelectedRecipients}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setSendDialogOpen(false)}
+              disabled={sendingNotification}
+            >
+              Atšaukti
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSendNotification}
+              disabled={sendingNotification || selectedRecipients.length === 0}
+            >
+              {sendingNotification ? (
+                "Siunčiama..."
+              ) : (
+                <>
+                  <Send className="h-4 w-4" />
+                  Siųsti ({selectedRecipients.length})
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

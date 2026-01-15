@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.send-payment-slip-notification]
 verify_jwt = false
+
+[functions.send-news-notification]
+verify_jwt = false
