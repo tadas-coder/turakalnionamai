@@ -46,7 +46,7 @@ export function HeroSection() {
                 Pranešti apie problemą
               </Button>
             </Link>
-            <Link to="/auth">
+            <Link to="/news">
               <Button size="xl" variant="outline" className="w-full sm:w-auto">
                 Skaityti naujienas
                 <ArrowRight className="h-4 w-4 ml-1" />
