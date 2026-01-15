@@ -29,9 +29,9 @@ const actions = [
   },
   {
     title: "Sąskaitos",
-    description: "Peržiūrėkite ir apmokėkite komunalines sąskaitas",
+    description: "Peržiūrėkite mėnesinius mokėjimus ir statistiką",
     icon: Receipt,
-    path: "/invoices",
+    path: "/payment-slips",
   },
   {
     title: "Vidaus tvarkos taisyklės",
