@@ -250,6 +250,45 @@ export type Database = {
           },
         ]
       }
+      news_recipients: {
+        Row: {
+          created_at: string
+          id: string
+          news_id: string
+          notified_at: string | null
+          resident_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          news_id: string
+          notified_at?: string | null
+          resident_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          news_id?: string
+          notified_at?: string | null
+          resident_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "news_recipients_news_id_fkey"
+            columns: ["news_id"]
+            isOneToOne: false
+            referencedRelation: "news"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "news_recipients_resident_id_fkey"
+            columns: ["resident_id"]
+            isOneToOne: false
+            referencedRelation: "residents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_slips: {
         Row: {
           accrued_amount: number
