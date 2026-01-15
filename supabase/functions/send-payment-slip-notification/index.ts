@@ -338,10 +338,15 @@ const handler = async (req: Request): Promise<Response> => {
     );
   } catch (error: any) {
     console.error("Error in send-payment-slip-notification function:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
-    });
+    // IMPORTANT: return 200 so the frontend doesn't surface a generic "non-2xx" error;
+    // the UI should read `success` / `error` from the JSON body instead.
+    return new Response(
+      JSON.stringify({ success: false, error: error?.message ?? "Unknown error" }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      }
+    );
   }
 };
 
