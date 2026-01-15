@@ -147,7 +147,8 @@ const handler = async (req: Request): Promise<Response> => {
             Authorization: `Bearer ${RESEND_API_KEY}`,
           },
           body: JSON.stringify({
-            from: "DNSB Taurakalnio namai <info@send.taurakalnionamai.lt>",
+            // Use resend.dev domain as fallback if custom domain not verified
+            from: "DNSB Taurakalnio namai <onboarding@resend.dev>",
             to: [recipient.email],
             subject: `Naujas mokėjimo lapelis - ${formatPeriod(slip.periodMonth)}`,
             html: `
