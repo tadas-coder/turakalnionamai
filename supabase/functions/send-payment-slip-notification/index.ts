@@ -57,7 +57,7 @@ const formatPeriod = (periodMonth: string): string => {
   }
 };
 
-const PRIMARY_FROM = "DNSB Taurakalnio namai <info@send.taurakalnionamai.lt>";
+const PRIMARY_FROM = "DNSB Taurakalnio namai <info@taurakalnionamai.lt>";
 const FALLBACK_FROM = "DNSB Taurakalnio namai <onboarding@resend.dev>";
 
 const parseJsonSafely = (raw: string): any => {
