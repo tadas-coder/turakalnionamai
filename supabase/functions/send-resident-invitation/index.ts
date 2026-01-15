@@ -66,7 +66,7 @@ const handler = async (req: Request): Promise<Response> => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "DNSB Taurakalnio namai <onboarding@resend.dev>",
+        from: "DNSB Taurakalnio namai <info@send.taurakalnionamai.lt>",
         to: [residentEmail],
         subject: "Kvietimas prisijungti prie DNSB Taurakalnio namai savitarnos portalo",
         html: `
