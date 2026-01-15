@@ -8,7 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Download, TrendingUp, TrendingDown, Minus, BarChart3 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { FileText, Download, TrendingUp, TrendingDown, Minus, BarChart3, X } from "lucide-react";
 import { format } from "date-fns";
 import { lt } from "date-fns/locale";
 import { useState } from "react";
@@ -428,6 +430,40 @@ export default function PaymentSlips() {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* Line Items Detail Dialog */}
+        <Dialog open={!!selectedSlip} onOpenChange={(open) => !open && setSelectedSlip(null)}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>
+                Visos paslaugos
+              </DialogTitle>
+              {selectedSlip && (
+                <DialogDescription>
+                  {format(new Date(selectedSlip.period_month), "yyyy m. MMMM", { locale: lt })} • Sąskaita: {selectedSlip.invoice_number}
+                </DialogDescription>
+              )}
+            </DialogHeader>
+            {selectedSlip && (
+              <ScrollArea className="max-h-[60vh]">
+                <div className="space-y-2 pr-4">
+                  {selectedSlip.line_items?.map((item: any, idx: number) => (
+                    <div key={idx} className="flex justify-between py-2 border-b last:border-0">
+                      <span className="text-sm">{item.name}</span>
+                      <span className="font-medium text-sm whitespace-nowrap ml-4">
+                        {formatCurrency(item.amount)}
+                      </span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between pt-3 font-bold border-t">
+                    <span>Viso priskaityta:</span>
+                    <span>{formatCurrency(selectedSlip.accrued_amount)}</span>
+                  </div>
+                </div>
+              </ScrollArea>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
