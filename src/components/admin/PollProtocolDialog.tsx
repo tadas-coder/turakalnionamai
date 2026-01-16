@@ -40,7 +40,9 @@ import {
   Calendar,
   Download,
   FileDown,
-  Printer
+  Printer,
+  Edit,
+  RotateCcw
 } from "lucide-react";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Table, TableRow, TableCell, WidthType, BorderStyle } from "docx";
 import { saveAs } from "file-saver";
@@ -103,6 +105,7 @@ export function PollProtocolDialog({
   const [step, setStep] = useState<Step>("ask_written");
   const [showAskWritten, setShowAskWritten] = useState(false);
   const [showAskLive, setShowAskLive] = useState(false);
+  const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
 
   // Form data
   const [writtenResults, setWrittenResults] = useState<Record<number, { approve: number; reject: number }>>({});
@@ -362,6 +365,41 @@ export function PollProtocolDialog({
     } catch (error) {
       console.error("Error approving protocol:", error);
       toast.error("Nepavyko patvirtinti protokolo");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const revokeApproval = async () => {
+    if (!protocol) return;
+    
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("poll_protocols")
+        .update({
+          status: "pending_approval",
+          approved_by: null,
+          approved_at: null,
+        })
+        .eq("id", protocol.id);
+
+      if (error) throw error;
+
+      setProtocol({
+        ...protocol,
+        status: "pending_approval",
+        approved_by: null,
+        approved_at: null,
+      });
+      
+      toast.success("Protokolo patvirtinimas atšauktas");
+      setStep("preview");
+      setShowRevokeConfirm(false);
+      onProtocolUpdated?.();
+    } catch (error) {
+      console.error("Error revoking protocol approval:", error);
+      toast.error("Nepavyko atšaukti patvirtinimo");
     } finally {
       setSaving(false);
     }
@@ -988,7 +1026,7 @@ export function PollProtocolDialog({
         </p>
       </div>
 
-      <div className="flex justify-center gap-3">
+      <div className="flex justify-center gap-3 flex-wrap">
         <Button variant="outline" onClick={exportToPdf}>
           <Printer className="h-4 w-4 mr-2" />
           Spausdinti / PDF
@@ -996,6 +1034,17 @@ export function PollProtocolDialog({
         <Button variant="outline" onClick={exportToWord}>
           <FileDown className="h-4 w-4 mr-2" />
           Atsisiųsti Word
+        </Button>
+      </div>
+
+      <div className="flex justify-center">
+        <Button 
+          variant="ghost" 
+          className="text-muted-foreground hover:text-destructive"
+          onClick={() => setShowRevokeConfirm(true)}
+        >
+          <RotateCcw className="h-4 w-4 mr-2" />
+          Atšaukti patvirtinimą ir redaguoti
         </Button>
       </div>
       
@@ -1089,6 +1138,33 @@ export function PollProtocolDialog({
             <AlertDialogAction onClick={() => handleLiveAnswer(true)}>
               <Check className="h-4 w-4 mr-1" />
               Taip
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Revoke Approval Confirmation Dialog */}
+      <AlertDialog open={showRevokeConfirm} onOpenChange={setShowRevokeConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <RotateCcw className="h-5 w-5" />
+              Atšaukti patvirtinimą
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Ar tikrai norite atšaukti protokolo patvirtinimą? Protokolas bus grąžintas į redagavimo būseną ir turėsite jį patvirtinti iš naujo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              Atšaukti
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={revokeApproval}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={saving}
+            >
+              {saving ? "Atšaukiama..." : "Taip, atšaukti patvirtinimą"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
