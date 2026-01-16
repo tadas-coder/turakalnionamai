@@ -9,10 +9,21 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Trash2, Calendar, Users, X } from "lucide-react";
+import { Plus, Trash2, Calendar, Users, X, Vote } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { RecipientSelector } from "./RecipientSelector";
+
+const POLL_TYPES = [
+  { value: "owners_vote", label: "Visų Savininkų balsavimas raštu" },
+  { value: "members_vote", label: "Bendrijos narių balsavimas raštu" },
+  { value: "opinion_form", label: "Iš anksto raštu teikiamos nuomonės blankas" },
+  { value: "simple_survey", label: "Paprasta apklausa" },
+  { value: "board_vote", label: "Valdybos narių balsavimas raštu" },
+] as const;
+
+type PollType = typeof POLL_TYPES[number]["value"];
 
 interface Poll {
   id: string;
@@ -23,6 +34,7 @@ interface Poll {
   ends_at: string | null;
   created_at: string;
   recipient_count?: number;
+  poll_type: string | null;
 }
 
 interface PollVote {
@@ -42,6 +54,7 @@ export function AdminPolls() {
     options: ["", ""],
     active: true,
     ends_at: "",
+    poll_type: "simple_survey" as PollType,
   });
 
   useEffect(() => {
@@ -100,6 +113,7 @@ export function AdminPolls() {
       options: ["", ""],
       active: true,
       ends_at: "",
+      poll_type: "simple_survey",
     });
     setSelectedRecipients([]);
     setDialogOpen(true);
@@ -151,6 +165,7 @@ export function AdminPolls() {
           options: validOptions,
           active: formData.active,
           ends_at: formData.ends_at || null,
+          poll_type: formData.poll_type,
         })
         .select()
         .single();
@@ -283,6 +298,24 @@ export function AdminPolls() {
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
+                <Label htmlFor="poll-type">Balsavimo tipas</Label>
+                <Select
+                  value={formData.poll_type}
+                  onValueChange={(value: PollType) => setFormData({ ...formData, poll_type: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pasirinkite tipą" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {POLL_TYPES.map((type) => (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="poll-title">Pavadinimas</Label>
                 <Input
                   id="poll-title"
@@ -392,7 +425,15 @@ export function AdminPolls() {
               <CardHeader>
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                   <div>
-                    <CardTitle className="text-lg">{poll.title}</CardTitle>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <CardTitle className="text-lg">{poll.title}</CardTitle>
+                      {poll.poll_type && (
+                        <Badge variant="outline" className="text-xs font-normal">
+                          <Vote className="h-3 w-3 mr-1" />
+                          {POLL_TYPES.find(t => t.value === poll.poll_type)?.label || poll.poll_type}
+                        </Badge>
+                      )}
+                    </div>
                     {poll.description && (
                       <CardDescription className="mt-1">{poll.description}</CardDescription>
                     )}

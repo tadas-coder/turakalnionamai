@@ -507,6 +507,7 @@ export type Database = {
           ends_at: string | null
           id: string
           options: Json
+          poll_type: string | null
           title: string
         }
         Insert: {
@@ -516,6 +517,7 @@ export type Database = {
           ends_at?: string | null
           id?: string
           options?: Json
+          poll_type?: string | null
           title: string
         }
         Update: {
@@ -525,6 +527,7 @@ export type Database = {
           ends_at?: string | null
           id?: string
           options?: Json
+          poll_type?: string | null
           title?: string
         }
         Relationships: []
