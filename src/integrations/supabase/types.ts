@@ -624,10 +624,12 @@ export type Database = {
           notes: string | null
           payment_code: string | null
           phone: string | null
+          property_share: number | null
           pvm_code: string | null
           receives_email: boolean | null
           receives_mail: boolean | null
           updated_at: string
+          votes_count: number | null
         }
         Insert: {
           address?: string | null
@@ -645,10 +647,12 @@ export type Database = {
           notes?: string | null
           payment_code?: string | null
           phone?: string | null
+          property_share?: number | null
           pvm_code?: string | null
           receives_email?: boolean | null
           receives_mail?: boolean | null
           updated_at?: string
+          votes_count?: number | null
         }
         Update: {
           address?: string | null
@@ -666,10 +670,12 @@ export type Database = {
           notes?: string | null
           payment_code?: string | null
           phone?: string | null
+          property_share?: number | null
           pvm_code?: string | null
           receives_email?: boolean | null
           receives_mail?: boolean | null
           updated_at?: string
+          votes_count?: number | null
         }
         Relationships: [
           {

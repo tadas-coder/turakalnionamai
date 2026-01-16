@@ -9,11 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Trash2, Calendar, Users, X, Vote } from "lucide-react";
+import { Plus, Trash2, Calendar, Users, X, Vote, BarChart3 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { RecipientSelector } from "./RecipientSelector";
+import { PollStatisticsDialog } from "./PollStatisticsDialog";
 
 const POLL_TYPES = [
   { value: "owners_vote", label: "Visų Savininkų balsavimas raštu" },
@@ -47,6 +48,8 @@ export function AdminPolls() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [statisticsOpen, setStatisticsOpen] = useState(false);
+  const [selectedPollForStats, setSelectedPollForStats] = useState<Poll | null>(null);
   const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     title: "",
@@ -486,6 +489,17 @@ export function AdminPolls() {
                   <Button
                     variant="outline"
                     size="sm"
+                    onClick={() => {
+                      setSelectedPollForStats(poll);
+                      setStatisticsOpen(true);
+                    }}
+                  >
+                    <BarChart3 className="h-4 w-4" />
+                    Statistika
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => toggleActive(poll)}
                   >
                     {poll.active ? "Sustabdyti" : "Aktyvuoti"}
@@ -518,6 +532,14 @@ export function AdminPolls() {
           );
         })
       )}
+
+      <PollStatisticsDialog
+        open={statisticsOpen}
+        onOpenChange={setStatisticsOpen}
+        pollId={selectedPollForStats?.id || null}
+        pollTitle={selectedPollForStats?.title || ""}
+        pollOptions={selectedPollForStats?.options || []}
+      />
     </div>
   );
 }
