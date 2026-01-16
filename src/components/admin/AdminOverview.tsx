@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { Newspaper, Vote, AlertTriangle, Clock, ClipboardList, Users, FileText, Calendar, Bell, CheckCircle2, FileSpreadsheet } from "lucide-react";
+import { Send, Vote, AlertTriangle, Clock, ClipboardList, Users, FileText, Calendar, Bell, CheckCircle2, FileSpreadsheet } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -135,15 +135,15 @@ export function AdminOverview({ onTabChange }: AdminOverviewProps) {
     },
     {
       id: "new-tickets",
-      title: "Problemų pranešimai",
-      description: "Nauji pranešimai",
+      title: "Naujos užduotys",
+      description: "Laukia peržiūros",
       count: stats.newTickets,
       icon: <AlertTriangle className="h-4 w-4" />,
       tab: "tickets",
     },
     {
       id: "in-progress-tickets",
-      title: "Vykdomi užklausimai",
+      title: "Vykdomos užduotys",
       description: "Reikia dėmesio",
       count: stats.inProgressTickets,
       icon: <Clock className="h-4 w-4" />,
@@ -297,13 +297,13 @@ export function AdminOverview({ onTabChange }: AdminOverviewProps) {
           onClick={() => onTabChange("tickets")}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Nauji pranešimai</CardTitle>
+            <CardTitle className="text-sm font-medium">Naujos užduotys</CardTitle>
             <AlertTriangle className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.newTickets}</div>
             <p className="text-xs text-muted-foreground">
-              Iš viso: {stats.totalTickets} pranešimų
+              Iš viso: {stats.totalTickets} užduočių
             </p>
           </CardContent>
         </Card>
@@ -313,7 +313,7 @@ export function AdminOverview({ onTabChange }: AdminOverviewProps) {
           onClick={() => onTabChange("tickets")}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Vykdomi</CardTitle>
+            <CardTitle className="text-sm font-medium">Vykdomos</CardTitle>
             <Clock className="h-4 w-4 text-warning" />
           </CardHeader>
           <CardContent>
@@ -329,13 +329,13 @@ export function AdminOverview({ onTabChange }: AdminOverviewProps) {
           onClick={() => onTabChange("news")}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Naujienos</CardTitle>
-            <Newspaper className="h-4 w-4 text-info" />
+            <CardTitle className="text-sm font-medium">Pranešimai</CardTitle>
+            <Send className="h-4 w-4 text-info" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.publishedNews}</div>
+            <div className="text-2xl font-bold">{stats.totalNews}</div>
             <p className="text-xs text-muted-foreground">
-              Paskelbta iš {stats.totalNews}
+              Išsiųsta gyventojams
             </p>
           </CardContent>
         </Card>
@@ -361,28 +361,28 @@ export function AdminOverview({ onTabChange }: AdminOverviewProps) {
         <Card className="card-elevated">
           <CardHeader>
             <CardTitle>Greita statistika</CardTitle>
-            <CardDescription>Pranešimų būsenos</CardDescription>
+            <CardDescription>Užduočių būsenos</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-destructive" />
-                  <span className="text-sm">Nauji</span>
+                  <span className="text-sm">Naujos</span>
                 </div>
                 <span className="font-medium">{stats.newTickets}</span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-warning" />
-                  <span className="text-sm">Vykdomi</span>
+                  <span className="text-sm">Vykdomos</span>
                 </div>
                 <span className="font-medium">{stats.inProgressTickets}</span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-success" />
-                  <span className="text-sm">Išspręsti</span>
+                  <span className="text-sm">Išspręstos</span>
                 </div>
                 <span className="font-medium">{stats.resolvedTickets}</span>
               </div>
@@ -401,13 +401,13 @@ export function AdminOverview({ onTabChange }: AdminOverviewProps) {
                 onClick={() => onTabChange("tickets")}
                 className="w-full text-left px-3 py-2 rounded-md hover:bg-muted transition-colors text-sm"
               >
-                • Nauji pranešimai laukia jūsų dėmesio
+                • Naujos užduotys laukia jūsų dėmesio
               </button>
               <button 
                 onClick={() => onTabChange("news")}
                 className="w-full text-left px-3 py-2 rounded-md hover:bg-muted transition-colors text-sm"
               >
-                • Sukurkite naujieną gyventojams informuoti
+                • Siųsti pranešimą gyventojams
               </button>
               <button 
                 onClick={() => onTabChange("polls")}
