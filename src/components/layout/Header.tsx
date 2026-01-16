@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, AlertTriangle, Menu, X, LogIn, LogOut, Settings, ChevronDown, Vote, Bell, Receipt, FileText, ScrollText, User, ClipboardList, PieChart, BarChart3, CalendarDays, CreditCard } from "lucide-react";
+import { Home, Send, Menu, X, LogIn, LogOut, Settings, ChevronDown, Newspaper, Bell, Receipt, FileText, ScrollText, User, ClipboardList, PieChart, BarChart3, CalendarDays, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -18,14 +18,13 @@ import {
 
 const navItems = [
   { path: "/", label: "Pradžia", icon: Home },
-  { path: "/tickets", label: "Pranešti apie gedimą", icon: AlertTriangle },
+  { path: "/tickets", label: "Pranešimai", icon: Send },
 ];
 
 const moreItems = [
-  { path: "/news", label: "Gauti pranešimai", icon: Bell },
-  { path: "/voting", label: "Balsavimas", icon: Vote },
+  { path: "/news", label: "Naujienos", icon: Newspaper },
   { path: "/schedules", label: "Grafikai", icon: CalendarDays },
-  { path: "/payment-slips", label: "Sąskaitos", icon: CreditCard, authRequired: true },
+  { path: "/payment-slips", label: "Sąskaitos ir skolos", icon: CreditCard, authRequired: true },
   { path: "/documents", label: "Dokumentai", icon: FileText, authRequired: true },
   { path: "/reports", label: "Ataskaitos", icon: ClipboardList },
   { path: "/financial-report", label: "Finansinė ataskaita", icon: PieChart },

@@ -138,7 +138,7 @@ export default function PaymentSlips() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-bold">Sąskaitos</h1>
+            <h1 className="text-2xl font-bold">Sąskaitos ir skolos</h1>
             <p className="text-muted-foreground">Jūsų mėnesiniai mokėjimai ir statistika</p>
           </div>
           <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
@@ -237,6 +237,11 @@ export default function PaymentSlips() {
                           <CardTitle className="text-lg">
                             {format(new Date(slip.period_month), "yyyy m. MMMM", { locale: lt })}
                           </CardTitle>
+                          <p className="text-sm font-medium">
+                            {slip.apartment_number && `Butas ${slip.apartment_number}`}
+                            {slip.apartment_number && slip.buyer_name && " • "}
+                            {slip.buyer_name}
+                          </p>
                           <p className="text-sm text-muted-foreground">
                             Sąskaita: {slip.invoice_number} | Terminas: {format(new Date(slip.due_date), "yyyy-MM-dd")}
                           </p>
