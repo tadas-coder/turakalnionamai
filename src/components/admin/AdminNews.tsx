@@ -4,11 +4,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Send, ImagePlus, FileUp, X, Loader2 } from "lucide-react";
+import { Send, ImagePlus, FileUp, X, Loader2, History, Calendar, Users, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { RecipientSelector } from "./RecipientSelector";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
+interface SentMessage {
+  id: string;
+  title: string;
+  content: string;
+  created_at: string;
+  recipient_count: number;
+}
 
 export function AdminNews() {
   const { user } = useAuth();
@@ -22,6 +33,60 @@ export function AdminNews() {
   const [documents, setDocuments] = useState<File[]>([]);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [uploadingDocs, setUploadingDocs] = useState(false);
+  
+  // History state
+  const [sentMessages, setSentMessages] = useState<SentMessage[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+  const [historyOpen, setHistoryOpen] = useState(true);
+
+  useEffect(() => {
+    fetchSentMessages();
+  }, []);
+
+  const fetchSentMessages = async () => {
+    try {
+      const [newsRes, recipientsRes] = await Promise.all([
+        supabase.from("news").select("*").order("created_at", { ascending: false }),
+        supabase.from("news_recipients").select("news_id, resident_id"),
+      ]);
+
+      if (newsRes.error) throw newsRes.error;
+      if (recipientsRes.error) throw recipientsRes.error;
+
+      // Count recipients per news
+      const recipientCounts: { [newsId: string]: number } = {};
+      (recipientsRes.data || []).forEach(r => {
+        recipientCounts[r.news_id] = (recipientCounts[r.news_id] || 0) + 1;
+      });
+
+      const messagesWithCounts = (newsRes.data || []).map(item => ({
+        id: item.id,
+        title: item.title,
+        content: item.content,
+        created_at: item.created_at,
+        recipient_count: recipientCounts[item.id] || 0,
+      }));
+
+      setSentMessages(messagesWithCounts);
+    } catch (error) {
+      console.error("Error fetching sent messages:", error);
+      toast.error("Nepavyko užkrauti pranešimų istorijos");
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const deleteMessage = async (id: string) => {
+    try {
+      const { error } = await supabase.from("news").delete().eq("id", id);
+      if (error) throw error;
+      setSentMessages(prev => prev.filter(m => m.id !== id));
+      toast.success("Pranešimas ištrintas");
+    } catch (error) {
+      console.error("Error deleting message:", error);
+      toast.error("Nepavyko ištrinti pranešimo");
+    }
+  };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -195,6 +260,9 @@ export function AdminNews() {
       setPhotos([]);
       setDocuments([]);
       
+      // Refresh history
+      fetchSentMessages();
+      
     } catch (error) {
       console.error("Error sending notification:", error);
       toast.error("Nepavyko išsiųsti pranešimo");
@@ -205,6 +273,7 @@ export function AdminNews() {
 
   return (
     <div className="space-y-6">
+      {/* Send Message Form */}
       <Card className="card-elevated">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -349,6 +418,115 @@ export function AdminNews() {
           </form>
         </CardContent>
       </Card>
+
+      {/* Message History */}
+      <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
+        <Card className="card-elevated">
+          <CardHeader>
+            <CollapsibleTrigger asChild>
+              <div className="flex items-center justify-between cursor-pointer">
+                <div className="flex items-center gap-2">
+                  <History className="h-5 w-5" />
+                  <CardTitle>Pranešimų istorija</CardTitle>
+                  <Badge variant="secondary" className="ml-2">
+                    {sentMessages.length}
+                  </Badge>
+                </div>
+                <Button variant="ghost" size="sm">
+                  {historyOpen ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </CollapsibleTrigger>
+            <CardDescription>
+              Visi anksčiau išsiųsti pranešimai gyventojams
+            </CardDescription>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent>
+              {loadingHistory ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="animate-pulse p-4 border rounded-lg">
+                      <div className="h-4 w-48 bg-muted rounded mb-2" />
+                      <div className="h-3 w-full bg-muted rounded mb-2" />
+                      <div className="h-3 w-24 bg-muted rounded" />
+                    </div>
+                  ))}
+                </div>
+              ) : sentMessages.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <History className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Dar nėra išsiųstų pranešimų</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {sentMessages.map((msg) => (
+                    <div
+                      key={msg.id}
+                      className="p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium truncate">{msg.title}</h4>
+                          <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                            {msg.content}
+                          </p>
+                          <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {new Date(msg.created_at).toLocaleDateString("lt-LT", {
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Users className="h-3 w-3" />
+                              {msg.recipient_count} gavėjų
+                            </span>
+                          </div>
+                        </div>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-muted-foreground hover:text-destructive shrink-0"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Ištrinti pranešimą?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Šis pranešimas bus ištrintas negrįžtamai. Gavėjai vis dar matys
+                                gautą el. laišką, bet pranešimas nebus rodomas sistemoje.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Atšaukti</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => deleteMessage(msg.id)}>
+                                Ištrinti
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
     </div>
   );
 }
