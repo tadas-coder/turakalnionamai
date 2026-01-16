@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -37,8 +37,13 @@ import {
   ClipboardList,
   Users,
   Building2,
-  Calendar
+  Calendar,
+  Download,
+  FileDown,
+  Printer
 } from "lucide-react";
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Table, TableRow, TableCell, WidthType, BorderStyle } from "docx";
+import { saveAs } from "file-saver";
 
 const POLL_TYPE_TITLES: Record<string, string> = {
   owners_vote: "VISŲ SAVININKŲ BALSAVIMAS RAŠTU",
@@ -639,6 +644,338 @@ export function PollProtocolDialog({
     );
   };
 
+  const exportToPdf = () => {
+    const protocolTypeTitle = pollType ? POLL_TYPE_TITLES[pollType] || "BALSAVIMAS" : "BALSAVIMAS";
+    
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Protokolas - ${pollTitle}</title>
+        <style>
+          body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.6; padding: 40px; }
+          .header { text-align: center; margin-bottom: 20px; }
+          .header h1 { font-size: 14pt; margin: 0; }
+          .header p { font-size: 10pt; color: #666; margin: 5px 0; }
+          .title { text-align: center; margin: 30px 0; }
+          .title h2 { font-size: 12pt; margin: 0; font-weight: bold; }
+          .title h3 { font-size: 11pt; margin: 5px 0; }
+          .date-location { display: flex; justify-content: space-between; margin: 20px 0; font-size: 10pt; }
+          .section { margin: 15px 0; }
+          .section-title { font-weight: bold; }
+          ul { margin: 10px 0; padding-left: 20px; }
+          .results-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+          .results-table th, .results-table td { border: 1px solid #333; padding: 8px; text-align: left; font-size: 11pt; }
+          .results-table th { background: #f0f0f0; }
+          .signature { text-align: right; margin-top: 40px; }
+          .decision-box { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
+          @media print { body { padding: 0; } }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>DNSB TAURAKALNIO NAMAI, VILNIUS</h1>
+          <p>V. Mykolaičio-Putino g. 10, Vilnius, įst. kodas 301692533</p>
+        </div>
+        
+        <div class="title">
+          <h2>${protocolTypeTitle}</h2>
+          <h3>BALSŲ SKAIČIAVIMO KOMISIJOS PROTOKOLAS</h3>
+        </div>
+        
+        <div class="date-location">
+          <span>${format(new Date(protocol?.protocol_date || new Date()), "yyyy 'm.' MMMM 'd.'", { locale: lt })}</span>
+          <span>${protocol?.location || "Vilnius"}</span>
+        </div>
+        
+        <div class="section">
+          <p><span class="section-title">1. Balsavimo organizatorius:</span> ${protocol?.organizer_name || "—"}</p>
+        </div>
+        
+        <div class="section">
+          <p><span class="section-title">2. Balsų skaičiavimo komisijos nariai:</span> ${commissionMembers || "—"}</p>
+        </div>
+        
+        <div class="section">
+          <p><span class="section-title">3. Siūlomi sprendimai:</span></p>
+          <ul>
+            ${pollOptions.map((opt, idx) => `<li>${opt}</li>`).join("")}
+          </ul>
+        </div>
+        
+        <div class="section">
+          <p><span class="section-title">4. Įteikta (išsiųsta) biuletenių:</span> ${ballotsSent}</p>
+        </div>
+        
+        <div class="section">
+          <p><span class="section-title">5. Gauta biuletenių:</span> ${ballotsReceived}</p>
+        </div>
+        
+        <div class="section">
+          <p><span class="section-title">6. Išvada dėl balsavimo:</span> ${ballotsReceived > (ballotsSent / 2) ? "kvorumas yra" : "kvorumo nėra"}</p>
+        </div>
+        
+        <div class="section">
+          <p><span class="section-title">7. Balsavimo rezultatai:</span></p>
+          <table class="results-table">
+            <thead>
+              <tr>
+                <th>Nr.</th>
+                <th>Klausimas</th>
+                <th>Pritariu</th>
+                <th>Nepritariu</th>
+                <th>Iš viso</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${pollOptions.map((option, idx) => {
+                const wr = writtenResults[idx] || { approve: 0, reject: 0 };
+                const lr = liveResults[idx] || { approve: 0, reject: 0 };
+                const totalApprove = wr.approve + lr.approve;
+                const totalReject = wr.reject + lr.reject;
+                return `
+                  <tr>
+                    <td>${idx + 1}</td>
+                    <td>${option}</td>
+                    <td>${totalApprove}</td>
+                    <td>${totalReject}</td>
+                    <td>${totalApprove + totalReject}</td>
+                  </tr>
+                `;
+              }).join("")}
+            </tbody>
+          </table>
+        </div>
+        
+        <div class="section">
+          <p><span class="section-title">8. Sprendimai:</span></p>
+          ${pollOptions.map((option, idx) => `
+            <div class="decision-box">
+              <p><strong>${idx + 1}. ${option}</strong></p>
+              <p>${decisions[idx] || "Sprendimas nepateiktas"}</p>
+            </div>
+          `).join("")}
+        </div>
+        
+        ${quorumInfo ? `
+          <div class="section">
+            <p><span class="section-title">Pastabos:</span> ${quorumInfo}</p>
+          </div>
+        ` : ""}
+        
+        <div class="signature">
+          <p><strong>Komisijos pirmininkas:</strong> ${commissionChairman || "—"}</p>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    const printWindow = window.open("", "_blank");
+    if (printWindow) {
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      printWindow.onload = () => {
+        printWindow.print();
+      };
+    }
+    toast.success("PDF spausdinimo langas atidarytas");
+  };
+
+  const exportToWord = async () => {
+    const protocolTypeTitle = pollType ? POLL_TYPE_TITLES[pollType] || "BALSAVIMAS" : "BALSAVIMAS";
+    
+    try {
+      const doc = new Document({
+        sections: [{
+          properties: {},
+          children: [
+            // Header
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              children: [
+                new TextRun({ text: "DNSB TAURAKALNIO NAMAI, VILNIUS", bold: true, size: 28 }),
+              ],
+            }),
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              children: [
+                new TextRun({ text: "V. Mykolaičio-Putino g. 10, Vilnius, įst. kodas 301692533", size: 20, color: "666666" }),
+              ],
+            }),
+            new Paragraph({ text: "" }),
+            
+            // Title
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              children: [
+                new TextRun({ text: protocolTypeTitle, bold: true, size: 24 }),
+              ],
+            }),
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              children: [
+                new TextRun({ text: "BALSŲ SKAIČIAVIMO KOMISIJOS PROTOKOLAS", size: 22 }),
+              ],
+            }),
+            new Paragraph({ text: "" }),
+            
+            // Date and location
+            new Paragraph({
+              children: [
+                new TextRun({ text: format(new Date(protocol?.protocol_date || new Date()), "yyyy 'm.' MMMM 'd.'", { locale: lt }), size: 20 }),
+                new TextRun({ text: "                                                          ", size: 20 }),
+                new TextRun({ text: protocol?.location || "Vilnius", size: 20 }),
+              ],
+            }),
+            new Paragraph({ text: "" }),
+            
+            // Sections
+            new Paragraph({
+              children: [
+                new TextRun({ text: "1. Balsavimo organizatorius: ", bold: true, size: 24 }),
+                new TextRun({ text: protocol?.organizer_name || "—", size: 24 }),
+              ],
+            }),
+            new Paragraph({ text: "" }),
+            
+            new Paragraph({
+              children: [
+                new TextRun({ text: "2. Balsų skaičiavimo komisijos nariai: ", bold: true, size: 24 }),
+                new TextRun({ text: commissionMembers || "—", size: 24 }),
+              ],
+            }),
+            new Paragraph({ text: "" }),
+            
+            new Paragraph({
+              children: [
+                new TextRun({ text: "3. Siūlomi sprendimai:", bold: true, size: 24 }),
+              ],
+            }),
+            ...pollOptions.map((opt, idx) => new Paragraph({
+              bullet: { level: 0 },
+              children: [new TextRun({ text: opt, size: 24 })],
+            })),
+            new Paragraph({ text: "" }),
+            
+            new Paragraph({
+              children: [
+                new TextRun({ text: "4. Įteikta (išsiųsta) biuletenių: ", bold: true, size: 24 }),
+                new TextRun({ text: String(ballotsSent), size: 24 }),
+              ],
+            }),
+            new Paragraph({ text: "" }),
+            
+            new Paragraph({
+              children: [
+                new TextRun({ text: "5. Gauta biuletenių: ", bold: true, size: 24 }),
+                new TextRun({ text: String(ballotsReceived), size: 24 }),
+              ],
+            }),
+            new Paragraph({ text: "" }),
+            
+            new Paragraph({
+              children: [
+                new TextRun({ text: "6. Išvada dėl balsavimo: ", bold: true, size: 24 }),
+                new TextRun({ text: ballotsReceived > (ballotsSent / 2) ? "kvorumas yra" : "kvorumo nėra", size: 24 }),
+              ],
+            }),
+            new Paragraph({ text: "" }),
+            
+            new Paragraph({
+              children: [
+                new TextRun({ text: "7. Balsavimo rezultatai:", bold: true, size: 24 }),
+              ],
+            }),
+            new Paragraph({ text: "" }),
+            
+            // Results table
+            new Table({
+              width: { size: 100, type: WidthType.PERCENTAGE },
+              rows: [
+                new TableRow({
+                  children: [
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Nr.", bold: true, size: 22 })] })], width: { size: 8, type: WidthType.PERCENTAGE } }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Klausimas", bold: true, size: 22 })] })], width: { size: 52, type: WidthType.PERCENTAGE } }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Pritariu", bold: true, size: 22 })] })], width: { size: 15, type: WidthType.PERCENTAGE } }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Nepritariu", bold: true, size: 22 })] })], width: { size: 15, type: WidthType.PERCENTAGE } }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Iš viso", bold: true, size: 22 })] })], width: { size: 10, type: WidthType.PERCENTAGE } }),
+                  ],
+                }),
+                ...pollOptions.map((option, idx) => {
+                  const wr = writtenResults[idx] || { approve: 0, reject: 0 };
+                  const lr = liveResults[idx] || { approve: 0, reject: 0 };
+                  const totalApprove = wr.approve + lr.approve;
+                  const totalReject = wr.reject + lr.reject;
+                  return new TableRow({
+                    children: [
+                      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(idx + 1), size: 22 })] })] }),
+                      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: option, size: 22 })] })] }),
+                      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(totalApprove), size: 22 })] })] }),
+                      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(totalReject), size: 22 })] })] }),
+                      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(totalApprove + totalReject), size: 22 })] })] }),
+                    ],
+                  });
+                }),
+              ],
+            }),
+            new Paragraph({ text: "" }),
+            
+            new Paragraph({
+              children: [
+                new TextRun({ text: "8. Sprendimai:", bold: true, size: 24 }),
+              ],
+            }),
+            ...pollOptions.flatMap((option, idx) => [
+              new Paragraph({ text: "" }),
+              new Paragraph({
+                children: [
+                  new TextRun({ text: `${idx + 1}. ${option}`, bold: true, size: 24 }),
+                ],
+              }),
+              new Paragraph({
+                children: [
+                  new TextRun({ text: decisions[idx] || "Sprendimas nepateiktas", size: 24 }),
+                ],
+              }),
+            ]),
+            new Paragraph({ text: "" }),
+            
+            ...(quorumInfo ? [
+              new Paragraph({
+                children: [
+                  new TextRun({ text: "Pastabos: ", bold: true, size: 24 }),
+                  new TextRun({ text: quorumInfo, size: 24 }),
+                ],
+              }),
+              new Paragraph({ text: "" }),
+            ] : []),
+            
+            new Paragraph({ text: "" }),
+            new Paragraph({ text: "" }),
+            
+            // Signature
+            new Paragraph({
+              alignment: AlignmentType.RIGHT,
+              children: [
+                new TextRun({ text: "Komisijos pirmininkas: ", bold: true, size: 24 }),
+                new TextRun({ text: commissionChairman || "—", size: 24 }),
+              ],
+            }),
+          ],
+        }],
+      });
+
+      const blob = await Packer.toBlob(doc);
+      const fileName = `Protokolas_${pollTitle.replace(/[^a-zA-Z0-9ąčęėįšųūžĄČĘĖĮŠŲŪŽ]/g, "_")}.docx`;
+      saveAs(blob, fileName);
+      toast.success("Word dokumentas atsisiųstas");
+    } catch (error) {
+      console.error("Error exporting to Word:", error);
+      toast.error("Nepavyko eksportuoti į Word");
+    }
+  };
+
   const renderApproved = () => (
     <div className="space-y-6">
       <div className="text-center py-8">
@@ -649,6 +986,17 @@ export function PollProtocolDialog({
         <p className="text-muted-foreground">
           Protokolas buvo patvirtintas {protocol?.approved_at && format(new Date(protocol.approved_at), "yyyy-MM-dd HH:mm", { locale: lt })}
         </p>
+      </div>
+
+      <div className="flex justify-center gap-3">
+        <Button variant="outline" onClick={exportToPdf}>
+          <Printer className="h-4 w-4 mr-2" />
+          Spausdinti / PDF
+        </Button>
+        <Button variant="outline" onClick={exportToWord}>
+          <FileDown className="h-4 w-4 mr-2" />
+          Atsisiųsti Word
+        </Button>
       </div>
       
       <DialogFooter>
