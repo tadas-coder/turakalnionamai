@@ -320,13 +320,13 @@ export default function Tickets() {
             <div className="text-center mb-8 animate-fade-in">
               <div className="inline-flex items-center gap-2 bg-destructive/10 text-destructive px-4 py-2 rounded-full mb-4">
                 <AlertTriangle className="h-4 w-4" />
-                <span className="text-sm font-medium">Pranešimai</span>
+                <span className="text-sm font-medium">Pranešti apie problemą</span>
               </div>
               <h1 className="text-3xl md:text-4xl font-bold font-display text-foreground mb-4">
-                Gedimų pranešimai
+                Pranešti apie gedimą
               </h1>
               <p className="text-muted-foreground">
-                Praneškite apie problemas ir sekite jų sprendimo eigą
+                Praneškite apie pastebėtas problemas ir sekite jų sprendimo eigą
               </p>
             </div>
 
