@@ -4,296 +4,284 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Send, AlertTriangle, X, History, Clock, CheckCircle, Loader2, Calendar, MapPin, Camera, FileText, Paperclip } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { Send, ImagePlus, FileUp, X, Loader2, History, Calendar, Users, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useUnreadTickets } from "@/hooks/useUnreadTickets";
-import { useQuery } from "@tanstack/react-query";
-import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { RecipientSelector } from "@/components/admin/RecipientSelector";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
-const issueTypes = [
-  { value: "doors", label: "Durų problemos" },
-  { value: "water", label: "Vandentiekio/kanalizacijos problemos" },
-  { value: "walls", label: "Sienų/lubų pažeidimai" },
-  { value: "electricity", label: "Elektros problemos" },
-  { value: "heating", label: "Šildymo problemos" },
-  { value: "elevator", label: "Lifto problemos" },
-  { value: "security", label: "Saugumo problemos" },
-  { value: "cleanliness", label: "Švaros problemos" },
-  { value: "other", label: "Kita" },
-];
-
-const statusLabels: Record<string, string> = {
-  new: "Naujas",
-  in_progress: "Vykdomas",
-  resolved: "Išspręsta",
-  closed: "Uždarytas",
-};
-
-const statusColors: Record<string, string> = {
-  new: "bg-info text-info-foreground",
-  in_progress: "bg-warning text-warning-foreground",
-  resolved: "bg-success text-success-foreground",
-  closed: "bg-muted text-muted-foreground",
-};
-
-const getStatusIcon = (status: string) => {
-  switch (status) {
-    case "new":
-      return Clock;
-    case "in_progress":
-      return Loader2;
-    case "resolved":
-    case "closed":
-      return CheckCircle;
-    default:
-      return Clock;
-  }
-};
+interface SentMessage {
+  id: string;
+  title: string;
+  content: string;
+  created_at: string;
+  recipient_count: number;
+}
 
 export default function Tickets() {
-  const { user, isApproved, loading } = useAuth();
+  const { user, isAdmin, isApproved, loading } = useAuth();
   const navigate = useNavigate();
-  const isMobile = useIsMobile();
-  const { isTicketUnread, markAsRead, markAllAsRead, unreadCount } = useUnreadTickets();
-  const [images, setImages] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<string[]>([]);
-  const [attachments, setAttachments] = useState<File[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState("new");
-  const autoMarkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const attachmentInputRef = useRef<HTMLInputElement>(null);
+  const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
+  const [sendingNotification, setSendingNotification] = useState(false);
   const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    apartment: "",
-    issueType: "",
-    description: "",
+    subject: "",
+    message: "",
   });
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [documents, setDocuments] = useState<File[]>([]);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const [uploadingDocs, setUploadingDocs] = useState(false);
+  
+  // History state
+  const [sentMessages, setSentMessages] = useState<SentMessage[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+  const [historyOpen, setHistoryOpen] = useState(true);
 
   // Redirect to auth if not logged in
   useEffect(() => {
     if (!loading && !user) {
-      toast.error("Prisijunkite, kad galėtumėte pranešti apie problemą");
+      toast.error("Prisijunkite, kad galėtumėte siųsti pranešimus");
       navigate("/auth");
     }
   }, [user, loading, navigate]);
 
-  // Auto-mark all as read after 2 seconds when viewing history tab
   useEffect(() => {
-    if (activeTab === "history" && unreadCount > 0 && user && isApproved) {
-      autoMarkTimeoutRef.current = setTimeout(() => {
-        markAllAsRead();
-      }, 2000);
+    if (user && (isAdmin || isApproved)) {
+      fetchSentMessages();
     }
+  }, [user, isAdmin, isApproved]);
 
-    return () => {
-      if (autoMarkTimeoutRef.current) {
-        clearTimeout(autoMarkTimeoutRef.current);
-      }
-    };
-  }, [activeTab, unreadCount, user, isApproved, markAllAsRead]);
-
-  // Fetch user's tickets history
-  const { data: myTickets = [], isLoading: isLoadingTickets, refetch: refetchTickets } = useQuery({
-    queryKey: ["my-tickets", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const { data, error } = await supabase
-        .from("tickets")
-        .select(`
-          *,
-          ticket_photos(id, photo_url)
-        `)
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user && isApproved,
-  });
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length + images.length > 5) {
-      toast.error("Galima įkelti ne daugiau kaip 5 nuotraukas");
-      return;
-    }
-
-    const newImages = [...images, ...files];
-    setImages(newImages);
-
-    const newPreviews = files.map(file => URL.createObjectURL(file));
-    setPreviews([...previews, ...newPreviews]);
-  };
-
-  const removeImage = (index: number) => {
-    const newImages = images.filter((_, i) => i !== index);
-    const newPreviews = previews.filter((_, i) => i !== index);
-    URL.revokeObjectURL(previews[index]);
-    setImages(newImages);
-    setPreviews(newPreviews);
-  };
-
-  const handleAttachmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    const allowedTypes = [
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    ];
-    
-    const validFiles = files.filter(f => allowedTypes.includes(f.type));
-    if (validFiles.length !== files.length) {
-      toast.error("Leidžiami tik PDF, Word ir Excel failai");
-    }
-    
-    if (validFiles.length + attachments.length > 3) {
-      toast.error("Galima prisegti ne daugiau kaip 3 dokumentus");
-      return;
-    }
-    
-    setAttachments([...attachments, ...validFiles]);
-  };
-
-  const removeAttachment = (index: number) => {
-    setAttachments(attachments.filter((_, i) => i !== index));
-  };
-
-  const getAttachmentIcon = (fileName: string) => {
-    const ext = fileName.split('.').pop()?.toLowerCase();
-    if (ext === 'pdf') return 'PDF';
-    if (ext === 'doc' || ext === 'docx') return 'DOC';
-    if (ext === 'xls' || ext === 'xlsx') return 'XLS';
-    return 'FILE';
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-
+  const fetchSentMessages = async () => {
     try {
-      // Create the ticket in the database
-      const { data: ticket, error: ticketError } = await supabase
-        .from("tickets")
+      const [newsRes, recipientsRes] = await Promise.all([
+        supabase.from("news").select("*").eq("author_id", user?.id).order("created_at", { ascending: false }),
+        supabase.from("news_recipients").select("news_id, resident_id"),
+      ]);
+
+      if (newsRes.error) throw newsRes.error;
+      if (recipientsRes.error) throw recipientsRes.error;
+
+      // Count recipients per news
+      const recipientCounts: { [newsId: string]: number } = {};
+      (recipientsRes.data || []).forEach(r => {
+        recipientCounts[r.news_id] = (recipientCounts[r.news_id] || 0) + 1;
+      });
+
+      const messagesWithCounts = (newsRes.data || []).map(item => ({
+        id: item.id,
+        title: item.title,
+        content: item.content,
+        created_at: item.created_at,
+        recipient_count: recipientCounts[item.id] || 0,
+      }));
+
+      setSentMessages(messagesWithCounts);
+    } catch (error) {
+      console.error("Error fetching sent messages:", error);
+      toast.error("Nepavyko užkrauti pranešimų istorijos");
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const deleteMessage = async (id: string) => {
+    try {
+      const { error } = await supabase.from("news").delete().eq("id", id);
+      if (error) throw error;
+      setSentMessages(prev => prev.filter(m => m.id !== id));
+      toast.success("Pranešimas ištrintas");
+    } catch (error) {
+      console.error("Error deleting message:", error);
+      toast.error("Nepavyko ištrinti pranešimo");
+    }
+  };
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      const newPhotos = Array.from(files).filter(file => 
+        file.type.startsWith("image/")
+      );
+      setPhotos(prev => [...prev, ...newPhotos]);
+    }
+    e.target.value = "";
+  };
+
+  const handleDocumentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      setDocuments(prev => [...prev, ...Array.from(files)]);
+    }
+    e.target.value = "";
+  };
+
+  const removePhoto = (index: number) => {
+    setPhotos(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const removeDocument = (index: number) => {
+    setDocuments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const uploadFiles = async (files: File[], bucket: string, folder: string): Promise<string[]> => {
+    const urls: string[] = [];
+    
+    for (const file of files) {
+      const fileName = `${folder}/${Date.now()}_${file.name}`;
+      const { data, error } = await supabase.storage
+        .from(bucket)
+        .upload(fileName, file);
+      
+      if (error) {
+        console.error("Upload error:", error);
+        throw error;
+      }
+      
+      const { data: urlData } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(fileName);
+      
+      urls.push(urlData.publicUrl);
+    }
+    
+    return urls;
+  };
+
+  const handleSendNotification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.subject.trim()) {
+      toast.error("Įveskite temą");
+      return;
+    }
+    
+    if (!formData.message.trim()) {
+      toast.error("Įveskite pranešimą");
+      return;
+    }
+    
+    if (selectedRecipients.length === 0) {
+      toast.error("Pasirinkite bent vieną gavėją");
+      return;
+    }
+
+    setSendingNotification(true);
+    try {
+      // Upload photos and documents
+      let photoUrls: string[] = [];
+      let documentUrls: string[] = [];
+      
+      if (photos.length > 0) {
+        setUploadingPhotos(true);
+        photoUrls = await uploadFiles(photos, "documents", "message-photos");
+        setUploadingPhotos(false);
+      }
+      
+      if (documents.length > 0) {
+        setUploadingDocs(true);
+        documentUrls = await uploadFiles(documents, "documents", "message-documents");
+        setUploadingDocs(false);
+      }
+
+      // Create news entry
+      const { data: newsData, error: newsError } = await supabase
+        .from("news")
         .insert({
-          title: `${issueTypes.find(t => t.value === formData.issueType)?.label || formData.issueType}`,
-          description: formData.description,
-          category: formData.issueType,
-          location: formData.apartment,
-          user_id: user?.id || null,
+          title: formData.subject,
+          content: formData.message,
+          published: true,
+          author_id: user?.id,
         })
         .select()
         .single();
 
-      if (ticketError) throw ticketError;
+      if (newsError) throw newsError;
 
-      // Upload photos if any
-      if (images.length > 0 && ticket) {
-        for (const image of images) {
-          const fileName = `${ticket.id}/${Date.now()}-${image.name}`;
-          const { data: uploadData, error: uploadError } = await supabase.storage
-            .from("ticket-photos")
-            .upload(fileName, image);
+      // Insert recipients
+      const recipientInserts = selectedRecipients.map(residentId => ({
+        news_id: newsData.id,
+        resident_id: residentId,
+      }));
 
-          if (uploadError) {
-            console.error("Error uploading image:", uploadError);
-            continue;
-          }
+      const { error: recipientError } = await supabase
+        .from("news_recipients")
+        .upsert(recipientInserts, { onConflict: 'news_id,resident_id' });
 
-          // Get public URL
-          const { data: urlData } = supabase.storage
-            .from("ticket-photos")
-            .getPublicUrl(fileName);
+      if (recipientError) throw recipientError;
 
-          // Save photo reference in database
-          await supabase.from("ticket_photos").insert({
-            ticket_id: ticket.id,
-            photo_url: urlData.publicUrl,
-          });
+      // Get residents with emails for notification
+      const { data: residents, error: residentsError } = await supabase
+        .from("residents")
+        .select("id, full_name, email")
+        .in("id", selectedRecipients)
+        .not("email", "is", null);
+
+      if (residentsError) throw residentsError;
+
+      // Send email notifications via edge function
+      const residentsWithEmail = residents?.filter(r => r.email) || [];
+      
+      if (residentsWithEmail.length > 0) {
+        // Build message content with attachments info
+        let fullContent = formData.message;
+        
+        if (photoUrls.length > 0) {
+          fullContent += "\n\n📷 Nuotraukos:\n" + photoUrls.join("\n");
         }
-      }
-
-      // Upload attachments (PDF, Word, Excel) if any
-      if (attachments.length > 0 && ticket) {
-        for (const attachment of attachments) {
-          const fileName = `${ticket.id}/docs/${Date.now()}-${attachment.name}`;
-          const { error: uploadError } = await supabase.storage
-            .from("ticket-photos")
-            .upload(fileName, attachment);
-
-          if (uploadError) {
-            console.error("Error uploading attachment:", uploadError);
-            continue;
-          }
-
-          // Get public URL
-          const { data: urlData } = supabase.storage
-            .from("ticket-photos")
-            .getPublicUrl(fileName);
-
-          // Save attachment reference in database
-          await supabase.from("ticket_attachments").insert({
-            ticket_id: ticket.id,
-            file_name: attachment.name,
-            file_url: urlData.publicUrl,
-            file_size: attachment.size,
-            file_type: attachment.type,
-          });
+        
+        if (documentUrls.length > 0) {
+          fullContent += "\n\n📎 Dokumentai:\n" + documentUrls.join("\n");
         }
+
+        const { error: notifyError } = await supabase.functions.invoke("send-news-notification", {
+          body: {
+            newsId: newsData.id,
+            newsTitle: formData.subject,
+            newsContent: fullContent,
+            recipients: residentsWithEmail.map(r => ({
+              name: r.full_name,
+              email: r.email,
+            })),
+          },
+        });
+
+        if (notifyError) {
+          console.error("Error sending notifications:", notifyError);
+          toast.warning(`Pranešimas išsaugotas, bet el. laiškų siuntimas nepavyko: ${notifyError.message}`);
+        } else {
+          toast.success(`Pranešimas išsiųstas ${residentsWithEmail.length} gavėjams`);
+        }
+      } else {
+        toast.success(`Pranešimas išsaugotas ${selectedRecipients.length} gavėjams (el. paštų nėra)`);
       }
 
-      // Send email notification
-      const { error: emailError } = await supabase.functions.invoke("send-ticket-notification", {
-        body: {
-          ticketId: ticket.id,
-          title: ticket.title,
-          description: formData.description,
-          category: formData.issueType,
-          location: formData.apartment,
-          reporterName: formData.name,
-          reporterEmail: formData.email,
-        },
-      });
+      // Update notified_at timestamp
+      await supabase
+        .from("news_recipients")
+        .update({ notified_at: new Date().toISOString() })
+        .eq("news_id", newsData.id)
+        .in("resident_id", selectedRecipients);
 
-      if (emailError) {
-        console.error("Error sending email notification:", emailError);
-      }
-
-      toast.success("Pranešimas sėkmingai išsiųstas!", {
-        description: "Administratorius netrukus susisieks su jumis.",
-      });
-
-      // Reset form and refetch tickets
-      setFormData({ name: "", email: "", apartment: "", issueType: "", description: "" });
-      setImages([]);
-      previews.forEach(preview => URL.revokeObjectURL(preview));
-      setPreviews([]);
-      setAttachments([]);
-      refetchTickets();
-    } catch (error: any) {
-      console.error("Error submitting ticket:", error);
-      toast.error("Nepavyko išsiųsti pranešimo", {
-        description: error.message || "Bandykite dar kartą",
-      });
+      // Reset form
+      setFormData({ subject: "", message: "" });
+      setSelectedRecipients([]);
+      setPhotos([]);
+      setDocuments([]);
+      
+      // Refresh history
+      fetchSentMessages();
+      
+    } catch (error) {
+      console.error("Error sending notification:", error);
+      toast.error("Nepavyko išsiųsti pranešimo");
     } finally {
-      setIsSubmitting(false);
+      setSendingNotification(false);
     }
-  };
-
-  const getCategoryLabel = (category: string) => {
-    return issueTypes.find(t => t.value === category)?.label || category;
   };
 
   // Show loading state
@@ -312,437 +300,293 @@ export default function Tickets() {
     return null;
   }
 
+  // Check if user has permission (admin or approved resident)
+  if (!isAdmin && !isApproved) {
+    return (
+      <Layout>
+        <div className="py-12 bg-muted min-h-screen">
+          <div className="container mx-auto px-4">
+            <Card>
+              <CardContent className="py-8 text-center">
+                <p className="text-muted-foreground">
+                  Prašome sulaukti patvirtinimo, kad galėtumėte siųsti pranešimus.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div className="py-12 bg-muted min-h-screen">
         <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto">
+          <div className="max-w-4xl mx-auto space-y-6">
+            {/* Header */}
             <div className="text-center mb-8 animate-fade-in">
-              <div className="inline-flex items-center gap-2 bg-destructive/10 text-destructive px-4 py-2 rounded-full mb-4">
-                <AlertTriangle className="h-4 w-4" />
-                <span className="text-sm font-medium">Pranešti apie problemą</span>
+              <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full mb-4">
+                <Send className="h-4 w-4" />
+                <span className="text-sm font-medium">Pranešimai</span>
               </div>
               <h1 className="text-3xl md:text-4xl font-bold font-display text-foreground mb-4">
-                Pranešti apie gedimą
+                Siųsti pranešimą
               </h1>
               <p className="text-muted-foreground">
-                Praneškite apie pastebėtas problemas ir sekite jų sprendimo eigą
+                Sukurkite ir išsiųskite pranešimą pasirinktiems gyventojams arba savininkams
               </p>
             </div>
 
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="new" className="gap-2">
-                  <Send className="h-4 w-4" />
-                  Naujas pranešimas
-                </TabsTrigger>
-                <TabsTrigger value="history" className="gap-2">
-                  <History className="h-4 w-4" />
-                  Mano pranešimai
-                  {unreadCount > 0 ? (
-                    <Badge variant="destructive" className="ml-1">{unreadCount}</Badge>
-                  ) : myTickets.length > 0 ? (
-                    <Badge variant="secondary" className="ml-1">{myTickets.length}</Badge>
-                  ) : null}
-                </TabsTrigger>
-              </TabsList>
-              
-              {unreadCount > 0 && (
-                <div className="flex justify-end">
-                  <Button variant="ghost" size="sm" onClick={() => markAllAsRead()}>
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Pažymėti visus kaip perskaitytus
-                  </Button>
-                </div>
-              )}
-
-              <TabsContent value="new">
-                <Card className="card-elevated animate-slide-up">
-                  <CardHeader>
-                    <CardTitle>Pranešimo forma</CardTitle>
-                    <CardDescription>
-                      Pažymėti laukai (*) yra privalomi
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="name">Vardas, Pavardė *</Label>
-                          <Input
-                            id="name"
-                            placeholder="Jonas Jonaitis"
-                            value={formData.name}
-                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="email">El. paštas *</Label>
-                          <Input
-                            id="email"
-                            type="email"
-                            placeholder="jonas@pavyzdys.lt"
-                            value={formData.email}
-                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                            required
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="apartment">Buto numeris *</Label>
-                          <Input
-                            id="apartment"
-                            placeholder="pvz. 15"
-                            value={formData.apartment}
-                            onChange={(e) => setFormData({ ...formData, apartment: e.target.value })}
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="issueType">Problemos tipas *</Label>
-                          <Select
-                            value={formData.issueType}
-                            onValueChange={(value) => setFormData({ ...formData, issueType: value })}
-                            required
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Pasirinkite tipą" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {issueTypes.map((type) => (
-                                <SelectItem key={type.value} value={type.value}>
-                                  {type.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="description">Problemos aprašymas *</Label>
-                        <Textarea
-                          id="description"
-                          placeholder="Detaliai aprašykite problemą..."
-                          rows={5}
-                          value={formData.description}
-                          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                          required
-                        />
-                      </div>
-
-                      <div className="space-y-3">
-                        <Label>Nuotraukos (neprivaloma)</Label>
-                        
-                        {/* Camera and Upload buttons */}
-                        <div className="flex flex-col sm:flex-row gap-3">
-                          {/* Camera button - only show on mobile */}
-                          {isMobile && (
-                            <>
-                              <input
-                                ref={cameraInputRef}
-                                type="file"
-                                accept="image/*"
-                                capture="environment"
-                                onChange={handleImageChange}
-                                className="hidden"
-                              />
-                              <Button
-                                type="button"
-                                variant="outline"
-                                className="flex-1 gap-2"
-                                onClick={() => cameraInputRef.current?.click()}
-                                disabled={images.length >= 5}
-                              >
-                                <Camera className="h-5 w-5" />
-                                Fotografuoti
-                              </Button>
-                            </>
-                          )}
-                          
-                          {/* Upload button */}
-                          <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            onChange={handleImageChange}
-                            className="hidden"
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="flex-1 gap-2"
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={images.length >= 5}
-                          >
-                            <Upload className="h-5 w-5" />
-                            Įkelti nuotraukas
-                          </Button>
-                        </div>
-                        
-                        <p className="text-xs text-muted-foreground text-center">
-                          Iki 5 nuotraukų (PNG, JPG)
-                        </p>
-
-                        {previews.length > 0 && (
-                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
-                            {previews.map((preview, index) => (
-                              <div key={index} className="relative group aspect-square">
-                                <img
-                                  src={preview}
-                                  alt={`Preview ${index + 1}`}
-                                  className="w-full h-full object-cover rounded-lg"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => removeImage(index)}
-                                  className="absolute top-2 right-2 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 md:opacity-100 transition-opacity"
-                                >
-                                  <X className="h-4 w-4" />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Document attachments section */}
-                      <div className="space-y-3">
-                        <Label>Dokumentai (neprivaloma)</Label>
-                        
+            {/* Send Message Form */}
+            <Card className="card-elevated">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Send className="h-5 w-5" />
+                  Pranešimo forma
+                </CardTitle>
+                <CardDescription>
+                  Užpildykite formą ir pasirinkite gavėjus
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSendNotification} className="space-y-6">
+                  {/* Subject */}
+                  <div className="space-y-2">
+                    <Label htmlFor="subject">Tema</Label>
+                    <Input
+                      id="subject"
+                      placeholder="Pranešimo tema..."
+                      value={formData.subject}
+                      onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                      required
+                    />
+                  </div>
+                  
+                  {/* Message */}
+                  <div className="space-y-2">
+                    <Label htmlFor="message">Pranešimas</Label>
+                    <Textarea
+                      id="message"
+                      rows={8}
+                      placeholder="Įveskite pranešimo tekstą..."
+                      value={formData.message}
+                      onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                      required
+                    />
+                  </div>
+                  
+                  {/* Photos */}
+                  <div className="space-y-2">
+                    <Label>Nuotraukos (neprivaloma)</Label>
+                    <div className="flex flex-wrap gap-2 items-center">
+                      <label className="cursor-pointer">
                         <input
-                          ref={attachmentInputRef}
                           type="file"
-                          accept=".pdf,.doc,.docx,.xls,.xlsx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                          accept="image/*"
                           multiple
-                          onChange={handleAttachmentChange}
+                          onChange={handlePhotoUpload}
                           className="hidden"
                         />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="w-full gap-2"
-                          onClick={() => attachmentInputRef.current?.click()}
-                          disabled={attachments.length >= 3}
-                        >
-                          <Paperclip className="h-5 w-5" />
-                          Prisegti dokumentą
+                        <Button type="button" variant="outline" size="sm" asChild>
+                          <span>
+                            <ImagePlus className="h-4 w-4 mr-2" />
+                            Pridėti nuotrauką
+                          </span>
                         </Button>
-                        
-                        <p className="text-xs text-muted-foreground text-center">
-                          Iki 3 dokumentų (PDF, Word, Excel)
-                        </p>
-
-                        {attachments.length > 0 && (
-                          <div className="space-y-2 mt-4">
-                            {attachments.map((file, index) => (
-                              <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 bg-primary/10 rounded flex items-center justify-center">
-                                    <FileText className="h-5 w-5 text-primary" />
-                                  </div>
-                                  <div>
-                                    <p className="text-sm font-medium truncate max-w-[200px]">{file.name}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                      {getAttachmentIcon(file.name)} • {(file.size / 1024).toFixed(0)} KB
-                                    </p>
-                                  </div>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => removeAttachment(index)}
-                                  className="w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center hover:bg-destructive/80 transition-colors"
-                                >
-                                  <X className="h-4 w-4" />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      <Button
-                        type="submit"
-                        size="lg"
-                        className="w-full"
-                        disabled={isSubmitting || !formData.name || !formData.email || !formData.apartment || !formData.issueType || !formData.description}
-                      >
-                        {isSubmitting ? (
-                          <>
-                            <div className="h-4 w-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
-                            Siunčiama...
-                          </>
-                        ) : (
-                          <>
-                            <Send className="h-4 w-4" />
-                            Išsiųsti pranešimą
-                          </>
-                        )}
-                      </Button>
-                    </form>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="history">
-                {!user || !isApproved ? (
-                  <Card>
-                    <CardContent className="py-12 text-center">
-                      <History className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                      <p className="text-muted-foreground">
-                        Prisijunkite, kad matytumėte savo pranešimų istoriją
-                      </p>
-                    </CardContent>
-                  </Card>
-                ) : isLoadingTickets ? (
-                  <Card>
-                    <CardContent className="py-12 text-center">
-                      <Loader2 className="h-8 w-8 mx-auto text-muted-foreground mb-4 animate-spin" />
-                      <p className="text-muted-foreground">Kraunama...</p>
-                    </CardContent>
-                  </Card>
-                ) : myTickets.length === 0 ? (
-                  <Card>
-                    <CardContent className="py-12 text-center">
-                      <History className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                      <p className="text-muted-foreground">
-                        Jūs dar nepateikėte jokių pranešimų
-                      </p>
-                      <Button 
-                        variant="link" 
-                        className="mt-2"
-                        onClick={() => {
-                          const tabsList = document.querySelector('[data-state="active"][value="history"]');
-                          if (tabsList) {
-                            const newTab = document.querySelector('[value="new"]') as HTMLButtonElement;
-                            newTab?.click();
-                          }
-                        }}
-                      >
-                        Pateikti pirmą pranešimą →
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <div className="space-y-4">
-                    {myTickets.map((ticket, index) => {
-                      const StatusIcon = getStatusIcon(ticket.status || "new");
-                      const status = ticket.status || "new";
-                      const isUnread = isTicketUnread(ticket.id, ticket.updated_at);
-                      return (
-                        <Card 
-                          key={ticket.id} 
-                          className={cn(
-                            "card-elevated animate-slide-up",
-                            !isUnread && "opacity-70",
-                            isUnread && "ring-2 ring-primary"
-                          )}
-                          style={{ animationDelay: `${index * 50}ms` }}
+                      </label>
+                      
+                      {photos.map((photo, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center gap-2 px-3 py-1 bg-muted rounded-md text-sm"
                         >
-                          <CardHeader className="pb-3">
-                            <div className="flex items-start justify-between gap-4">
-                              <div className="flex-1">
-                                <div className="flex flex-wrap items-center gap-2 mb-2">
-                                  {isUnread && (
-                                    <Badge variant="destructive" className="text-xs">
-                                      Naujas
-                                    </Badge>
-                                  )}
-                                  <Badge className={statusColors[status]}>
-                                    <StatusIcon className={cn(
-                                      "h-3 w-3 mr-1",
-                                      status === "in_progress" && "animate-spin"
-                                    )} />
-                                    {statusLabels[status]}
-                                  </Badge>
-                                  <Badge variant="outline">
-                                    {getCategoryLabel(ticket.category)}
-                                  </Badge>
-                                </div>
-                                <CardTitle className="text-lg">{ticket.title}</CardTitle>
-                              </div>
-                              {isUnread && (
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  onClick={() => markAsRead(ticket.id)}
-                                >
-                                  <CheckCircle className="h-4 w-4 mr-1" />
-                                  Perskaityta
-                                </Button>
-                              )}
-                            </div>
-                          </CardHeader>
-                          <CardContent className="pt-0">
-                            <p className="text-muted-foreground text-sm mb-4">
-                              {ticket.description}
-                            </p>
-                            
-                            {/* Photos */}
-                            {ticket.ticket_photos && ticket.ticket_photos.length > 0 && (
-                              <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
-                                {ticket.ticket_photos.map((photo: any) => (
-                                  <a 
-                                    key={photo.id} 
-                                    href={photo.photo_url} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="flex-shrink-0"
-                                  >
-                                    <img 
-                                      src={photo.photo_url} 
-                                      alt="Pranešimo nuotrauka"
-                                      className="h-16 w-16 object-cover rounded-md border hover:opacity-80 transition-opacity"
-                                    />
-                                  </a>
-                                ))}
-                              </div>
-                            )}
+                          <span className="truncate max-w-[150px]">{photo.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => removePhoto(index)}
+                            className="text-muted-foreground hover:text-destructive"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Documents */}
+                  <div className="space-y-2">
+                    <Label>Dokumentai (neprivaloma)</Label>
+                    <div className="flex flex-wrap gap-2 items-center">
+                      <label className="cursor-pointer">
+                        <input
+                          type="file"
+                          multiple
+                          onChange={handleDocumentUpload}
+                          className="hidden"
+                        />
+                        <Button type="button" variant="outline" size="sm" asChild>
+                          <span>
+                            <FileUp className="h-4 w-4 mr-2" />
+                            Pridėti dokumentą
+                          </span>
+                        </Button>
+                      </label>
+                      
+                      {documents.map((doc, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center gap-2 px-3 py-1 bg-muted rounded-md text-sm"
+                        >
+                          <span className="truncate max-w-[150px]">{doc.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeDocument(index)}
+                            className="text-muted-foreground hover:text-destructive"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Recipients */}
+                  <div className="space-y-2">
+                    <Label>Gavėjai</Label>
+                    <RecipientSelector
+                      selectedResidentIds={selectedRecipients}
+                      onSelectionChange={setSelectedRecipients}
+                    />
+                  </div>
+                  
+                  {/* Submit */}
+                  <div className="flex justify-end pt-4 border-t">
+                    <Button
+                      type="submit"
+                      disabled={sendingNotification || selectedRecipients.length === 0}
+                      size="lg"
+                    >
+                      {sendingNotification ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Siunčiama...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-4 w-4 mr-2" />
+                          Siųsti pranešimą ({selectedRecipients.length})
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
 
-                            <div className="flex flex-wrap gap-4 pt-3 border-t border-border text-xs text-muted-foreground">
-                              {ticket.location && (
-                                <div className="flex items-center gap-1">
-                                  <MapPin className="h-3 w-3" />
-                                  <span>Butas {ticket.location}</span>
-                                </div>
-                              )}
-                              <div className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                <span>
-                                  Pateikta: {new Date(ticket.created_at).toLocaleDateString("lt-LT", {
-                                    year: "numeric",
-                                    month: "long",
-                                    day: "numeric",
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  })}
-                                </span>
-                              </div>
-                              {ticket.updated_at !== ticket.created_at && (
-                                <div className="flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  <span>
-                                    Atnaujinta: {new Date(ticket.updated_at).toLocaleDateString("lt-LT", {
+            {/* Message History */}
+            <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
+              <Card className="card-elevated">
+                <CardHeader>
+                  <CollapsibleTrigger asChild>
+                    <div className="flex items-center justify-between cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <History className="h-5 w-5" />
+                        <CardTitle>Mano pranešimų istorija</CardTitle>
+                        <Badge variant="secondary" className="ml-2">
+                          {sentMessages.length}
+                        </Badge>
+                      </div>
+                      <Button variant="ghost" size="sm">
+                        {historyOpen ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </CollapsibleTrigger>
+                  <CardDescription>
+                    Visi anksčiau jūsų išsiųsti pranešimai gyventojams
+                  </CardDescription>
+                </CardHeader>
+                <CollapsibleContent>
+                  <CardContent>
+                    {loadingHistory ? (
+                      <div className="space-y-3">
+                        {[1, 2, 3].map((i) => (
+                          <div key={i} className="animate-pulse p-4 border rounded-lg">
+                            <div className="h-4 w-48 bg-muted rounded mb-2" />
+                            <div className="h-3 w-full bg-muted rounded mb-2" />
+                            <div className="h-3 w-24 bg-muted rounded" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : sentMessages.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <History className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>Dar nėra išsiųstų pranešimų</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {sentMessages.map((msg) => (
+                          <div
+                            key={msg.id}
+                            className="p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                          >
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-medium truncate">{msg.title}</h4>
+                                <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                                  {msg.content}
+                                </p>
+                                <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" />
+                                    {new Date(msg.created_at).toLocaleDateString("lt-LT", {
                                       year: "numeric",
                                       month: "long",
                                       day: "numeric",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
                                     })}
                                   </span>
+                                  <span className="flex items-center gap-1">
+                                    <Users className="h-3 w-3" />
+                                    {msg.recipient_count} gavėjų
+                                  </span>
                                 </div>
-                              )}
+                              </div>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Ištrinti pranešimą?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Ar tikrai norite ištrinti šį pranešimą? Šio veiksmo negalėsite atšaukti.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Atšaukti</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => deleteMessage(msg.id)}>
+                                      Ištrinti
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                )}
-              </TabsContent>
-            </Tabs>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
           </div>
         </div>
       </div>
