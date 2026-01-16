@@ -431,6 +431,89 @@ export type Database = {
         }
         Relationships: []
       }
+      poll_protocols: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          ballots_received: number | null
+          ballots_sent: number | null
+          commission_chairman: string | null
+          commission_members: Json | null
+          created_at: string
+          decisions: Json | null
+          has_quorum: boolean | null
+          id: string
+          live_results: Json | null
+          location: string | null
+          meeting_date: string | null
+          organizer_address: string | null
+          organizer_name: string | null
+          poll_id: string
+          protocol_date: string
+          protocol_number: string | null
+          quorum_info: string | null
+          status: string
+          updated_at: string
+          written_results: Json | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          ballots_received?: number | null
+          ballots_sent?: number | null
+          commission_chairman?: string | null
+          commission_members?: Json | null
+          created_at?: string
+          decisions?: Json | null
+          has_quorum?: boolean | null
+          id?: string
+          live_results?: Json | null
+          location?: string | null
+          meeting_date?: string | null
+          organizer_address?: string | null
+          organizer_name?: string | null
+          poll_id: string
+          protocol_date?: string
+          protocol_number?: string | null
+          quorum_info?: string | null
+          status?: string
+          updated_at?: string
+          written_results?: Json | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          ballots_received?: number | null
+          ballots_sent?: number | null
+          commission_chairman?: string | null
+          commission_members?: Json | null
+          created_at?: string
+          decisions?: Json | null
+          has_quorum?: boolean | null
+          id?: string
+          live_results?: Json | null
+          location?: string | null
+          meeting_date?: string | null
+          organizer_address?: string | null
+          organizer_name?: string | null
+          poll_id?: string
+          protocol_date?: string
+          protocol_number?: string | null
+          quorum_info?: string | null
+          status?: string
+          updated_at?: string
+          written_results?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poll_protocols_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "polls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       poll_recipients: {
         Row: {
           created_at: string
