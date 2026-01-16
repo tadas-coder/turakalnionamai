@@ -2,11 +2,15 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Clock, CheckCircle2, AlertTriangle, XCircle, MapPin, Calendar, Image, FileText, Download, Paperclip } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Clock, CheckCircle2, AlertTriangle, XCircle, MapPin, Calendar, Image, FileText, Download, Paperclip, Plus, Loader2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Ticket {
@@ -53,6 +57,7 @@ const categoryLabels: { [key: string]: string } = {
 };
 
 export function AdminTickets() {
+  const { user } = useAuth();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
@@ -60,6 +65,16 @@ export function AdminTickets() {
   const [ticketAttachments, setTicketAttachments] = useState<TicketAttachment[]>([]);
   const [mediaDialogOpen, setMediaDialogOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  
+  // New task dialog state
+  const [newTaskDialogOpen, setNewTaskDialogOpen] = useState(false);
+  const [creatingTask, setCreatingTask] = useState(false);
+  const [newTaskForm, setNewTaskForm] = useState({
+    title: "",
+    description: "",
+    category: "other",
+    location: "",
+  });
 
   useEffect(() => {
     fetchTickets();
@@ -170,6 +185,46 @@ export function AdminTickets() {
     }
   };
 
+  const handleCreateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!newTaskForm.title.trim()) {
+      toast.error("Įveskite užduoties pavadinimą");
+      return;
+    }
+    
+    if (!newTaskForm.description.trim()) {
+      toast.error("Įveskite užduoties aprašymą");
+      return;
+    }
+
+    setCreatingTask(true);
+    try {
+      const { error } = await supabase
+        .from("tickets")
+        .insert({
+          title: newTaskForm.title,
+          description: newTaskForm.description,
+          category: newTaskForm.category,
+          location: newTaskForm.location || null,
+          user_id: user?.id || null,
+          status: "new",
+        });
+
+      if (error) throw error;
+
+      toast.success("Užduotis sukurta sėkmingai");
+      setNewTaskDialogOpen(false);
+      setNewTaskForm({ title: "", description: "", category: "other", location: "" });
+      fetchTickets();
+    } catch (error) {
+      console.error("Error creating task:", error);
+      toast.error("Nepavyko sukurti užduoties");
+    } finally {
+      setCreatingTask(false);
+    }
+  };
+
   const getAttachmentIcon = (fileName: string) => {
     const ext = fileName.split('.').pop()?.toLowerCase();
     if (ext === 'pdf') return 'PDF';
@@ -218,21 +273,117 @@ export function AdminTickets() {
 
   if (tickets.length === 0) {
     return (
-      <Card className="card-elevated">
-        <CardContent className="py-12 text-center">
-          <AlertTriangle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Pranešimų nėra</h3>
-          <p className="text-muted-foreground">
-            Kol kas nėra užregistruotų pranešimų apie gedimus
-          </p>
-        </CardContent>
-      </Card>
+      <>
+        <Card className="card-elevated">
+          <CardContent className="py-12 text-center">
+            <AlertTriangle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Užduočių nėra</h3>
+            <p className="text-muted-foreground mb-4">
+              Kol kas nėra užregistruotų užduočių
+            </p>
+            <Button onClick={() => setNewTaskDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Sukurti naują užduotį
+            </Button>
+          </CardContent>
+        </Card>
+        
+        {/* New Task Dialog - also available when no tickets */}
+        <Dialog open={newTaskDialogOpen} onOpenChange={setNewTaskDialogOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Nauja užduotis</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleCreateTask} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="task-title">Pavadinimas *</Label>
+                <Input
+                  id="task-title"
+                  placeholder="Užduoties pavadinimas..."
+                  value={newTaskForm.title}
+                  onChange={(e) => setNewTaskForm({ ...newTaskForm, title: e.target.value })}
+                  required
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="task-category">Kategorija</Label>
+                <Select
+                  value={newTaskForm.category}
+                  onValueChange={(value) => setNewTaskForm({ ...newTaskForm, category: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pasirinkite kategoriją" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(categoryLabels).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="task-location">Vieta (neprivaloma)</Label>
+                <Input
+                  id="task-location"
+                  placeholder="pvz. Butas 15, laiptinė, kiemas..."
+                  value={newTaskForm.location}
+                  onChange={(e) => setNewTaskForm({ ...newTaskForm, location: e.target.value })}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="task-description">Aprašymas *</Label>
+                <Textarea
+                  id="task-description"
+                  rows={4}
+                  placeholder="Detalus užduoties aprašymas..."
+                  value={newTaskForm.description}
+                  onChange={(e) => setNewTaskForm({ ...newTaskForm, description: e.target.value })}
+                  required
+                />
+              </div>
+              
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setNewTaskDialogOpen(false)}>
+                  Atšaukti
+                </Button>
+                <Button type="submit" disabled={creatingTask}>
+                  {creatingTask ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Kuriama...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Sukurti
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </>
     );
   }
 
   return (
     <>
       <div className="space-y-4">
+        {/* Header with Create Button */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <h3 className="text-lg font-semibold">Užduočių sąrašas</h3>
+          <Button onClick={() => setNewTaskDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nauja užduotis
+          </Button>
+        </div>
+
         {/* Filter buttons */}
         <div className="flex flex-wrap gap-2">
           <Button
@@ -437,6 +588,87 @@ export function AdminTickets() {
               )}
             </TabsContent>
           </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Task Dialog */}
+      <Dialog open={newTaskDialogOpen} onOpenChange={setNewTaskDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Nauja užduotis</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreateTask} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="task-title-main">Pavadinimas *</Label>
+              <Input
+                id="task-title-main"
+                placeholder="Užduoties pavadinimas..."
+                value={newTaskForm.title}
+                onChange={(e) => setNewTaskForm({ ...newTaskForm, title: e.target.value })}
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="task-category-main">Kategorija</Label>
+              <Select
+                value={newTaskForm.category}
+                onValueChange={(value) => setNewTaskForm({ ...newTaskForm, category: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Pasirinkite kategoriją" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(categoryLabels).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="task-location-main">Vieta (neprivaloma)</Label>
+              <Input
+                id="task-location-main"
+                placeholder="pvz. Butas 15, laiptinė, kiemas..."
+                value={newTaskForm.location}
+                onChange={(e) => setNewTaskForm({ ...newTaskForm, location: e.target.value })}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="task-description-main">Aprašymas *</Label>
+              <Textarea
+                id="task-description-main"
+                rows={4}
+                placeholder="Detalus užduoties aprašymas..."
+                value={newTaskForm.description}
+                onChange={(e) => setNewTaskForm({ ...newTaskForm, description: e.target.value })}
+                required
+              />
+            </div>
+            
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setNewTaskDialogOpen(false)}>
+                Atšaukti
+              </Button>
+              <Button type="submit" disabled={creatingTask}>
+                {creatingTask ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Kuriama...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Sukurti
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </>
