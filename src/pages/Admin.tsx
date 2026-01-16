@@ -4,7 +4,7 @@ import { Layout } from "@/components/layout/Layout";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Ticket, Newspaper, Vote, Users, LayoutDashboard, ClipboardList, CalendarDays, FileSpreadsheet, Building2, Receipt } from "lucide-react";
+import { ClipboardCheck, Send, Vote, Users, LayoutDashboard, ClipboardList, CalendarDays, FileSpreadsheet, Building2, Receipt } from "lucide-react";
 import { AdminTickets } from "@/components/admin/AdminTickets";
 import { AdminNews } from "@/components/admin/AdminNews";
 import { AdminPolls } from "@/components/admin/AdminPolls";
@@ -109,12 +109,12 @@ export default function Admin() {
                 <span className="hidden sm:inline font-medium">Gyventojai</span>
               </TabsTrigger>
               <TabsTrigger value="tickets" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-3 py-2">
-                <Ticket className="h-4 w-4" />
-                <span className="hidden sm:inline font-medium">Pranešimai</span>
+                <ClipboardCheck className="h-4 w-4" />
+                <span className="hidden sm:inline font-medium">Mano užduotys</span>
               </TabsTrigger>
               <TabsTrigger value="news" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-3 py-2">
-                <Newspaper className="h-4 w-4" />
-                <span className="hidden sm:inline font-medium">Naujienos</span>
+                <Send className="h-4 w-4" />
+                <span className="hidden sm:inline font-medium">Pranešimai</span>
               </TabsTrigger>
               <TabsTrigger value="polls" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-3 py-2">
                 <Vote className="h-4 w-4" />
