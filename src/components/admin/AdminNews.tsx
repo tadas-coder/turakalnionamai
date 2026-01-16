@@ -4,181 +4,129 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Calendar, Eye, EyeOff, Send, Users } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Send, ImagePlus, FileUp, X, Loader2 } from "lucide-react";
 import { RecipientSelector } from "./RecipientSelector";
-
-interface NewsItem {
-  id: string;
-  title: string;
-  content: string;
-  published: boolean;
-  created_at: string;
-  recipient_count?: number;
-}
 
 export function AdminNews() {
   const { user } = useAuth();
-  const [news, setNews] = useState<NewsItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [sendDialogOpen, setSendDialogOpen] = useState(false);
-  const [selectedNewsForSend, setSelectedNewsForSend] = useState<NewsItem | null>(null);
   const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
   const [sendingNotification, setSendingNotification] = useState(false);
-  const [editingNews, setEditingNews] = useState<NewsItem | null>(null);
   const [formData, setFormData] = useState({
-    title: "",
-    content: "",
-    published: false,
+    subject: "",
+    message: "",
   });
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [documents, setDocuments] = useState<File[]>([]);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const [uploadingDocs, setUploadingDocs] = useState(false);
 
-  useEffect(() => {
-    fetchNews();
-  }, []);
-
-  const fetchNews = async () => {
-    try {
-      const [newsRes, recipientsRes] = await Promise.all([
-        supabase.from("news").select("*").order("created_at", { ascending: false }),
-        supabase.from("news_recipients").select("news_id, resident_id"),
-      ]);
-
-      if (newsRes.error) throw newsRes.error;
-      if (recipientsRes.error) throw recipientsRes.error;
-
-      // Count recipients per news
-      const recipientCounts: { [newsId: string]: number } = {};
-      (recipientsRes.data || []).forEach(r => {
-        recipientCounts[r.news_id] = (recipientCounts[r.news_id] || 0) + 1;
-      });
-
-      const newsWithCounts = (newsRes.data || []).map(item => ({
-        ...item,
-        recipient_count: recipientCounts[item.id] || 0,
-      }));
-
-      setNews(newsWithCounts);
-    } catch (error) {
-      console.error("Error fetching news:", error);
-      toast.error("Nepavyko užkrauti naujienų");
-    } finally {
-      setLoading(false);
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      const newPhotos = Array.from(files).filter(file => 
+        file.type.startsWith("image/")
+      );
+      setPhotos(prev => [...prev, ...newPhotos]);
     }
+    e.target.value = "";
   };
 
-  const openCreateDialog = () => {
-    setEditingNews(null);
-    setFormData({ title: "", content: "", published: false });
-    setDialogOpen(true);
+  const handleDocumentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      setDocuments(prev => [...prev, ...Array.from(files)]);
+    }
+    e.target.value = "";
   };
 
-  const openEditDialog = (item: NewsItem) => {
-    setEditingNews(item);
-    setFormData({
-      title: item.title,
-      content: item.content,
-      published: item.published,
-    });
-    setDialogOpen(true);
+  const removePhoto = (index: number) => {
+    setPhotos(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const removeDocument = (index: number) => {
+    setDocuments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const uploadFiles = async (files: File[], bucket: string, folder: string): Promise<string[]> => {
+    const urls: string[] = [];
+    
+    for (const file of files) {
+      const fileName = `${folder}/${Date.now()}_${file.name}`;
+      const { data, error } = await supabase.storage
+        .from(bucket)
+        .upload(fileName, file);
+      
+      if (error) {
+        console.error("Upload error:", error);
+        throw error;
+      }
+      
+      const { data: urlData } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(fileName);
+      
+      urls.push(urlData.publicUrl);
+    }
+    
+    return urls;
+  };
+
+  const handleSendNotification = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    try {
-      if (editingNews) {
-        const { error } = await supabase
-          .from("news")
-          .update({
-            title: formData.title,
-            content: formData.content,
-            published: formData.published,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", editingNews.id);
-
-        if (error) throw error;
-        toast.success("Naujiena atnaujinta");
-      } else {
-        const { error } = await supabase
-          .from("news")
-          .insert({
-            title: formData.title,
-            content: formData.content,
-            published: formData.published,
-            author_id: user?.id,
-          });
-
-        if (error) throw error;
-        toast.success("Naujiena sukurta");
-      }
-
-      setDialogOpen(false);
-      fetchNews();
-    } catch (error) {
-      console.error("Error saving news:", error);
-      toast.error("Nepavyko išsaugoti naujienos");
+    if (!formData.subject.trim()) {
+      toast.error("Įveskite temą");
+      return;
     }
-  };
-
-  const deleteNews = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from("news")
-        .delete()
-        .eq("id", id);
-
-      if (error) throw error;
-      setNews(news.filter(n => n.id !== id));
-      toast.success("Naujiena ištrinta");
-    } catch (error) {
-      console.error("Error deleting news:", error);
-      toast.error("Nepavyko ištrinti naujienos");
+    
+    if (!formData.message.trim()) {
+      toast.error("Įveskite pranešimą");
+      return;
     }
-  };
-
-  const togglePublished = async (item: NewsItem) => {
-    try {
-      const { error } = await supabase
-        .from("news")
-        .update({ published: !item.published })
-        .eq("id", item.id);
-
-      if (error) throw error;
-      setNews(news.map(n => 
-        n.id === item.id ? { ...n, published: !n.published } : n
-      ));
-      toast.success(item.published ? "Naujiena paslėpta" : "Naujiena paskelbta");
-    } catch (error) {
-      console.error("Error toggling publish:", error);
-      toast.error("Nepavyko pakeisti būsenos");
-    }
-  };
-
-  const openSendDialog = (item: NewsItem) => {
-    setSelectedNewsForSend(item);
-    setSelectedRecipients([]);
-    setSendDialogOpen(true);
-  };
-
-  const handleSendNotification = async () => {
-    if (!selectedNewsForSend || selectedRecipients.length === 0) {
+    
+    if (selectedRecipients.length === 0) {
       toast.error("Pasirinkite bent vieną gavėją");
       return;
     }
 
     setSendingNotification(true);
     try {
+      // Upload photos and documents
+      let photoUrls: string[] = [];
+      let documentUrls: string[] = [];
+      
+      if (photos.length > 0) {
+        setUploadingPhotos(true);
+        photoUrls = await uploadFiles(photos, "documents", "message-photos");
+        setUploadingPhotos(false);
+      }
+      
+      if (documents.length > 0) {
+        setUploadingDocs(true);
+        documentUrls = await uploadFiles(documents, "documents", "message-documents");
+        setUploadingDocs(false);
+      }
+
+      // Create news entry
+      const { data: newsData, error: newsError } = await supabase
+        .from("news")
+        .insert({
+          title: formData.subject,
+          content: formData.message,
+          published: true,
+          author_id: user?.id,
+        })
+        .select()
+        .single();
+
+      if (newsError) throw newsError;
+
       // Insert recipients
       const recipientInserts = selectedRecipients.map(residentId => ({
-        news_id: selectedNewsForSend.id,
+        news_id: newsData.id,
         resident_id: residentId,
       }));
 
@@ -201,11 +149,22 @@ export function AdminNews() {
       const residentsWithEmail = residents?.filter(r => r.email) || [];
       
       if (residentsWithEmail.length > 0) {
+        // Build message content with attachments info
+        let fullContent = formData.message;
+        
+        if (photoUrls.length > 0) {
+          fullContent += "\n\n📷 Nuotraukos:\n" + photoUrls.join("\n");
+        }
+        
+        if (documentUrls.length > 0) {
+          fullContent += "\n\n📎 Dokumentai:\n" + documentUrls.join("\n");
+        }
+
         const { error: notifyError } = await supabase.functions.invoke("send-news-notification", {
           body: {
-            newsId: selectedNewsForSend.id,
-            newsTitle: selectedNewsForSend.title,
-            newsContent: selectedNewsForSend.content,
+            newsId: newsData.id,
+            newsTitle: formData.subject,
+            newsContent: fullContent,
             recipients: residentsWithEmail.map(r => ({
               name: r.full_name,
               email: r.email,
@@ -215,24 +174,27 @@ export function AdminNews() {
 
         if (notifyError) {
           console.error("Error sending notifications:", notifyError);
-          // Don't throw - recipients are saved even if email fails
-          toast.warning(`Gavėjai išsaugoti, bet el. laiškų siuntimas nepavyko: ${notifyError.message}`);
+          toast.warning(`Pranešimas išsaugotas, bet el. laiškų siuntimas nepavyko: ${notifyError.message}`);
         } else {
           toast.success(`Pranešimas išsiųstas ${residentsWithEmail.length} gavėjams`);
         }
       } else {
-        toast.success(`${selectedRecipients.length} gavėjų pridėta (el. paštų nėra)`);
+        toast.success(`Pranešimas išsaugotas ${selectedRecipients.length} gavėjams (el. paštų nėra)`);
       }
 
       // Update notified_at timestamp
       await supabase
         .from("news_recipients")
         .update({ notified_at: new Date().toISOString() })
-        .eq("news_id", selectedNewsForSend.id)
+        .eq("news_id", newsData.id)
         .in("resident_id", selectedRecipients);
 
-      setSendDialogOpen(false);
-      fetchNews();
+      // Reset form
+      setFormData({ subject: "", message: "" });
+      setSelectedRecipients([]);
+      setPhotos([]);
+      setDocuments([]);
+      
     } catch (error) {
       console.error("Error sending notification:", error);
       toast.error("Nepavyko išsiųsti pranešimo");
@@ -241,240 +203,152 @@ export function AdminNews() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        {[1, 2].map((i) => (
-          <Card key={i} className="animate-pulse">
-            <CardHeader>
-              <div className="h-5 w-48 bg-muted rounded" />
-            </CardHeader>
-            <CardContent>
-              <div className="h-16 w-full bg-muted rounded" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={openCreateDialog}>
-              <Plus className="h-4 w-4" />
-              Nauja naujiena
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>
-                {editingNews ? "Redaguoti naujieną" : "Nauja naujiena"}
-              </DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="title">Pavadinimas</Label>
-                <Input
-                  id="title"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="content">Turinys</Label>
-                <Textarea
-                  id="content"
-                  rows={6}
-                  value={formData.content}
-                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="published">Paskelbti iš karto</Label>
-                <Switch
-                  id="published"
-                  checked={formData.published}
-                  onCheckedChange={(checked) => setFormData({ ...formData, published: checked })}
-                />
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                  Atšaukti
-                </Button>
-                <Button type="submit">
-                  {editingNews ? "Išsaugoti" : "Sukurti"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {news.length === 0 ? (
-        <Card className="card-elevated">
-          <CardContent className="py-12 text-center">
-            <Plus className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Naujienų nėra</h3>
-            <p className="text-muted-foreground mb-4">
-              Sukurkite pirmą naujieną gyventojams
-            </p>
-            <Button onClick={openCreateDialog}>
-              <Plus className="h-4 w-4" />
-              Sukurti naujieną
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        news.map((item) => (
-          <Card key={item.id} className="card-elevated">
-            <CardHeader>
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                <div>
-                  <CardTitle className="text-lg">{item.title}</CardTitle>
-                  <CardDescription className="flex items-center gap-2 mt-1">
-                    <Calendar className="h-3 w-3" />
-                    {new Date(item.created_at).toLocaleDateString("lt-LT")}
-                  </CardDescription>
-                </div>
-                <Badge variant={item.published ? "default" : "secondary"}>
-                  {item.published ? (
-                    <>
-                      <Eye className="h-3 w-3 mr-1" />
-                      Paskelbta
-                    </>
-                  ) : (
-                    <>
-                      <EyeOff className="h-3 w-3 mr-1" />
-                      Juodraštis
-                    </>
-                  )}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-foreground/80 line-clamp-3">{item.content}</p>
-              
-              {item.recipient_count !== undefined && item.recipient_count > 0 && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Users className="h-4 w-4" />
-                  <span>Išsiųsta {item.recipient_count} gavėjams</span>
-                </div>
-              )}
-              
-              <div className="flex flex-wrap gap-2 pt-4 border-t">
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => openSendDialog(item)}
-                >
-                  <Send className="h-4 w-4" />
-                  Siųsti pranešimą
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => togglePublished(item)}
-                >
-                  {item.published ? (
-                    <>
-                      <EyeOff className="h-4 w-4" />
-                      Paslėpti
-                    </>
-                  ) : (
-                    <>
-                      <Eye className="h-4 w-4" />
-                      Paskelbti
-                    </>
-                  )}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => openEditDialog(item)}
-                >
-                  <Pencil className="h-4 w-4" />
-                  Redaguoti
-                </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="text-destructive">
-                      <Trash2 className="h-4 w-4" />
-                      Ištrinti
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Ištrinti naujieną?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Ši naujiena bus ištrinta negrįžtamai.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Atšaukti</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => deleteNews(item.id)}>
-                        Ištrinti
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            </CardContent>
-          </Card>
-        ))
-      )}
-
-      {/* Send Notification Dialog */}
-      <Dialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Siųsti pranešimą</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            {selectedNewsForSend && (
-              <div className="p-4 bg-muted rounded-lg">
-                <h4 className="font-medium">{selectedNewsForSend.title}</h4>
-                <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                  {selectedNewsForSend.content}
-                </p>
-              </div>
-            )}
+    <div className="space-y-6">
+      <Card className="card-elevated">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Send className="h-5 w-5" />
+            Siųsti pranešimą
+          </CardTitle>
+          <CardDescription>
+            Sukurkite ir išsiųskite pranešimą pasirinktiems gyventojams arba savininkams
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSendNotification} className="space-y-6">
+            {/* Subject */}
+            <div className="space-y-2">
+              <Label htmlFor="subject">Tema</Label>
+              <Input
+                id="subject"
+                placeholder="Pranešimo tema..."
+                value={formData.subject}
+                onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                required
+              />
+            </div>
             
-            <RecipientSelector
-              selectedResidentIds={selectedRecipients}
-              onSelectionChange={setSelectedRecipients}
-            />
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setSendDialogOpen(false)}
-              disabled={sendingNotification}
-            >
-              Atšaukti
-            </Button>
-            <Button
-              type="button"
-              onClick={handleSendNotification}
-              disabled={sendingNotification || selectedRecipients.length === 0}
-            >
-              {sendingNotification ? (
-                "Siunčiama..."
-              ) : (
-                <>
-                  <Send className="h-4 w-4" />
-                  Siųsti ({selectedRecipients.length})
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            {/* Message */}
+            <div className="space-y-2">
+              <Label htmlFor="message">Pranešimas</Label>
+              <Textarea
+                id="message"
+                rows={8}
+                placeholder="Įveskite pranešimo tekstą..."
+                value={formData.message}
+                onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                required
+              />
+            </div>
+            
+            {/* Photos */}
+            <div className="space-y-2">
+              <Label>Nuotraukos (neprivaloma)</Label>
+              <div className="flex flex-wrap gap-2 items-center">
+                <label className="cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handlePhotoUpload}
+                    className="hidden"
+                  />
+                  <Button type="button" variant="outline" size="sm" asChild>
+                    <span>
+                      <ImagePlus className="h-4 w-4 mr-2" />
+                      Pridėti nuotrauką
+                    </span>
+                  </Button>
+                </label>
+                
+                {photos.map((photo, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-2 px-3 py-1 bg-muted rounded-md text-sm"
+                  >
+                    <span className="truncate max-w-[150px]">{photo.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => removePhoto(index)}
+                      className="text-muted-foreground hover:text-destructive"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {/* Documents */}
+            <div className="space-y-2">
+              <Label>Dokumentai (neprivaloma)</Label>
+              <div className="flex flex-wrap gap-2 items-center">
+                <label className="cursor-pointer">
+                  <input
+                    type="file"
+                    multiple
+                    onChange={handleDocumentUpload}
+                    className="hidden"
+                  />
+                  <Button type="button" variant="outline" size="sm" asChild>
+                    <span>
+                      <FileUp className="h-4 w-4 mr-2" />
+                      Pridėti dokumentą
+                    </span>
+                  </Button>
+                </label>
+                
+                {documents.map((doc, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-2 px-3 py-1 bg-muted rounded-md text-sm"
+                  >
+                    <span className="truncate max-w-[150px]">{doc.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeDocument(index)}
+                      className="text-muted-foreground hover:text-destructive"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {/* Recipients */}
+            <div className="space-y-2">
+              <Label>Gavėjai</Label>
+              <RecipientSelector
+                selectedResidentIds={selectedRecipients}
+                onSelectionChange={setSelectedRecipients}
+              />
+            </div>
+            
+            {/* Submit */}
+            <div className="flex justify-end pt-4 border-t">
+              <Button
+                type="submit"
+                disabled={sendingNotification || selectedRecipients.length === 0}
+                size="lg"
+              >
+                {sendingNotification ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Siunčiama...
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4 mr-2" />
+                    Siųsti pranešimą ({selectedRecipients.length})
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }
