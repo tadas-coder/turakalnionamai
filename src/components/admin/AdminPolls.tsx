@@ -9,12 +9,13 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Trash2, Calendar, Users, X, Vote, BarChart3 } from "lucide-react";
+import { Plus, Trash2, Calendar, Users, X, Vote, BarChart3, FileText } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { RecipientSelector } from "./RecipientSelector";
 import { PollStatisticsDialog } from "./PollStatisticsDialog";
+import { PollProtocolDialog } from "./PollProtocolDialog";
 
 const POLL_TYPES = [
   { value: "owners_vote", label: "Visų Savininkų balsavimas raštu" },
@@ -49,7 +50,9 @@ export function AdminPolls() {
   const [submitting, setSubmitting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [statisticsOpen, setStatisticsOpen] = useState(false);
+  const [protocolOpen, setProtocolOpen] = useState(false);
   const [selectedPollForStats, setSelectedPollForStats] = useState<Poll | null>(null);
+  const [selectedPollForProtocol, setSelectedPollForProtocol] = useState<Poll | null>(null);
   const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     title: "",
@@ -500,6 +503,17 @@ export function AdminPolls() {
                   <Button
                     variant="outline"
                     size="sm"
+                    onClick={() => {
+                      setSelectedPollForProtocol(poll);
+                      setProtocolOpen(true);
+                    }}
+                  >
+                    <FileText className="h-4 w-4" />
+                    Protokolas
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => toggleActive(poll)}
                   >
                     {poll.active ? "Sustabdyti" : "Aktyvuoti"}
@@ -539,6 +553,16 @@ export function AdminPolls() {
         pollId={selectedPollForStats?.id || null}
         pollTitle={selectedPollForStats?.title || ""}
         pollOptions={selectedPollForStats?.options || []}
+      />
+
+      <PollProtocolDialog
+        open={protocolOpen}
+        onOpenChange={setProtocolOpen}
+        pollId={selectedPollForProtocol?.id || null}
+        pollTitle={selectedPollForProtocol?.title || ""}
+        pollType={selectedPollForProtocol?.poll_type || null}
+        pollOptions={selectedPollForProtocol?.options || []}
+        onProtocolUpdated={fetchPolls}
       />
     </div>
   );
