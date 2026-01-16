@@ -23,6 +23,7 @@ const navItems = [
 
 const moreItems = [
   { path: "/news", label: "Naujienos", icon: Newspaper },
+  { path: "/voting", label: "Balsavimai ir apklausos", icon: ClipboardList },
   { path: "/schedules", label: "Grafikai", icon: CalendarDays },
   { path: "/payment-slips", label: "Sąskaitos ir skolos", icon: CreditCard, authRequired: true },
   { path: "/documents", label: "Dokumentai", icon: FileText, authRequired: true },
