@@ -89,9 +89,6 @@ export default function Admin() {
             <h1 className="text-3xl font-bold font-display text-foreground mb-2">
               Administratoriaus skiltis
             </h1>
-            <p className="text-muted-foreground">
-              Valdykite pranešimus, naujienas, apklausas ir vartotojus
-            </p>
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
