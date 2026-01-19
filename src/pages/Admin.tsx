@@ -115,7 +115,7 @@ export default function Admin() {
               </TabsTrigger>
               <TabsTrigger value="polls" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-3 py-2">
                 <Vote className="h-4 w-4" />
-                <span className="hidden sm:inline font-medium">Apklausos</span>
+                <span className="hidden sm:inline font-medium">Apklausos ir susirinkimai</span>
               </TabsTrigger>
               <TabsTrigger value="reports" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-3 py-2">
                 <ClipboardList className="h-4 w-4" />
