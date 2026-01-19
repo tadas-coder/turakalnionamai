@@ -531,48 +531,17 @@ export function PollProtocolDialog({
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
-      // Generate Word document
-      const docBlob = await generateWordDocument();
-      const protocolDate = format(new Date(protocol.protocol_date), "yyyy-MM-dd");
-      const fileName = `Protokolas_${protocolDate}_${pollTitle.replace(/[^a-zA-Z0-9ąčęėįšųūžĄČĘĖĮŠŲŪŽ]/g, "_")}.docx`;
-      
-      // Upload to storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from("documents")
-        .upload(`protocols/${protocol.id}/${fileName}`, docBlob, {
-          contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-          upsert: true,
-        });
+      if (!user) {
+        toast.error("Turite būti prisijungęs, kad galėtumėte patvirtinti protokolą");
+        return;
+      }
 
-      if (uploadError) throw uploadError;
-
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from("documents")
-        .getPublicUrl(`protocols/${protocol.id}/${fileName}`);
-
-      // Create document entry
-      const { error: docError } = await supabase
-        .from("documents")
-        .insert({
-          title: `Balsavimo protokolas - ${pollTitle}`,
-          description: `Protokolo data: ${format(new Date(protocol.protocol_date), "yyyy-MM-dd")}`,
-          file_name: fileName,
-          file_url: urlData.publicUrl,
-          file_size: docBlob.size,
-          category: "Protokolai",
-          uploaded_by: user?.id,
-          visible: true,
-        });
-
-      if (docError) throw docError;
-
-      // Update protocol status
-      const { error } = await supabase
+      // First, update protocol status
+      const { error: updateError } = await supabase
         .from("poll_protocols")
         .update({
           status: "approved",
-          approved_by: user?.id,
+          approved_by: user.id,
           approved_at: new Date().toISOString(),
           decisions: decisions,
           quorum_info: quorumInfo,
@@ -580,10 +549,55 @@ export function PollProtocolDialog({
         })
         .eq("id", protocol.id);
 
-      if (error) throw error;
+      if (updateError) {
+        console.error("Error updating protocol status:", updateError);
+        throw updateError;
+      }
 
-      toast.success("Protokolas patvirtintas ir įkeltas į dokumentus!");
+      // Try to generate and upload Word document (non-critical)
+      try {
+        const docBlob = await generateWordDocument();
+        const protocolDate = format(new Date(protocol.protocol_date), "yyyy-MM-dd");
+        const fileName = `Protokolas_${protocolDate}_${pollTitle.replace(/[^a-zA-Z0-9ąčęėįšųūžĄČĘĖĮŠŲŪŽ]/g, "_")}.docx`;
+        
+        // Upload to storage
+        const { error: uploadError } = await supabase.storage
+          .from("documents")
+          .upload(`protocols/${protocol.id}/${fileName}`, docBlob, {
+            contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            upsert: true,
+          });
+
+        if (uploadError) {
+          console.warn("Could not upload document to storage:", uploadError);
+        } else {
+          // Get public URL
+          const { data: urlData } = supabase.storage
+            .from("documents")
+            .getPublicUrl(`protocols/${protocol.id}/${fileName}`);
+
+          // Create document entry (optional - don't fail if this doesn't work)
+          await supabase
+            .from("documents")
+            .insert({
+              title: `Balsavimo protokolas - ${pollTitle}`,
+              description: `Protokolo data: ${format(new Date(protocol.protocol_date), "yyyy-MM-dd")}`,
+              file_name: fileName,
+              file_url: urlData.publicUrl,
+              file_size: docBlob.size,
+              category: "Protokolai",
+              uploaded_by: user.id,
+              visible: true,
+            });
+        }
+      } catch (docError) {
+        console.warn("Could not generate/upload Word document:", docError);
+        // Continue - protocol is already approved
+      }
+
+      toast.success("Protokolas patvirtintas!");
       setStep("approved");
+      setProtocol({ ...protocol, status: "approved", approved_by: user.id, approved_at: new Date().toISOString() });
       onProtocolUpdated?.();
     } catch (error) {
       console.error("Error approving protocol:", error);
