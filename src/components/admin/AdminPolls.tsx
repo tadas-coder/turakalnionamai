@@ -295,12 +295,12 @@ export function AdminPolls() {
           <DialogTrigger asChild>
             <Button onClick={openCreateDialog}>
               <Plus className="h-4 w-4" />
-              Nauja apklausa
+              Skelbti apklausą ar/ir susirinkimą
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Nauja apklausa</DialogTitle>
+              <DialogTitle>Nauja apklausa arba susirinkimas</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
