@@ -724,16 +724,19 @@ export function PollProtocolDialog({
         ))}
       </div>
 
-      <DialogFooter>
-        <Button variant="outline" onClick={() => onOpenChange(false)}>
-          Atšaukti
-        </Button>
-        <Button onClick={saveWrittenResults} disabled={saving}>
-          {saving ? "Saugoma..." : "Išsaugoti ir tęsti"}
-          <ChevronRight className="h-4 w-4 ml-1" />
-        </Button>
-      </DialogFooter>
     </div>
+  );
+
+  const renderWrittenResultsFooter = () => (
+    <DialogFooter className="flex-shrink-0 border-t pt-4">
+      <Button variant="outline" onClick={() => onOpenChange(false)}>
+        Atšaukti
+      </Button>
+      <Button onClick={saveWrittenResults} disabled={saving}>
+        {saving ? "Saugoma..." : "Išsaugoti ir tęsti"}
+        <ChevronRight className="h-4 w-4 ml-1" />
+      </Button>
+    </DialogFooter>
   );
 
   const renderLiveResultsForm = () => (
@@ -777,16 +780,19 @@ export function PollProtocolDialog({
         ))}
       </div>
 
-      <DialogFooter>
-        <Button variant="outline" onClick={() => onOpenChange(false)}>
-          Atšaukti
-        </Button>
-        <Button onClick={saveLiveResults} disabled={saving}>
-          {saving ? "Saugoma..." : "Išsaugoti ir peržiūrėti"}
-          <ChevronRight className="h-4 w-4 ml-1" />
-        </Button>
-      </DialogFooter>
     </div>
+  );
+
+  const renderLiveResultsFooter = () => (
+    <DialogFooter className="flex-shrink-0 border-t pt-4">
+      <Button variant="outline" onClick={() => onOpenChange(false)}>
+        Atšaukti
+      </Button>
+      <Button onClick={saveLiveResults} disabled={saving}>
+        {saving ? "Saugoma..." : "Išsaugoti ir peržiūrėti"}
+        <ChevronRight className="h-4 w-4 ml-1" />
+      </Button>
+    </DialogFooter>
   );
 
   const renderPreview = () => {
@@ -891,19 +897,21 @@ export function PollProtocolDialog({
 
           <p className="text-right"><strong>Komisijos pirmininkas:</strong> {commissionChairman || "—"}</p>
         </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Uždaryti
-          </Button>
-          <Button onClick={approveProtocol} disabled={saving}>
-            {saving ? "Tvirtinama..." : "Patvirtinti protokolą"}
-            <Check className="h-4 w-4 ml-1" />
-          </Button>
-        </DialogFooter>
       </div>
     );
   };
+
+  const renderPreviewFooter = () => (
+    <DialogFooter className="flex-shrink-0 border-t pt-4">
+      <Button variant="outline" onClick={() => onOpenChange(false)}>
+        Uždaryti
+      </Button>
+      <Button onClick={approveProtocol} disabled={saving}>
+        {saving ? "Tvirtinama..." : "Patvirtinti protokolą"}
+        <Check className="h-4 w-4 ml-1" />
+      </Button>
+    </DialogFooter>
+  );
 
   const exportToPdf = () => {
     const protocolTypeTitle = pollType ? POLL_TYPE_TITLES[pollType] || "BALSAVIMAS" : "BALSAVIMAS";
@@ -1089,19 +1097,22 @@ export function PollProtocolDialog({
         </Button>
       </div>
       
-      <DialogFooter>
-        <Button onClick={() => onOpenChange(false)}>
-          Uždaryti
-        </Button>
-      </DialogFooter>
     </div>
+  );
+
+  const renderApprovedFooter = () => (
+    <DialogFooter className="flex-shrink-0 border-t pt-4">
+      <Button onClick={() => onOpenChange(false)}>
+        Uždaryti
+      </Button>
+    </DialogFooter>
   );
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
-          <DialogHeader>
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+          <DialogHeader className="flex-shrink-0">
             <div className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
               <DialogTitle>Balsavimo protokolas</DialogTitle>
@@ -1110,7 +1121,7 @@ export function PollProtocolDialog({
             <DialogDescription>{pollTitle}</DialogDescription>
           </DialogHeader>
 
-          <ScrollArea className="flex-1 -mx-6 px-6">
+          <ScrollArea className="flex-1 min-h-0 -mx-6 px-6">
             {loading ? (
               <div className="space-y-4 py-4">
                 <Skeleton className="h-8 w-48" />
@@ -1156,6 +1167,12 @@ export function PollProtocolDialog({
               </>
             )}
           </ScrollArea>
+
+          {/* Footer buttons outside ScrollArea for visibility */}
+          {!loading && step === "written_results" && renderWrittenResultsFooter()}
+          {!loading && step === "live_results" && renderLiveResultsFooter()}
+          {!loading && step === "preview" && renderPreviewFooter()}
+          {!loading && step === "approved" && renderApprovedFooter()}
         </DialogContent>
       </Dialog>
 
