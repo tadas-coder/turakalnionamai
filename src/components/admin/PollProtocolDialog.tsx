@@ -1123,9 +1123,34 @@ export function PollProtocolDialog({
                 {step === "live_results" && renderLiveResultsForm()}
                 {step === "preview" && renderPreview()}
                 {step === "approved" && renderApproved()}
-                {(step === "ask_written" || step === "ask_live") && !showAskWritten && !showAskLive && (
-                  <div className="py-8 text-center text-muted-foreground">
-                    Palaukite...
+                {step === "ask_written" && !showAskWritten && (
+                  <div className="py-8 space-y-4">
+                    <p className="text-center text-muted-foreground">Pasirinkite ar norite suvesti balsavimo raštu rezultatus</p>
+                    <div className="flex justify-center gap-4">
+                      <Button variant="outline" onClick={() => handleWrittenAnswer(false)}>
+                        <X className="h-4 w-4 mr-1" />
+                        Ne, praleisti
+                      </Button>
+                      <Button onClick={() => handleWrittenAnswer(true)}>
+                        <Check className="h-4 w-4 mr-1" />
+                        Taip, suvesti
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                {step === "ask_live" && !showAskLive && (
+                  <div className="py-8 space-y-4">
+                    <p className="text-center text-muted-foreground">Pasirinkite ar norite suvesti gyvo susirinkimo balsavimo rezultatus</p>
+                    <div className="flex justify-center gap-4">
+                      <Button variant="outline" onClick={() => handleLiveAnswer(false)}>
+                        <X className="h-4 w-4 mr-1" />
+                        Ne, praleisti
+                      </Button>
+                      <Button onClick={() => handleLiveAnswer(true)}>
+                        <Check className="h-4 w-4 mr-1" />
+                        Taip, suvesti
+                      </Button>
+                    </div>
                   </div>
                 )}
               </>
