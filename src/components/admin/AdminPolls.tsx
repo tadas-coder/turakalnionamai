@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Trash2, Calendar, Users, X, Vote, BarChart3, FileText } from "lucide-react";
+import { Plus, Trash2, Calendar, Users, X, Vote, BarChart3, FileText, MapPin } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -43,6 +43,8 @@ interface PollVote {
   option_index: number;
 }
 
+type PublishType = "poll_only" | "meeting_only" | "meeting_and_poll" | null;
+
 export function AdminPolls() {
   const [polls, setPolls] = useState<Poll[]>([]);
   const [pollVotes, setPollVotes] = useState<{ [pollId: string]: PollVote[] }>({});
@@ -54,6 +56,12 @@ export function AdminPolls() {
   const [selectedPollForStats, setSelectedPollForStats] = useState<Poll | null>(null);
   const [selectedPollForProtocol, setSelectedPollForProtocol] = useState<Poll | null>(null);
   const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
+  const [publishType, setPublishType] = useState<PublishType>(null);
+  const [meetingData, setMeetingData] = useState({
+    date: "",
+    location: "",
+    topics: [""],
+  });
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -113,6 +121,7 @@ export function AdminPolls() {
   };
 
   const openCreateDialog = () => {
+    setPublishType(null);
     setFormData({
       title: "",
       description: "",
@@ -121,8 +130,32 @@ export function AdminPolls() {
       ends_at: "",
       poll_type: "simple_survey",
     });
+    setMeetingData({
+      date: "",
+      location: "",
+      topics: [""],
+    });
     setSelectedRecipients([]);
     setDialogOpen(true);
+  };
+
+  const addMeetingTopic = () => {
+    setMeetingData({ ...meetingData, topics: [...meetingData.topics, ""] });
+  };
+
+  const removeMeetingTopic = (index: number) => {
+    if (meetingData.topics.length > 1) {
+      setMeetingData({
+        ...meetingData,
+        topics: meetingData.topics.filter((_, i) => i !== index),
+      });
+    }
+  };
+
+  const updateMeetingTopic = (index: number, value: string) => {
+    const newTopics = [...meetingData.topics];
+    newTopics[index] = value;
+    setMeetingData({ ...meetingData, topics: newTopics });
   };
 
   const addOption = () => {
@@ -300,109 +333,252 @@ export function AdminPolls() {
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Nauja apklausa arba susirinkimas</DialogTitle>
+              <DialogTitle>
+                {publishType === null ? "Ką norite skelbti?" : 
+                 publishType === "poll_only" ? "Nauja apklausa" : 
+                 publishType === "meeting_only" ? "Naujas gyvas susirinkimas" :
+                 "Susirinkimas ir apklausa"}
+              </DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="poll-type">Balsavimo tipas</Label>
-                <Select
-                  value={formData.poll_type}
-                  onValueChange={(value: PollType) => setFormData({ ...formData, poll_type: value })}
+            
+            {/* Step 1: Choose publish type */}
+            {publishType === null && (
+              <div className="space-y-3 py-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-start h-auto py-4 px-4"
+                  onClick={() => setPublishType("poll_only")}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pasirinkite tipą" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {POLL_TYPES.map((type) => (
-                      <SelectItem key={type.value} value={type.value}>
-                        {type.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <Vote className="h-5 w-5 mr-3 text-primary" />
+                  <div className="text-left">
+                    <div className="font-medium">Tik apklausą</div>
+                    <div className="text-sm text-muted-foreground">Balsavimas raštu be gyvo susirinkimo</div>
+                  </div>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-start h-auto py-4 px-4"
+                  onClick={() => setPublishType("meeting_only")}
+                >
+                  <Users className="h-5 w-5 mr-3 text-primary" />
+                  <div className="text-left">
+                    <div className="font-medium">Tik gyvą susirinkimą</div>
+                    <div className="text-sm text-muted-foreground">Susirinkimas su nurodyta data ir vieta</div>
+                  </div>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-start h-auto py-4 px-4"
+                  onClick={() => setPublishType("meeting_and_poll")}
+                >
+                  <Calendar className="h-5 w-5 mr-3 text-primary" />
+                  <div className="text-left">
+                    <div className="font-medium">Susirinkimą ir apklausą kartu</div>
+                    <div className="text-sm text-muted-foreground">Gyvas susirinkimas su galimybe balsuoti raštu</div>
+                  </div>
+                </Button>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="poll-title">Pavadinimas</Label>
-                <Input
-                  id="poll-title"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="poll-description">Aprašymas (neprivaloma)</Label>
-                <Textarea
-                  id="poll-description"
-                  rows={3}
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Atsakymo variantai</Label>
-                <div className="space-y-2">
-                  {formData.options.map((option, index) => (
-                    <div key={index} className="flex gap-2">
-                      <Input
-                        placeholder={`Variantas ${index + 1}`}
-                        value={option}
-                        onChange={(e) => updateOption(index, e.target.value)}
-                        required
-                      />
-                      {formData.options.length > 2 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeOption(index)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                {formData.options.length < 6 && (
-                  <Button type="button" variant="outline" size="sm" onClick={addOption}>
-                    <Plus className="h-4 w-4" />
-                    Pridėti variantą
-                  </Button>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="poll-ends">Pabaigos data (neprivaloma)</Label>
-                <Input
-                  id="poll-ends"
-                  type="date"
-                  value={formData.ends_at}
-                  onChange={(e) => setFormData({ ...formData, ends_at: e.target.value })}
-                />
-              </div>
-              
-              {/* Recipient Selector */}
-              <RecipientSelector
-                selectedResidentIds={selectedRecipients}
-                onSelectionChange={setSelectedRecipients}
-              />
+            )}
 
-              <div className="flex items-center justify-between">
-                <Label htmlFor="poll-active">Aktyvuoti iš karto</Label>
-                <Switch
-                  id="poll-active"
-                  checked={formData.active}
-                  onCheckedChange={(checked) => setFormData({ ...formData, active: checked })}
+            {/* Step 2: Poll form (for poll_only) */}
+            {publishType === "poll_only" && (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="poll-type">Balsavimo tipas</Label>
+                  <Select
+                    value={formData.poll_type}
+                    onValueChange={(value: PollType) => setFormData({ ...formData, poll_type: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pasirinkite tipą" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {POLL_TYPES.map((type) => (
+                        <SelectItem key={type.value} value={type.value}>
+                          {type.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="poll-title">Pavadinimas</Label>
+                  <Input
+                    id="poll-title"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="poll-description">Aprašymas (neprivaloma)</Label>
+                  <Textarea
+                    id="poll-description"
+                    rows={3}
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Atsakymo variantai</Label>
+                  <div className="space-y-2">
+                    {formData.options.map((option, index) => (
+                      <div key={index} className="flex gap-2">
+                        <Input
+                          placeholder={`Variantas ${index + 1}`}
+                          value={option}
+                          onChange={(e) => updateOption(index, e.target.value)}
+                          required
+                        />
+                        {formData.options.length > 2 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeOption(index)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {formData.options.length < 6 && (
+                    <Button type="button" variant="outline" size="sm" onClick={addOption}>
+                      <Plus className="h-4 w-4" />
+                      Pridėti variantą
+                    </Button>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="poll-ends">Pabaigos data (neprivaloma)</Label>
+                  <Input
+                    id="poll-ends"
+                    type="date"
+                    value={formData.ends_at}
+                    onChange={(e) => setFormData({ ...formData, ends_at: e.target.value })}
+                  />
+                </div>
+                
+                {/* Recipient Selector */}
+                <RecipientSelector
+                  selectedResidentIds={selectedRecipients}
+                  onSelectionChange={setSelectedRecipients}
                 />
+
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="poll-active">Aktyvuoti iš karto</Label>
+                  <Switch
+                    id="poll-active"
+                    checked={formData.active}
+                    onCheckedChange={(checked) => setFormData({ ...formData, active: checked })}
+                  />
+                </div>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setPublishType(null)} disabled={submitting}>
+                    Atgal
+                  </Button>
+                  <Button type="submit" disabled={submitting}>
+                    {submitting ? "Kuriama..." : "Sukurti"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            )}
+
+            {/* Step 2: Meeting form (for meeting_only) */}
+            {publishType === "meeting_only" && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="meeting-date">Susirinkimo data</Label>
+                  <Input
+                    id="meeting-date"
+                    type="datetime-local"
+                    value={meetingData.date}
+                    onChange={(e) => setMeetingData({ ...meetingData, date: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="meeting-location">Susirinkimo vieta</Label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="meeting-location"
+                      className="pl-10"
+                      placeholder="Pvz.: Bendrijos salė, Gatvės g. 1"
+                      value={meetingData.location}
+                      onChange={(e) => setMeetingData({ ...meetingData, location: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Susirinkimo temos ir klausimai</Label>
+                  <div className="space-y-2">
+                    {meetingData.topics.map((topic, index) => (
+                      <div key={index} className="flex gap-2">
+                        <Input
+                          placeholder={`Tema/klausimas ${index + 1}`}
+                          value={topic}
+                          onChange={(e) => updateMeetingTopic(index, e.target.value)}
+                        />
+                        {meetingData.topics.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeMeetingTopic(index)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={addMeetingTopic}>
+                    <Plus className="h-4 w-4" />
+                    Pridėti papildomą temą/klausimą
+                  </Button>
+                </div>
+
+                {/* Recipient Selector */}
+                <RecipientSelector
+                  selectedResidentIds={selectedRecipients}
+                  onSelectionChange={setSelectedRecipients}
+                />
+
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setPublishType(null)}>
+                    Atgal
+                  </Button>
+                  <Button 
+                    type="button" 
+                    onClick={() => {
+                      toast.info("Susirinkimų funkcionalumas bus įgyvendintas netrukus");
+                    }}
+                  >
+                    Sukurti susirinkimą
+                  </Button>
+                </DialogFooter>
               </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={submitting}>
-                  Atšaukti
-                </Button>
-                <Button type="submit" disabled={submitting}>
-                  {submitting ? "Kuriama..." : "Sukurti"}
-                </Button>
-              </DialogFooter>
-            </form>
+            )}
+
+            {/* Step 2: Meeting + Poll form (for meeting_and_poll) - placeholder */}
+            {publishType === "meeting_and_poll" && (
+              <div className="space-y-4">
+                <p className="text-muted-foreground text-center py-8">
+                  Šis funkcionalumas bus įgyvendintas netrukus.
+                </p>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setPublishType(null)}>
+                    Atgal
+                  </Button>
+                </DialogFooter>
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       </div>
