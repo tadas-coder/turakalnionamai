@@ -198,7 +198,7 @@ export default function Documents() {
   const filteredDocuments = documents.filter((doc) => {
     const matchesCategory = selectedCategory === "all" || doc.category === selectedCategory;
     const matchesSearch = doc.title.toLowerCase().includes(searchQuery.toLowerCase());
-    // Non-admins can only see visible documents (signed protocols)
+    // Admins can see all documents, non-admins can only see visible (signed) documents
     const canView = isAdmin || doc.visible;
     return matchesCategory && matchesSearch && canView;
   });
