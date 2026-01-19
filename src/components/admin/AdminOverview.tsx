@@ -232,7 +232,6 @@ export function AdminOverview({ onTabChange }: AdminOverviewProps) {
             <ClipboardList className="h-5 w-5 text-primary" />
             <div>
               <CardTitle className="text-lg">Mano užduotys</CardTitle>
-              <CardDescription>Užduotys, kurias reikia atlikti</CardDescription>
             </div>
           </div>
           <Badge 
