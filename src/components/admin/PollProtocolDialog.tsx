@@ -42,7 +42,8 @@ import {
   FileDown,
   Printer,
   Edit,
-  RotateCcw
+  RotateCcw,
+  UploadCloud
 } from "lucide-react";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Table, TableRow, TableCell, WidthType, BorderStyle } from "docx";
 import { saveAs } from "file-saver";
@@ -524,6 +525,64 @@ export function PollProtocolDialog({
     return await Packer.toBlob(doc);
   };
 
+  const uploadProtocolToDocuments = async (userId: string) => {
+    if (!protocol) throw new Error("Nėra protokolo duomenų");
+
+    console.log("Starting Word document generation...");
+    const docBlob = await generateWordDocument();
+    console.log("Word document generated, size:", docBlob.size);
+
+    const protocolDate = format(new Date(protocol.protocol_date), "yyyy-MM-dd");
+    const fileName = `Protokolas_${protocolDate}_${pollTitle.replace(/[^a-zA-Z0-9ąčęėįšųūžĄČĘĖĮŠŲŪŽ]/g, "_")}.docx`;
+    const contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+    const fileToUpload = new File([docBlob], fileName, { type: contentType });
+    const storagePath = `protocols/${protocol.id}/${fileName}`;
+
+    console.log("Uploading to storage:", storagePath);
+    const { error: uploadError } = await supabase.storage
+      .from("documents")
+      .upload(storagePath, fileToUpload, { contentType, upsert: true });
+
+    if (uploadError) {
+      console.error("Storage upload error:", uploadError);
+      throw uploadError;
+    }
+
+    const { data: urlData } = supabase.storage.from("documents").getPublicUrl(storagePath);
+
+    const basePayload = {
+      title: `Balsavimo protokolas - ${pollTitle}`,
+      description: `Protokolo data: ${format(new Date(protocol.protocol_date), "yyyy-MM-dd")}. Laukiama el. parašo.`,
+      file_name: fileName,
+      file_url: urlData.publicUrl,
+      file_size: docBlob.size,
+      category: "protokolai",
+      uploaded_by: userId,
+      visible: false,
+      signed: false,
+    };
+
+    // Avoid duplicates: update existing row if same file_url already exists
+    const { data: existing, error: existingError } = await supabase
+      .from("documents")
+      .select("id")
+      .eq("file_url", urlData.publicUrl)
+      .maybeSingle();
+
+    if (existingError) {
+      console.warn("Could not check existing document:", existingError);
+    }
+
+    if (existing?.id) {
+      const { error: updateError } = await supabase.from("documents").update(basePayload).eq("id", existing.id);
+      if (updateError) throw updateError;
+    } else {
+      const { error: insertError } = await supabase.from("documents").insert(basePayload);
+      if (insertError) throw insertError;
+    }
+  };
+
   const approveProtocol = async () => {
     if (!protocol) return;
     
@@ -554,59 +613,11 @@ export function PollProtocolDialog({
         throw updateError;
       }
 
-      // Try to generate and upload Word document (non-critical)
+      // Try to generate/upload and create a Documents entry (non-critical)
       try {
-        console.log("Starting Word document generation...");
-        const docBlob = await generateWordDocument();
-        console.log("Word document generated, size:", docBlob.size);
-        
-        const protocolDate = format(new Date(protocol.protocol_date), "yyyy-MM-dd");
-        const fileName = `Protokolas_${protocolDate}_${pollTitle.replace(/[^a-zA-Z0-9ąčęėįšųūžĄČĘĖĮŠŲŪŽ]/g, "_")}.docx`;
-        
-        // Upload to storage
-        console.log("Uploading to storage:", `protocols/${protocol.id}/${fileName}`);
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from("documents")
-          .upload(`protocols/${protocol.id}/${fileName}`, docBlob, {
-            contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            upsert: true,
-          });
-
-        if (uploadError) {
-          console.error("Storage upload error:", uploadError);
-        } else {
-          console.log("Upload successful:", uploadData);
-          // Get public URL
-          const { data: urlData } = supabase.storage
-            .from("documents")
-            .getPublicUrl(`protocols/${protocol.id}/${fileName}`);
-
-          console.log("Public URL:", urlData.publicUrl);
-
-          // Create document entry - visible only to admins until signed
-          const { data: docData, error: docInsertError } = await supabase
-            .from("documents")
-            .insert({
-              title: `Balsavimo protokolas - ${pollTitle}`,
-              description: `Protokolo data: ${format(new Date(protocol.protocol_date), "yyyy-MM-dd")}. Laukiama el. parašo.`,
-              file_name: fileName,
-              file_url: urlData.publicUrl,
-              file_size: docBlob.size,
-              category: "protokolai",
-              uploaded_by: user.id,
-              visible: false, // Only visible to admins until signed
-              signed: false,
-            })
-            .select();
-
-          if (docInsertError) {
-            console.error("Document insert error:", docInsertError);
-          } else {
-            console.log("Document created successfully:", docData);
-          }
-        }
+        await uploadProtocolToDocuments(user.id);
       } catch (docError) {
-        console.error("Could not generate/upload Word document:", docError);
+        console.error("Could not generate/upload protocol into Documents:", docError);
         // Continue - protocol is already approved
       }
 
@@ -617,6 +628,26 @@ export function PollProtocolDialog({
     } catch (error) {
       console.error("Error approving protocol:", error);
       toast.error("Nepavyko patvirtinti protokolo");
+    } finally {
+      setSaving(false);
+    }
+  };
+  const syncApprovedProtocolToDocuments = async () => {
+    if (!protocol) return;
+
+    setSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Turite būti prisijungęs");
+        return;
+      }
+
+      await uploadProtocolToDocuments(user.id);
+      toast.success("Protokolas įkeltas į Dokumentus");
+    } catch (error) {
+      console.error("Error syncing protocol into Documents:", error);
+      toast.error("Nepavyko įkelti protokolo į Dokumentus");
     } finally {
       setSaving(false);
     }
@@ -1105,6 +1136,10 @@ export function PollProtocolDialog({
       </div>
 
       <div className="flex justify-center gap-3 flex-wrap">
+        <Button onClick={syncApprovedProtocolToDocuments} disabled={saving}>
+          <UploadCloud className="h-4 w-4 mr-2" />
+          Įkelti į Dokumentus
+        </Button>
         <Button variant="outline" onClick={exportToPdf}>
           <Printer className="h-4 w-4 mr-2" />
           Spausdinti / PDF
