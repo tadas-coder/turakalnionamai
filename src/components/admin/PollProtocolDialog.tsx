@@ -633,21 +633,33 @@ export function PollProtocolDialog({
     }
   };
   const syncApprovedProtocolToDocuments = async () => {
-    if (!protocol) return;
+    if (!protocol) {
+      toast.error("Nėra protokolo duomenų");
+      return;
+    }
 
     setSaving(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError) {
+        console.error("Auth error:", authError);
+        toast.error("Autentifikacijos klaida: " + authError.message);
+        return;
+      }
+      
       if (!user) {
-        toast.error("Turite būti prisijungęs");
+        toast.error("Turite būti prisijungęs, kad galėtumėte įkelti protokolą");
         return;
       }
 
+      console.log("Starting sync for protocol:", protocol.id);
       await uploadProtocolToDocuments(user.id);
-      toast.success("Protokolas įkeltas į Dokumentus");
-    } catch (error) {
+      toast.success("Protokolas sėkmingai įkeltas į Dokumentus");
+    } catch (error: any) {
       console.error("Error syncing protocol into Documents:", error);
-      toast.error("Nepavyko įkelti protokolo į Dokumentus");
+      const errorMessage = error?.message || error?.error_description || "Nežinoma klaida";
+      toast.error("Nepavyko įkelti: " + errorMessage);
     } finally {
       setSaving(false);
     }
