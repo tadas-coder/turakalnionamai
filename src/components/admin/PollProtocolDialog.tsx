@@ -533,7 +533,21 @@ export function PollProtocolDialog({
     console.log("Word document generated, size:", docBlob.size);
 
     const protocolDate = format(new Date(protocol.protocol_date), "yyyy-MM-dd");
-    const fileName = `Protokolas_${protocolDate}_${pollTitle.replace(/[^a-zA-Z0-9ąčęėįšųūžĄČĘĖĮŠŲŪŽ]/g, "_")}.docx`;
+    
+    // Sanitize filename for storage - replace Lithuanian characters and special chars
+    const sanitizedTitle = pollTitle
+      .replace(/ą/g, "a").replace(/Ą/g, "A")
+      .replace(/č/g, "c").replace(/Č/g, "C")
+      .replace(/ę/g, "e").replace(/Ę/g, "E")
+      .replace(/ė/g, "e").replace(/Ė/g, "E")
+      .replace(/į/g, "i").replace(/Į/g, "I")
+      .replace(/š/g, "s").replace(/Š/g, "S")
+      .replace(/ų/g, "u").replace(/Ų/g, "U")
+      .replace(/ū/g, "u").replace(/Ū/g, "U")
+      .replace(/ž/g, "z").replace(/Ž/g, "Z")
+      .replace(/[^a-zA-Z0-9]/g, "_");
+    
+    const fileName = `Protokolas_${protocolDate}_${sanitizedTitle}.docx`;
     const contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
     const fileToUpload = new File([docBlob], fileName, { type: contentType });
