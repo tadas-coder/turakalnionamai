@@ -576,18 +576,19 @@ export function PollProtocolDialog({
             .from("documents")
             .getPublicUrl(`protocols/${protocol.id}/${fileName}`);
 
-          // Create document entry (optional - don't fail if this doesn't work)
+          // Create document entry - visible only to admins until signed
           await supabase
             .from("documents")
             .insert({
               title: `Balsavimo protokolas - ${pollTitle}`,
-              description: `Protokolo data: ${format(new Date(protocol.protocol_date), "yyyy-MM-dd")}`,
+              description: `Protokolo data: ${format(new Date(protocol.protocol_date), "yyyy-MM-dd")}. Laukiama el. parašo.`,
               file_name: fileName,
               file_url: urlData.publicUrl,
               file_size: docBlob.size,
-              category: "Protokolai",
+              category: "protokolai",
               uploaded_by: user.id,
-              visible: true,
+              visible: false, // Only visible to admins until signed
+              signed: false,
             });
         }
       } catch (docError) {

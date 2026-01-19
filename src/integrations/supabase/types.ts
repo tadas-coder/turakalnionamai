@@ -23,6 +23,9 @@ export type Database = {
           file_size: number | null
           file_url: string
           id: string
+          signed: boolean
+          signed_at: string | null
+          signed_by: string | null
           title: string
           updated_at: string
           uploaded_by: string | null
@@ -36,6 +39,9 @@ export type Database = {
           file_size?: number | null
           file_url: string
           id?: string
+          signed?: boolean
+          signed_at?: string | null
+          signed_by?: string | null
           title: string
           updated_at?: string
           uploaded_by?: string | null
@@ -49,6 +55,9 @@ export type Database = {
           file_size?: number | null
           file_url?: string
           id?: string
+          signed?: boolean
+          signed_at?: string | null
+          signed_by?: string | null
           title?: string
           updated_at?: string
           uploaded_by?: string | null

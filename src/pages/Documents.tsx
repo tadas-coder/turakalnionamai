@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { FileText, Upload, Download, Eye, EyeOff, Trash2, Plus, FolderOpen, Filter, Search } from "lucide-react";
+import { FileText, Upload, Download, Eye, EyeOff, Trash2, Plus, FolderOpen, Filter, Search, CheckCircle, Pen, ExternalLink } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -34,6 +34,9 @@ type Document = {
   file_name: string;
   file_size: number | null;
   visible: boolean;
+  signed: boolean;
+  signed_at: string | null;
+  signed_by: string | null;
   created_at: string;
 };
 
@@ -148,6 +151,29 @@ export default function Documents() {
     },
   });
 
+  const markAsSignedMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("documents")
+        .update({ 
+          signed: true, 
+          signed_at: new Date().toISOString(),
+          signed_by: user?.id,
+          visible: true, // Make visible to all users after signing
+          description: null, // Remove "waiting for signature" description
+        })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      toast({ title: "Dokumentas pažymėtas kaip pasirašytas ir dabar matomas visiems" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Klaida", description: error.message, variant: "destructive" });
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("documents").delete().eq("id", id);
@@ -172,7 +198,9 @@ export default function Documents() {
   const filteredDocuments = documents.filter((doc) => {
     const matchesCategory = selectedCategory === "all" || doc.category === selectedCategory;
     const matchesSearch = doc.title.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
+    // Non-admins can only see visible documents (signed protocols)
+    const canView = isAdmin || doc.visible;
+    return matchesCategory && matchesSearch && canView;
   });
 
   const getCategoryLabel = (value: string) => {
@@ -325,14 +353,28 @@ export default function Documents() {
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
+                          {doc.signed && (
+                            <CheckCircle className="h-5 w-5 text-green-500 shrink-0" />
+                          )}
                           <h3 className="font-semibold text-foreground">{doc.title}</h3>
                           <Badge variant="secondary" className="text-xs">
                             {getCategoryLabel(doc.category)}
                           </Badge>
+                          {doc.signed && (
+                            <Badge variant="default" className="text-xs bg-green-500 hover:bg-green-600">
+                              Pasirašytas
+                            </Badge>
+                          )}
                           {!doc.visible && (
                             <Badge variant="outline" className="text-xs">
                               <EyeOff className="h-3 w-3 mr-1" />
-                              Paslėpta
+                              Tik administratoriams
+                            </Badge>
+                          )}
+                          {!doc.signed && doc.category === "protokolai" && isAdmin && (
+                            <Badge variant="destructive" className="text-xs">
+                              <Pen className="h-3 w-3 mr-1" />
+                              Laukia parašo
                             </Badge>
                           )}
                         </div>
@@ -347,7 +389,7 @@ export default function Documents() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0 flex-wrap">
                       <Button
                         variant="outline"
                         size="sm"
@@ -359,6 +401,35 @@ export default function Documents() {
                           Atsisiųsti
                         </a>
                       </Button>
+
+                      {isAdmin && !doc.signed && doc.category === "protokolai" && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            asChild
+                            className="gap-2"
+                          >
+                            <a href="https://www.gosign.lt" target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="h-4 w-4" />
+                              Pasirašyti gosign.lt
+                            </a>
+                          </Button>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="gap-2 bg-green-600 hover:bg-green-700"
+                            onClick={() => {
+                              if (confirm("Ar tikrai pasirašėte šį dokumentą per gosign.lt? Pažymėjus dokumentą kaip pasirašytą, jis taps matomas visiems vartotojams.")) {
+                                markAsSignedMutation.mutate(doc.id);
+                              }
+                            }}
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                            Pažymėti pasirašytu
+                          </Button>
+                        </>
+                      )}
 
                       {isAdmin && (
                         <>
