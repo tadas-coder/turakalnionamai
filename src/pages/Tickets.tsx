@@ -504,149 +504,24 @@ export default function Tickets() {
                 </p>
               </div>
 
-              {/* Send Message Form */}
+              {/* Temporarily Disabled Message */}
               <Card className="card-elevated">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Send className="h-5 w-5" />
                     Pranešimo forma
                   </CardTitle>
-                  <CardDescription>
-                    Užpildykite formą ir pasirinkite gavėjus
-                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <form onSubmit={handleSendNotification} className="space-y-6">
-                    {/* Subject */}
-                    <div className="space-y-2">
-                      <Label htmlFor="subject">Tema</Label>
-                      <Input
-                        id="subject"
-                        placeholder="Pranešimo tema..."
-                        value={formData.subject}
-                        onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                        required
-                      />
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <div className="rounded-full bg-muted p-4 mb-4">
+                      <AlertTriangle className="h-8 w-8 text-muted-foreground" />
                     </div>
-                    
-                    {/* Message */}
-                    <div className="space-y-2">
-                      <Label htmlFor="message">Pranešimas</Label>
-                      <Textarea
-                        id="message"
-                        rows={8}
-                        placeholder="Įveskite pranešimo tekstą..."
-                        value={formData.message}
-                        onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                        required
-                      />
-                    </div>
-                    
-                    {/* Photos */}
-                    <div className="space-y-2">
-                      <Label>Nuotraukos (neprivaloma)</Label>
-                      <div className="flex flex-wrap gap-2 items-center">
-                        <label className="cursor-pointer">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            onChange={handlePhotoUpload}
-                            className="hidden"
-                          />
-                          <Button type="button" variant="outline" size="sm" asChild>
-                            <span>
-                              <ImagePlus className="h-4 w-4 mr-2" />
-                              Pridėti nuotrauką
-                            </span>
-                          </Button>
-                        </label>
-                        
-                        {photos.map((photo, index) => (
-                          <div
-                            key={index}
-                            className="flex items-center gap-2 px-3 py-1 bg-muted rounded-md text-sm"
-                          >
-                            <span className="truncate max-w-[150px]">{photo.name}</span>
-                            <button
-                              type="button"
-                              onClick={() => removePhoto(index)}
-                              className="text-muted-foreground hover:text-destructive"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    
-                    {/* Documents */}
-                    <div className="space-y-2">
-                      <Label>Dokumentai (neprivaloma)</Label>
-                      <div className="flex flex-wrap gap-2 items-center">
-                        <label className="cursor-pointer">
-                          <input
-                            type="file"
-                            multiple
-                            onChange={handleDocumentUpload}
-                            className="hidden"
-                          />
-                          <Button type="button" variant="outline" size="sm" asChild>
-                            <span>
-                              <FileUp className="h-4 w-4 mr-2" />
-                              Pridėti dokumentą
-                            </span>
-                          </Button>
-                        </label>
-                        
-                        {documents.map((doc, index) => (
-                          <div
-                            key={index}
-                            className="flex items-center gap-2 px-3 py-1 bg-muted rounded-md text-sm"
-                          >
-                            <span className="truncate max-w-[150px]">{doc.name}</span>
-                            <button
-                              type="button"
-                              onClick={() => removeDocument(index)}
-                              className="text-muted-foreground hover:text-destructive"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    
-                    {/* Recipients */}
-                    <div className="space-y-2">
-                      <Label>Gavėjai</Label>
-                      <RecipientSelector
-                        selectedResidentIds={selectedRecipients}
-                        onSelectionChange={setSelectedRecipients}
-                      />
-                    </div>
-                    
-                    {/* Submit */}
-                    <div className="flex justify-end pt-4 border-t">
-                      <Button
-                        type="submit"
-                        disabled={sendingNotification || selectedRecipients.length === 0}
-                        size="lg"
-                      >
-                        {sendingNotification ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Siunčiama...
-                          </>
-                        ) : (
-                          <>
-                            <Send className="h-4 w-4 mr-2" />
-                            Siųsti pranešimą ({selectedRecipients.length})
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </form>
+                    <h3 className="text-lg font-semibold mb-2">Pranešimų siuntimas laikinai išjungtas</h3>
+                    <p className="text-muted-foreground max-w-md">
+                      Šiuo metu atliekami sistemos atnaujinimai. Pranešimų siuntimo funkcionalumas bus grąžintas artimiausiu metu.
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -780,136 +655,27 @@ export default function Tickets() {
               </p>
             </div>
 
-            {/* Problem Report Form */}
+            {/* Temporarily Disabled Message */}
             <Card className="card-elevated">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <AlertTriangle className="h-5 w-5" />
                   Problemos registravimas
                 </CardTitle>
-                <CardDescription>
-                  Aprašykite problemą ir ji bus perduota administratoriui
-                </CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSubmitProblem} className="space-y-6">
-                  {/* Title */}
-                  <div className="space-y-2">
-                    <Label htmlFor="problem-title">Problemos pavadinimas *</Label>
-                    <Input
-                      id="problem-title"
-                      placeholder="Pvz.: Neveikia liftas"
-                      value={problemForm.title}
-                      onChange={(e) => setProblemForm({ ...problemForm, title: e.target.value })}
-                      required
-                    />
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="rounded-full bg-muted p-4 mb-4">
+                    <AlertTriangle className="h-8 w-8 text-muted-foreground" />
                   </div>
-                  
-                  {/* Category */}
-                  <div className="space-y-2">
-                    <Label>Kategorija</Label>
-                    <Select
-                      value={problemForm.category}
-                      onValueChange={(value) => setProblemForm({ ...problemForm, category: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CATEGORIES.map((cat) => (
-                          <SelectItem key={cat.value} value={cat.value}>
-                            {cat.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  {/* Location */}
-                  <div className="space-y-2">
-                    <Label htmlFor="problem-location">Vieta (neprivaloma)</Label>
-                    <Input
-                      id="problem-location"
-                      placeholder="Pvz.: 3 aukštas, laiptinė A"
-                      value={problemForm.location}
-                      onChange={(e) => setProblemForm({ ...problemForm, location: e.target.value })}
-                    />
-                  </div>
-                  
-                  {/* Description */}
-                  <div className="space-y-2">
-                    <Label htmlFor="problem-description">Aprašymas *</Label>
-                    <Textarea
-                      id="problem-description"
-                      rows={5}
-                      placeholder="Detaliai aprašykite problemą..."
-                      value={problemForm.description}
-                      onChange={(e) => setProblemForm({ ...problemForm, description: e.target.value })}
-                      required
-                    />
-                  </div>
-                  
-                  {/* Photos */}
-                  <div className="space-y-2">
-                    <Label>Nuotraukos (neprivaloma)</Label>
-                    <div className="flex flex-wrap gap-2 items-center">
-                      <label className="cursor-pointer">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          onChange={handleProblemPhotoUpload}
-                          className="hidden"
-                        />
-                        <Button type="button" variant="outline" size="sm" asChild>
-                          <span>
-                            <ImagePlus className="h-4 w-4 mr-2" />
-                            Pridėti nuotrauką
-                          </span>
-                        </Button>
-                      </label>
-                      
-                      {problemPhotos.map((photo, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center gap-2 px-3 py-1 bg-muted rounded-md text-sm"
-                        >
-                          <span className="truncate max-w-[150px]">{photo.name}</span>
-                          <button
-                            type="button"
-                            onClick={() => removeProblemPhoto(index)}
-                            className="text-muted-foreground hover:text-destructive"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  {/* Submit */}
-                  <div className="flex justify-end pt-4 border-t">
-                    <Button
-                      type="submit"
-                      disabled={submittingProblem}
-                      size="lg"
-                    >
-                      {submittingProblem ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Siunčiama...
-                        </>
-                      ) : (
-                        <>
-                          <Send className="h-4 w-4 mr-2" />
-                          Pranešti apie problemą
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </form>
+                  <h3 className="text-lg font-semibold mb-2">Pranešimų siuntimas laikinai išjungtas</h3>
+                  <p className="text-muted-foreground max-w-md">
+                    Šiuo metu atliekami sistemos atnaujinimai. Problemų registravimo funkcionalumas bus grąžintas artimiausiu metu.
+                  </p>
+                </div>
               </CardContent>
             </Card>
+
 
             {/* My Problems History */}
             <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
