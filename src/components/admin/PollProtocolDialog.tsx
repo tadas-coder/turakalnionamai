@@ -556,12 +556,16 @@ export function PollProtocolDialog({
 
       // Try to generate and upload Word document (non-critical)
       try {
+        console.log("Starting Word document generation...");
         const docBlob = await generateWordDocument();
+        console.log("Word document generated, size:", docBlob.size);
+        
         const protocolDate = format(new Date(protocol.protocol_date), "yyyy-MM-dd");
         const fileName = `Protokolas_${protocolDate}_${pollTitle.replace(/[^a-zA-Z0-9ąčęėįšųūžĄČĘĖĮŠŲŪŽ]/g, "_")}.docx`;
         
         // Upload to storage
-        const { error: uploadError } = await supabase.storage
+        console.log("Uploading to storage:", `protocols/${protocol.id}/${fileName}`);
+        const { data: uploadData, error: uploadError } = await supabase.storage
           .from("documents")
           .upload(`protocols/${protocol.id}/${fileName}`, docBlob, {
             contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -569,15 +573,18 @@ export function PollProtocolDialog({
           });
 
         if (uploadError) {
-          console.warn("Could not upload document to storage:", uploadError);
+          console.error("Storage upload error:", uploadError);
         } else {
+          console.log("Upload successful:", uploadData);
           // Get public URL
           const { data: urlData } = supabase.storage
             .from("documents")
             .getPublicUrl(`protocols/${protocol.id}/${fileName}`);
 
+          console.log("Public URL:", urlData.publicUrl);
+
           // Create document entry - visible only to admins until signed
-          await supabase
+          const { data: docData, error: docInsertError } = await supabase
             .from("documents")
             .insert({
               title: `Balsavimo protokolas - ${pollTitle}`,
@@ -589,10 +596,17 @@ export function PollProtocolDialog({
               uploaded_by: user.id,
               visible: false, // Only visible to admins until signed
               signed: false,
-            });
+            })
+            .select();
+
+          if (docInsertError) {
+            console.error("Document insert error:", docInsertError);
+          } else {
+            console.log("Document created successfully:", docData);
+          }
         }
       } catch (docError) {
-        console.warn("Could not generate/upload Word document:", docError);
+        console.error("Could not generate/upload Word document:", docError);
         // Continue - protocol is already approved
       }
 
