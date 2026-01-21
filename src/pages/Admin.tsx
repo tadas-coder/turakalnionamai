@@ -4,7 +4,7 @@ import { Layout } from "@/components/layout/Layout";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { ClipboardCheck, Send, Vote, Users, LayoutDashboard, ClipboardList, CalendarDays, FileSpreadsheet, Building2, Receipt } from "lucide-react";
+import { ClipboardCheck, Send, Vote, Users, LayoutDashboard, ClipboardList, CalendarDays, FileSpreadsheet, Building2, Receipt, Calculator } from "lucide-react";
 import { AdminTickets } from "@/components/admin/AdminTickets";
 import { AdminNews } from "@/components/admin/AdminNews";
 import { AdminPolls } from "@/components/admin/AdminPolls";
@@ -15,6 +15,7 @@ import { AdminReports } from "@/components/admin/AdminReports";
 import { AdminSchedules } from "@/components/admin/AdminSchedules";
 import { AdminMonthlyReports } from "@/components/admin/AdminMonthlyReports";
 import AdminPaymentSlips from "@/components/admin/AdminPaymentSlips";
+import { AdminAccounting } from "@/components/admin/AdminAccounting";
 import { toast } from "sonner";
 
 export default function Admin() {
@@ -133,6 +134,10 @@ export default function Admin() {
                 <Receipt className="h-4 w-4" />
                 <span className="hidden sm:inline font-medium">Lapeliai</span>
               </TabsTrigger>
+              <TabsTrigger value="accounting" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-3 py-2">
+                <Calculator className="h-4 w-4" />
+                <span className="hidden sm:inline font-medium">Apskaita</span>
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="animate-fade-in">
@@ -173,6 +178,10 @@ export default function Admin() {
 
             <TabsContent value="payment-slips" className="animate-fade-in">
               <AdminPaymentSlips />
+            </TabsContent>
+
+            <TabsContent value="accounting" className="animate-fade-in">
+              <AdminAccounting />
             </TabsContent>
           </Tabs>
         </div>
