@@ -391,7 +391,7 @@ export function AdminCostCategories() {
                 <div className="grid gap-2">
                   <Label htmlFor="parent_id">Tėvinė kategorija</Label>
                   <Select
-                    value={formData.parent_id}
+                    value={formData.parent_id || "none"}
                     onValueChange={(value) => setFormData({ ...formData, parent_id: value === "none" ? "" : value })}
                   >
                     <SelectTrigger>

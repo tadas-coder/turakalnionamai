@@ -386,14 +386,14 @@ export function AdminAssets() {
                 <div>
                   <Label htmlFor="parent-group">Tėvinė grupė</Label>
                   <Select
-                    value={groupFormData.parent_group_id}
-                    onValueChange={(value) => setGroupFormData({ ...groupFormData, parent_group_id: value })}
+                    value={groupFormData.parent_group_id || "none"}
+                    onValueChange={(value) => setGroupFormData({ ...groupFormData, parent_group_id: value === "none" ? "" : value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Pasirinkite grupę" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Jokia</SelectItem>
+                      <SelectItem value="none">Jokia</SelectItem>
                       {assetGroups.map((group) => (
                         <SelectItem key={group.id} value={group.id}>
                           {group.name}
@@ -472,14 +472,14 @@ export function AdminAssets() {
                   <div>
                     <Label htmlFor="asset_group">Grupė</Label>
                     <Select
-                      value={formData.asset_group_id}
-                      onValueChange={(value) => setFormData({ ...formData, asset_group_id: value })}
+                      value={formData.asset_group_id || "none"}
+                      onValueChange={(value) => setFormData({ ...formData, asset_group_id: value === "none" ? "" : value })}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Pasirinkite grupę" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Jokia</SelectItem>
+                        <SelectItem value="none">Jokia</SelectItem>
                         {assetGroups.map((group) => (
                           <SelectItem key={group.id} value={group.id}>
                             {group.name}
