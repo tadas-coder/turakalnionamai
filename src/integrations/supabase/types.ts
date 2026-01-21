@@ -14,6 +14,336 @@ export type Database = {
   }
   public: {
     Tables: {
+      accounting_files: {
+        Row: {
+          created_at: string
+          description: string | null
+          file_group_id: string | null
+          file_name: string
+          file_size: number | null
+          file_type: string | null
+          file_url: string
+          id: string
+          related_asset_id: string | null
+          related_invoice_id: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          file_group_id?: string | null
+          file_name: string
+          file_size?: number | null
+          file_type?: string | null
+          file_url: string
+          id?: string
+          related_asset_id?: string | null
+          related_invoice_id?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          file_group_id?: string | null
+          file_name?: string
+          file_size?: number | null
+          file_type?: string | null
+          file_url?: string
+          id?: string
+          related_asset_id?: string | null
+          related_invoice_id?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_files_file_group_id_fkey"
+            columns: ["file_group_id"]
+            isOneToOne: false
+            referencedRelation: "file_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_files_related_asset_id_fkey"
+            columns: ["related_asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_files_related_invoice_id_fkey"
+            columns: ["related_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounting_tasks: {
+        Row: {
+          assigned_to: string | null
+          cost: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          invoice: string | null
+          priority: string | null
+          related_asset_id: string | null
+          related_invoice_id: string | null
+          short_description: string | null
+          status: string | null
+          task_type: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          cost?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          invoice?: string | null
+          priority?: string | null
+          related_asset_id?: string | null
+          related_invoice_id?: string | null
+          short_description?: string | null
+          status?: string | null
+          task_type: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          cost?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          invoice?: string | null
+          priority?: string | null
+          related_asset_id?: string | null
+          related_invoice_id?: string | null
+          short_description?: string | null
+          status?: string | null
+          task_type?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_tasks_related_asset_id_fkey"
+            columns: ["related_asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_tasks_related_invoice_id_fkey"
+            columns: ["related_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      asset_groups: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          name2: string | null
+          parent_group_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          name2?: string | null
+          parent_group_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          name2?: string | null
+          parent_group_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_groups_parent_group_id_fkey"
+            columns: ["parent_group_id"]
+            isOneToOne: false
+            referencedRelation: "asset_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assets: {
+        Row: {
+          asset_group_id: string | null
+          created_at: string
+          current_value: number | null
+          depreciation_rate: number | null
+          description: string | null
+          id: string
+          location: string | null
+          name: string
+          notes: string | null
+          purchase_date: string | null
+          purchase_price: number | null
+          serial_number: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          asset_group_id?: string | null
+          created_at?: string
+          current_value?: number | null
+          depreciation_rate?: number | null
+          description?: string | null
+          id?: string
+          location?: string | null
+          name: string
+          notes?: string | null
+          purchase_date?: string | null
+          purchase_price?: number | null
+          serial_number?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          asset_group_id?: string | null
+          created_at?: string
+          current_value?: number | null
+          depreciation_rate?: number | null
+          description?: string | null
+          id?: string
+          location?: string | null
+          name?: string
+          notes?: string | null
+          purchase_date?: string | null
+          purchase_price?: number | null
+          serial_number?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assets_asset_group_id_fkey"
+            columns: ["asset_group_id"]
+            isOneToOne: false
+            referencedRelation: "asset_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      consumables: {
+        Row: {
+          asset_id: string | null
+          assigned_at: string | null
+          assigned_by: string | null
+          created_at: string
+          id: string
+          name: string
+          note: string | null
+          quantity: number | null
+          type: string
+          unit: string | null
+          unit_price: number | null
+          updated_at: string
+        }
+        Insert: {
+          asset_id?: string | null
+          assigned_at?: string | null
+          assigned_by?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          note?: string | null
+          quantity?: number | null
+          type: string
+          unit?: string | null
+          unit_price?: number | null
+          updated_at?: string
+        }
+        Update: {
+          asset_id?: string | null
+          assigned_at?: string | null
+          assigned_by?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          note?: string | null
+          quantity?: number | null
+          type?: string
+          unit?: string | null
+          unit_price?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consumables_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cost_categories: {
+        Row: {
+          budget_monthly: number | null
+          code: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          parent_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          budget_monthly?: number | null
+          code?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          budget_monthly?: number | null
+          code?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cost_categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "cost_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           category: string
@@ -91,6 +421,35 @@ export type Database = {
           person_phone?: string | null
         }
         Relationships: []
+      }
+      file_groups: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          parent_group_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          parent_group_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          parent_group_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "file_groups_parent_group_id_fkey"
+            columns: ["parent_group_id"]
+            isOneToOne: false
+            referencedRelation: "file_groups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       invoices: {
         Row: {
@@ -406,6 +765,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      periodic_data: {
+        Row: {
+          actual_amount: number | null
+          category: string
+          created_at: string
+          created_by: string | null
+          difference: number | null
+          id: string
+          notes: string | null
+          period_month: string
+          planned_amount: number | null
+          subcategory: string | null
+          updated_at: string
+        }
+        Insert: {
+          actual_amount?: number | null
+          category: string
+          created_at?: string
+          created_by?: string | null
+          difference?: number | null
+          id?: string
+          notes?: string | null
+          period_month: string
+          planned_amount?: number | null
+          subcategory?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actual_amount?: number | null
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          difference?: number | null
+          id?: string
+          notes?: string | null
+          period_month?: string
+          planned_amount?: number | null
+          subcategory?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       planned_works: {
         Row: {
@@ -845,6 +1246,74 @@ export type Database = {
         }
         Relationships: []
       }
+      statement_details: {
+        Row: {
+          account_member: string | null
+          assigned_service: string | null
+          assigned_to: string | null
+          cost_category_id: string | null
+          created_at: string
+          currency: string | null
+          id: string
+          main_cost_date: string | null
+          notes: string | null
+          payment_types: string | null
+          period_month: string
+          quantity: number | null
+          reference: string | null
+          statement_type: string
+          tolerance: number | null
+          unit_price: number | null
+          updated_at: string
+        }
+        Insert: {
+          account_member?: string | null
+          assigned_service?: string | null
+          assigned_to?: string | null
+          cost_category_id?: string | null
+          created_at?: string
+          currency?: string | null
+          id?: string
+          main_cost_date?: string | null
+          notes?: string | null
+          payment_types?: string | null
+          period_month: string
+          quantity?: number | null
+          reference?: string | null
+          statement_type: string
+          tolerance?: number | null
+          unit_price?: number | null
+          updated_at?: string
+        }
+        Update: {
+          account_member?: string | null
+          assigned_service?: string | null
+          assigned_to?: string | null
+          cost_category_id?: string | null
+          created_at?: string
+          currency?: string | null
+          id?: string
+          main_cost_date?: string | null
+          notes?: string | null
+          payment_types?: string | null
+          period_month?: string
+          quantity?: number | null
+          reference?: string | null
+          statement_type?: string
+          tolerance?: number | null
+          unit_price?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "statement_details_cost_category_id_fkey"
+            columns: ["cost_category_id"]
+            isOneToOne: false
+            referencedRelation: "cost_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ticket_attachments: {
         Row: {
           created_at: string
@@ -977,6 +1446,53 @@ export type Database = {
         }
         Relationships: []
       }
+      transaction_payments: {
+        Row: {
+          amount: number
+          bank_statement_date: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          invoice_id: string | null
+          payment_date: string
+          payment_method: string | null
+          reference_number: string | null
+        }
+        Insert: {
+          amount: number
+          bank_statement_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          invoice_id?: string | null
+          payment_date: string
+          payment_method?: string | null
+          reference_number?: string | null
+        }
+        Update: {
+          amount?: number
+          bank_statement_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          invoice_id?: string | null
+          payment_date?: string
+          payment_method?: string | null
+          reference_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       upload_batches: {
         Row: {
           created_at: string
@@ -1025,6 +1541,214 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      vendor_invoice_items: {
+        Row: {
+          amount: number
+          asset_id: string | null
+          cost_category_id: string | null
+          created_at: string
+          description: string
+          id: string
+          invoice_id: string | null
+          notes: string | null
+          quantity: number | null
+          unit: string | null
+          unit_price: number
+          vat_rate: number | null
+        }
+        Insert: {
+          amount: number
+          asset_id?: string | null
+          cost_category_id?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          invoice_id?: string | null
+          notes?: string | null
+          quantity?: number | null
+          unit?: string | null
+          unit_price: number
+          vat_rate?: number | null
+        }
+        Update: {
+          amount?: number
+          asset_id?: string | null
+          cost_category_id?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          invoice_id?: string | null
+          notes?: string | null
+          quantity?: number | null
+          unit?: string | null
+          unit_price?: number
+          vat_rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_invoice_items_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_invoice_items_cost_category_id_fkey"
+            columns: ["cost_category_id"]
+            isOneToOne: false
+            referencedRelation: "cost_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendor_invoices: {
+        Row: {
+          cost_category_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          due_date: string | null
+          file_name: string | null
+          file_url: string | null
+          id: string
+          invoice_date: string
+          invoice_number: string
+          paid_amount: number | null
+          period_month: string | null
+          status: string
+          subtotal: number
+          total_amount: number
+          updated_at: string
+          vat_amount: number | null
+          vendor_id: string | null
+        }
+        Insert: {
+          cost_category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          invoice_date: string
+          invoice_number: string
+          paid_amount?: number | null
+          period_month?: string | null
+          status?: string
+          subtotal?: number
+          total_amount: number
+          updated_at?: string
+          vat_amount?: number | null
+          vendor_id?: string | null
+        }
+        Update: {
+          cost_category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          invoice_date?: string
+          invoice_number?: string
+          paid_amount?: number | null
+          period_month?: string | null
+          status?: string
+          subtotal?: number
+          total_amount?: number
+          updated_at?: string
+          vat_amount?: number | null
+          vendor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_invoices_cost_category_id_fkey"
+            columns: ["cost_category_id"]
+            isOneToOne: false
+            referencedRelation: "cost_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_invoices_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendors: {
+        Row: {
+          address: string | null
+          bank_account: string | null
+          bank_name: string | null
+          category: string | null
+          city: string | null
+          company_code: string | null
+          contact_person: string | null
+          country: string | null
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          notes: string | null
+          phone: string | null
+          postal_code: string | null
+          updated_at: string
+          vat_code: string | null
+        }
+        Insert: {
+          address?: string | null
+          bank_account?: string | null
+          bank_name?: string | null
+          category?: string | null
+          city?: string | null
+          company_code?: string | null
+          contact_person?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          updated_at?: string
+          vat_code?: string | null
+        }
+        Update: {
+          address?: string | null
+          bank_account?: string | null
+          bank_name?: string | null
+          category?: string | null
+          city?: string | null
+          company_code?: string | null
+          contact_person?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          updated_at?: string
+          vat_code?: string | null
         }
         Relationships: []
       }
