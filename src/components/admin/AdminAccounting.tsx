@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, Building2, Receipt } from "lucide-react";
+import { Package, Building2, Receipt, FolderTree } from "lucide-react";
 import { AdminAssets } from "./accounting/AdminAssets";
 import { AdminVendors } from "./accounting/AdminVendors";
 import { AdminVendorInvoices } from "./accounting/AdminVendorInvoices";
+import { AdminCostCategories } from "./accounting/AdminCostCategories";
 
 export function AdminAccounting() {
   const [activeTab, setActiveTab] = useState("assets");
@@ -11,7 +12,7 @@ export function AdminAccounting() {
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
           <TabsTrigger value="assets" className="gap-2">
             <Package className="h-4 w-4" />
             <span className="hidden sm:inline">Turtas</span>
@@ -23,6 +24,10 @@ export function AdminAccounting() {
           <TabsTrigger value="invoices" className="gap-2">
             <Receipt className="h-4 w-4" />
             <span className="hidden sm:inline">Sąskaitos</span>
+          </TabsTrigger>
+          <TabsTrigger value="categories" className="gap-2">
+            <FolderTree className="h-4 w-4" />
+            <span className="hidden sm:inline">Kategorijos</span>
           </TabsTrigger>
         </TabsList>
 
@@ -36,6 +41,10 @@ export function AdminAccounting() {
 
         <TabsContent value="invoices" className="mt-4">
           <AdminVendorInvoices />
+        </TabsContent>
+
+        <TabsContent value="categories" className="mt-4">
+          <AdminCostCategories />
         </TabsContent>
       </Tabs>
     </div>
