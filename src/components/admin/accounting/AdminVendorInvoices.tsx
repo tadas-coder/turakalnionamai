@@ -423,14 +423,14 @@ export function AdminVendorInvoices() {
                 <div>
                   <Label htmlFor="vendor">Tiekėjas</Label>
                   <Select
-                    value={formData.vendor_id}
-                    onValueChange={(value) => setFormData({ ...formData, vendor_id: value })}
+                    value={formData.vendor_id || "none"}
+                    onValueChange={(value) => setFormData({ ...formData, vendor_id: value === "none" ? "" : value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Pasirinkite tiekėją" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nepasirinkta</SelectItem>
+                      <SelectItem value="none">Nepasirinkta</SelectItem>
                       {vendors.map((vendor) => (
                         <SelectItem key={vendor.id} value={vendor.id}>
                           {vendor.name}
@@ -442,14 +442,14 @@ export function AdminVendorInvoices() {
                 <div>
                   <Label htmlFor="cost_category">Sąnaudų kategorija</Label>
                   <Select
-                    value={formData.cost_category_id}
-                    onValueChange={(value) => setFormData({ ...formData, cost_category_id: value })}
+                    value={formData.cost_category_id || "none"}
+                    onValueChange={(value) => setFormData({ ...formData, cost_category_id: value === "none" ? "" : value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Pasirinkite kategoriją" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nepasirinkta</SelectItem>
+                      <SelectItem value="none">Nepasirinkta</SelectItem>
                       {costCategories.map((cat) => (
                         <SelectItem key={cat.id} value={cat.id}>
                           {cat.code ? `${cat.code} - ${cat.name}` : cat.name}
