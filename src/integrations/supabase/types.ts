@@ -247,6 +247,162 @@ export type Database = {
           },
         ]
       }
+      audit_log: {
+        Row: {
+          action: string
+          created_at: string
+          details: string | null
+          id: string
+          ip_address: string | null
+          new_values: Json | null
+          old_values: Json | null
+          record_id: string | null
+          table_name: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          ip_address?: string | null
+          new_values?: Json | null
+          old_values?: Json | null
+          record_id?: string | null
+          table_name?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          ip_address?: string | null
+          new_values?: Json | null
+          old_values?: Json | null
+          record_id?: string | null
+          table_name?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      bank_statements: {
+        Row: {
+          account_number: string | null
+          amount: number
+          assigned_at: string | null
+          assigned_by: string | null
+          assigned_resident_id: string | null
+          assigned_resident_invoice_id: string | null
+          assigned_vendor_id: string | null
+          assigned_vendor_invoice_id: string | null
+          assignment_status: string | null
+          created_at: string
+          currency: string | null
+          details: string | null
+          document_no: string | null
+          entry_type: string | null
+          entry_unique_no: string | null
+          id: string
+          import_batch_id: string | null
+          notes: string | null
+          payer_recipient: string | null
+          period_id: string | null
+          reference: string | null
+          transaction_date: string
+          updated_at: string
+        }
+        Insert: {
+          account_number?: string | null
+          amount: number
+          assigned_at?: string | null
+          assigned_by?: string | null
+          assigned_resident_id?: string | null
+          assigned_resident_invoice_id?: string | null
+          assigned_vendor_id?: string | null
+          assigned_vendor_invoice_id?: string | null
+          assignment_status?: string | null
+          created_at?: string
+          currency?: string | null
+          details?: string | null
+          document_no?: string | null
+          entry_type?: string | null
+          entry_unique_no?: string | null
+          id?: string
+          import_batch_id?: string | null
+          notes?: string | null
+          payer_recipient?: string | null
+          period_id?: string | null
+          reference?: string | null
+          transaction_date: string
+          updated_at?: string
+        }
+        Update: {
+          account_number?: string | null
+          amount?: number
+          assigned_at?: string | null
+          assigned_by?: string | null
+          assigned_resident_id?: string | null
+          assigned_resident_invoice_id?: string | null
+          assigned_vendor_id?: string | null
+          assigned_vendor_invoice_id?: string | null
+          assignment_status?: string | null
+          created_at?: string
+          currency?: string | null
+          details?: string | null
+          document_no?: string | null
+          entry_type?: string | null
+          entry_unique_no?: string | null
+          id?: string
+          import_batch_id?: string | null
+          notes?: string | null
+          payer_recipient?: string | null
+          period_id?: string | null
+          reference?: string | null
+          transaction_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_statements_assigned_resident_id_fkey"
+            columns: ["assigned_resident_id"]
+            isOneToOne: false
+            referencedRelation: "residents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statements_assigned_vendor_id_fkey"
+            columns: ["assigned_vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statements_assigned_vendor_invoice_id_fkey"
+            columns: ["assigned_vendor_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statements_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "periods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statements_resident_invoice_fk"
+            columns: ["assigned_resident_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "resident_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       consumables: {
         Row: {
           asset_id: string | null
@@ -507,6 +663,141 @@ export type Database = {
           relationship?: string | null
         }
         Relationships: []
+      }
+      meter_readings: {
+        Row: {
+          consumption: number | null
+          created_at: string
+          id: string
+          meter_id: string
+          notes: string | null
+          period_id: string | null
+          photo_url: string | null
+          previous_value: number | null
+          reading_date: string
+          reading_value: number
+          source: string | null
+          submitted_by: string | null
+          updated_at: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          consumption?: number | null
+          created_at?: string
+          id?: string
+          meter_id: string
+          notes?: string | null
+          period_id?: string | null
+          photo_url?: string | null
+          previous_value?: number | null
+          reading_date: string
+          reading_value: number
+          source?: string | null
+          submitted_by?: string | null
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          consumption?: number | null
+          created_at?: string
+          id?: string
+          meter_id?: string
+          notes?: string | null
+          period_id?: string | null
+          photo_url?: string | null
+          previous_value?: number | null
+          reading_date?: string
+          reading_value?: number
+          source?: string | null
+          submitted_by?: string | null
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meter_readings_meter_id_fkey"
+            columns: ["meter_id"]
+            isOneToOne: false
+            referencedRelation: "meters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meter_readings_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meters: {
+        Row: {
+          asset_id: string | null
+          created_at: string
+          id: string
+          install_date: string | null
+          is_active: boolean | null
+          is_electronic: boolean | null
+          last_verification_date: string | null
+          location: string | null
+          meter_number: string | null
+          meter_type: string
+          next_verification_date: string | null
+          notes: string | null
+          resident_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          asset_id?: string | null
+          created_at?: string
+          id?: string
+          install_date?: string | null
+          is_active?: boolean | null
+          is_electronic?: boolean | null
+          last_verification_date?: string | null
+          location?: string | null
+          meter_number?: string | null
+          meter_type: string
+          next_verification_date?: string | null
+          notes?: string | null
+          resident_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          asset_id?: string | null
+          created_at?: string
+          id?: string
+          install_date?: string | null
+          is_active?: boolean | null
+          is_electronic?: boolean | null
+          last_verification_date?: string | null
+          location?: string | null
+          meter_number?: string | null
+          meter_type?: string
+          next_verification_date?: string | null
+          notes?: string | null
+          resident_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meters_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meters_resident_id_fkey"
+            columns: ["resident_id"]
+            isOneToOne: false
+            referencedRelation: "residents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       monthly_financial_reports: {
         Row: {
@@ -808,6 +1099,51 @@ export type Database = {
         }
         Relationships: []
       }
+      periods: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          end_date: string
+          id: string
+          is_open: boolean
+          month: number
+          name: string
+          notes: string | null
+          start_date: string
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          end_date: string
+          id?: string
+          is_open?: boolean
+          month: number
+          name: string
+          notes?: string | null
+          start_date: string
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          end_date?: string
+          id?: string
+          is_open?: boolean
+          month?: number
+          name?: string
+          notes?: string | null
+          start_date?: string
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
+      }
       planned_works: {
         Row: {
           created_at: string
@@ -1100,6 +1436,155 @@ export type Database = {
         }
         Relationships: []
       }
+      resident_invoice_lines: {
+        Row: {
+          cost_category_id: string | null
+          created_at: string
+          description: string
+          id: string
+          invoice_id: string
+          meter_reading_id: string | null
+          quantity: number | null
+          sort_order: number | null
+          tariff_id: string | null
+          total_amount: number
+          unit: string | null
+          unit_price: number
+        }
+        Insert: {
+          cost_category_id?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          invoice_id: string
+          meter_reading_id?: string | null
+          quantity?: number | null
+          sort_order?: number | null
+          tariff_id?: string | null
+          total_amount?: number
+          unit?: string | null
+          unit_price?: number
+        }
+        Update: {
+          cost_category_id?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          invoice_id?: string
+          meter_reading_id?: string | null
+          quantity?: number | null
+          sort_order?: number | null
+          tariff_id?: string | null
+          total_amount?: number
+          unit?: string | null
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resident_invoice_lines_cost_category_id_fkey"
+            columns: ["cost_category_id"]
+            isOneToOne: false
+            referencedRelation: "cost_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resident_invoice_lines_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "resident_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resident_invoice_lines_meter_reading_fk"
+            columns: ["meter_reading_id"]
+            isOneToOne: false
+            referencedRelation: "meter_readings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resident_invoice_lines_tariff_fk"
+            columns: ["tariff_id"]
+            isOneToOne: false
+            referencedRelation: "tariffs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resident_invoices: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          current_amount: number
+          due_date: string
+          fully_paid_at: string | null
+          id: string
+          invoice_date: string
+          invoice_number: string
+          notes: string | null
+          paid_amount: number | null
+          penalty_amount: number | null
+          period_id: string | null
+          previous_balance: number | null
+          resident_id: string
+          status: string | null
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          current_amount?: number
+          due_date: string
+          fully_paid_at?: string | null
+          id?: string
+          invoice_date: string
+          invoice_number: string
+          notes?: string | null
+          paid_amount?: number | null
+          penalty_amount?: number | null
+          period_id?: string | null
+          previous_balance?: number | null
+          resident_id: string
+          status?: string | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          current_amount?: number
+          due_date?: string
+          fully_paid_at?: string | null
+          id?: string
+          invoice_date?: string
+          invoice_number?: string
+          notes?: string | null
+          paid_amount?: number | null
+          penalty_amount?: number | null
+          period_id?: string | null
+          previous_balance?: number | null
+          resident_id?: string
+          status?: string | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resident_invoices_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "periods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resident_invoices_resident_id_fkey"
+            columns: ["resident_id"]
+            isOneToOne: false
+            referencedRelation: "residents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       residents: {
         Row: {
           address: string | null
@@ -1307,6 +1792,62 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "statement_details_cost_category_id_fkey"
+            columns: ["cost_category_id"]
+            isOneToOne: false
+            referencedRelation: "cost_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tariffs: {
+        Row: {
+          cost_category_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          notes: string | null
+          rate: number
+          tariff_type: string
+          unit: string | null
+          updated_at: string
+          valid_from: string
+          valid_to: string | null
+        }
+        Insert: {
+          cost_category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          notes?: string | null
+          rate: number
+          tariff_type: string
+          unit?: string | null
+          updated_at?: string
+          valid_from: string
+          valid_to?: string | null
+        }
+        Update: {
+          cost_category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          notes?: string | null
+          rate?: number
+          tariff_type?: string
+          unit?: string | null
+          updated_at?: string
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tariffs_cost_category_id_fkey"
             columns: ["cost_category_id"]
             isOneToOne: false
             referencedRelation: "cost_categories"
