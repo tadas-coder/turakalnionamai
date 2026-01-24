@@ -502,54 +502,83 @@ export type Database = {
       }
       documents: {
         Row: {
+          ai_recognized: boolean | null
           category: string
+          cost_category_id: string | null
           created_at: string
           description: string | null
+          distribution_segment_ids: string[] | null
           file_name: string
           file_size: number | null
           file_url: string
           id: string
+          invoice_status: string | null
+          is_invoice: boolean | null
+          needs_distribution: boolean | null
           signed: boolean
           signed_at: string | null
           signed_by: string | null
           title: string
           updated_at: string
           uploaded_by: string | null
+          vendor_pattern_hash: string | null
           visible: boolean
         }
         Insert: {
+          ai_recognized?: boolean | null
           category: string
+          cost_category_id?: string | null
           created_at?: string
           description?: string | null
+          distribution_segment_ids?: string[] | null
           file_name: string
           file_size?: number | null
           file_url: string
           id?: string
+          invoice_status?: string | null
+          is_invoice?: boolean | null
+          needs_distribution?: boolean | null
           signed?: boolean
           signed_at?: string | null
           signed_by?: string | null
           title: string
           updated_at?: string
           uploaded_by?: string | null
+          vendor_pattern_hash?: string | null
           visible?: boolean
         }
         Update: {
+          ai_recognized?: boolean | null
           category?: string
+          cost_category_id?: string | null
           created_at?: string
           description?: string | null
+          distribution_segment_ids?: string[] | null
           file_name?: string
           file_size?: number | null
           file_url?: string
           id?: string
+          invoice_status?: string | null
+          is_invoice?: boolean | null
+          needs_distribution?: boolean | null
           signed?: boolean
           signed_at?: string | null
           signed_by?: string | null
           title?: string
           updated_at?: string
           uploaded_by?: string | null
+          vendor_pattern_hash?: string | null
           visible?: boolean
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "documents_cost_category_id_fkey"
+            columns: ["cost_category_id"]
+            isOneToOne: false
+            referencedRelation: "cost_categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       duty_schedules: {
         Row: {
@@ -603,6 +632,92 @@ export type Database = {
             columns: ["parent_group_id"]
             isOneToOne: false
             referencedRelation: "file_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_patterns: {
+        Row: {
+          cost_category_id: string | null
+          created_at: string
+          distribution_segment_ids: string[] | null
+          id: string
+          invoice_status: string | null
+          last_used_at: string | null
+          needs_distribution: boolean | null
+          pattern_hash: string
+          recognition_count: number | null
+          updated_at: string
+          vendor_name: string
+        }
+        Insert: {
+          cost_category_id?: string | null
+          created_at?: string
+          distribution_segment_ids?: string[] | null
+          id?: string
+          invoice_status?: string | null
+          last_used_at?: string | null
+          needs_distribution?: boolean | null
+          pattern_hash: string
+          recognition_count?: number | null
+          updated_at?: string
+          vendor_name: string
+        }
+        Update: {
+          cost_category_id?: string | null
+          created_at?: string
+          distribution_segment_ids?: string[] | null
+          id?: string
+          invoice_status?: string | null
+          last_used_at?: string | null
+          needs_distribution?: boolean | null
+          pattern_hash?: string
+          recognition_count?: number | null
+          updated_at?: string
+          vendor_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_patterns_cost_category_id_fkey"
+            columns: ["cost_category_id"]
+            isOneToOne: false
+            referencedRelation: "cost_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_tickets: {
+        Row: {
+          created_at: string
+          document_id: string
+          id: string
+          ticket_id: string
+        }
+        Insert: {
+          created_at?: string
+          document_id: string
+          id?: string
+          ticket_id: string
+        }
+        Update: {
+          created_at?: string
+          document_id?: string
+          id?: string
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_tickets_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_tickets_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
             referencedColumns: ["id"]
           },
         ]

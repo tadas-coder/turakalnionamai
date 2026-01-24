@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.send-poll-notification]
 verify_jwt = false
+
+[functions.analyze-invoice]
+verify_jwt = true
