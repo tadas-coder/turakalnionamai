@@ -4,9 +4,8 @@ import { Layout } from "@/components/layout/Layout";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { ClipboardCheck, Send, Vote, Users, LayoutDashboard, ClipboardList, CalendarDays, FileSpreadsheet, Building2, Receipt, Calculator } from "lucide-react";
+import { ClipboardCheck, Vote, Users, LayoutDashboard, ClipboardList, CalendarDays, FileSpreadsheet, Building2, Receipt, Calculator } from "lucide-react";
 import { AdminTickets } from "@/components/admin/AdminTickets";
-import { AdminNews } from "@/components/admin/AdminNews";
 import { AdminPolls } from "@/components/admin/AdminPolls";
 import { AdminOverview } from "@/components/admin/AdminOverview";
 import { AdminUsers } from "@/components/admin/AdminUsers";
@@ -110,10 +109,6 @@ export default function Admin() {
                 <ClipboardCheck className="h-4 w-4" />
                 <span className="hidden sm:inline font-medium">Mano užduotys</span>
               </TabsTrigger>
-              <TabsTrigger value="news" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-3 py-2">
-                <Send className="h-4 w-4" />
-                <span className="hidden sm:inline font-medium">Pranešimai</span>
-              </TabsTrigger>
               <TabsTrigger value="polls" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-3 py-2">
                 <Vote className="h-4 w-4" />
                 <span className="hidden sm:inline font-medium">Apklausos ir susirinkimai</span>
@@ -154,10 +149,6 @@ export default function Admin() {
 
             <TabsContent value="tickets" className="animate-fade-in">
               <AdminTickets />
-            </TabsContent>
-
-            <TabsContent value="news" className="animate-fade-in">
-              <AdminNews />
             </TabsContent>
 
             <TabsContent value="polls" className="animate-fade-in">
