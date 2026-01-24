@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Phone, Mail, Home, UserPlus, Trash2, Save, Users, FileText, TrendingUp, TrendingDown, BarChart3 } from "lucide-react";
+import { User, Phone, Mail, Home, UserPlus, Trash2, Save, Users, FileText, TrendingUp, TrendingDown, BarChart3, Lock, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -72,6 +72,15 @@ export default function Profile() {
   const [newLinkedEmail, setNewLinkedEmail] = useState("");
   const [newLinkedName, setNewLinkedName] = useState("");
   const [newRelationship, setNewRelationship] = useState("");
+  
+  // Password change state
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -192,6 +201,39 @@ export default function Profile() {
       toast({ title: "Klaida", description: error.message, variant: "destructive" });
     },
   });
+
+  const handlePasswordChange = async () => {
+    if (!newPassword || !confirmPassword) {
+      toast({ title: "Klaida", description: "Užpildykite visus laukus", variant: "destructive" });
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      toast({ title: "Klaida", description: "Slaptažodžiai nesutampa", variant: "destructive" });
+      return;
+    }
+    
+    if (newPassword.length < 6) {
+      toast({ title: "Klaida", description: "Slaptažodis turi būti bent 6 simbolių", variant: "destructive" });
+      return;
+    }
+    
+    setIsChangingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      
+      if (error) throw error;
+      
+      toast({ title: "Slaptažodis pakeistas sėkmingai" });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error: any) {
+      toast({ title: "Klaida", description: error.message, variant: "destructive" });
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('lt-LT', { style: 'currency', currency: 'EUR' }).format(amount);
@@ -356,6 +398,85 @@ export default function Profile() {
                 >
                   <Save className="h-4 w-4" />
                   {updateProfileMutation.isPending ? "Saugoma..." : "Išsaugoti pakeitimus"}
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Password Change Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Lock className="h-5 w-5" />
+                  Keisti slaptažodį
+                </CardTitle>
+                <CardDescription>
+                  Atnaujinkite savo paskyros slaptažodį
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="newPassword" className="flex items-center gap-2">
+                    <Lock className="h-4 w-4" />
+                    Naujas slaptažodis
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <Input
+                      id="newPassword"
+                      type={showNewPassword ? "text" : "password"}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Įveskite naują slaptažodį"
+                      className="pr-10"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                    >
+                      {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="confirmPassword" className="flex items-center gap-2">
+                    <Lock className="h-4 w-4" />
+                    Pakartokite slaptažodį
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <Input
+                      id="confirmPassword"
+                      type={showConfirmPassword ? "text" : "password"}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Pakartokite naują slaptažodį"
+                      className="pr-10"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  {newPassword && confirmPassword && newPassword !== confirmPassword && (
+                    <p className="text-xs text-destructive mt-1">Slaptažodžiai nesutampa</p>
+                  )}
+                </div>
+
+                <Button
+                  onClick={handlePasswordChange}
+                  disabled={isChangingPassword || !newPassword || !confirmPassword || newPassword !== confirmPassword}
+                  className="w-full gap-2"
+                  variant="outline"
+                >
+                  <Lock className="h-4 w-4" />
+                  {isChangingPassword ? "Keičiama..." : "Pakeisti slaptažodį"}
                 </Button>
               </CardContent>
             </Card>
