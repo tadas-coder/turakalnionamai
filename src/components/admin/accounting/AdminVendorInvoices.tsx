@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Plus, Edit2, Trash2, Receipt, CreditCard, AlertCircle, CheckCircle } from "lucide-react";
+import { Search, Plus, Edit2, Trash2, Receipt, CreditCard, AlertCircle, CheckCircle, Upload, Sparkles } from "lucide-react";
+import { VendorInvoiceUploadWizard } from "../VendorInvoiceUploadWizard";
 import {
   Dialog,
   DialogContent,
@@ -88,6 +89,7 @@ export function AdminVendorInvoices() {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isUploadWizardOpen, setIsUploadWizardOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<VendorInvoice | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -353,19 +355,24 @@ export function AdminVendorInvoices() {
             className="pl-9"
           />
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={(open) => {
-          setIsDialogOpen(open);
-          if (!open) {
-            setEditingInvoice(null);
-            resetForm();
-          }
-        }}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              Nauja sąskaita
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setIsUploadWizardOpen(true)} className="gap-2">
+            <Sparkles className="h-4 w-4" />
+            SF su AI
+          </Button>
+          <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) {
+              setEditingInvoice(null);
+              resetForm();
+            }
+          }}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                Nauja sąskaita
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingInvoice ? "Redaguoti sąskaitą" : "Nauja sąskaita"}</DialogTitle>
@@ -521,6 +528,7 @@ export function AdminVendorInvoices() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Invoices Table */}
@@ -617,6 +625,12 @@ export function AdminVendorInvoices() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Upload Wizard */}
+      <VendorInvoiceUploadWizard
+        open={isUploadWizardOpen}
+        onOpenChange={setIsUploadWizardOpen}
+      />
     </div>
   );
 }

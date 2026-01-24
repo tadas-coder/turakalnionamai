@@ -2267,6 +2267,57 @@ export type Database = {
           },
         ]
       }
+      vendor_invoice_patterns: {
+        Row: {
+          cost_category_id: string | null
+          created_at: string
+          id: string
+          last_used_at: string | null
+          pattern_hash: string
+          recognition_count: number | null
+          updated_at: string
+          vendor_id: string | null
+          vendor_name: string
+        }
+        Insert: {
+          cost_category_id?: string | null
+          created_at?: string
+          id?: string
+          last_used_at?: string | null
+          pattern_hash: string
+          recognition_count?: number | null
+          updated_at?: string
+          vendor_id?: string | null
+          vendor_name: string
+        }
+        Update: {
+          cost_category_id?: string | null
+          created_at?: string
+          id?: string
+          last_used_at?: string | null
+          pattern_hash?: string
+          recognition_count?: number | null
+          updated_at?: string
+          vendor_id?: string | null
+          vendor_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_invoice_patterns_cost_category_id_fkey"
+            columns: ["cost_category_id"]
+            isOneToOne: false
+            referencedRelation: "cost_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_invoice_patterns_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vendor_invoices: {
         Row: {
           cost_category_id: string | null
