@@ -10,15 +10,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { FileText, Upload, Download, Eye, EyeOff, Trash2, Plus, FolderOpen, Filter, Search, CheckCircle, Pen, ExternalLink } from "lucide-react";
+import { FileText, Upload, Download, Eye, EyeOff, Trash2, Plus, FolderOpen, Filter, Search, CheckCircle, Pen, ExternalLink, Receipt, Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { InvoiceUploadWizard } from "@/components/admin/InvoiceUploadWizard";
 
 const CATEGORIES = [
   { value: "protokolai", label: "Protokolai" },
   { value: "pirkimo-saskaitos", label: "Pirkimo sąskaitos" },
+  { value: "saskaitos-fakturos", label: "Sąskaitos faktūros" },
   { value: "sutartys", label: "Sutartys" },
   { value: "komerciniai-pasiulymai", label: "Komerciniai pasiūlymai" },
   { value: "ataskaitos", label: "Ataskaitos" },
@@ -38,6 +40,9 @@ type Document = {
   signed_at: string | null;
   signed_by: string | null;
   created_at: string;
+  is_invoice?: boolean;
+  invoice_status?: string | null;
+  ai_recognized?: boolean;
 };
 
 export default function Documents() {
@@ -46,6 +51,7 @@ export default function Documents() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isInvoiceWizardOpen, setIsInvoiceWizardOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -226,13 +232,23 @@ export default function Documents() {
           </div>
 
           {isAdmin && (
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Įkelti dokumentą
-                </Button>
-              </DialogTrigger>
+            <div className="flex gap-2">
+              <Button 
+                className="gap-2"
+                variant="default"
+                onClick={() => setIsInvoiceWizardOpen(true)}
+              >
+                <Receipt className="h-4 w-4" />
+                <Sparkles className="h-3 w-3" />
+                SF su AI
+              </Button>
+              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Kitas dokumentas
+                  </Button>
+                </DialogTrigger>
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                   <DialogTitle>Įkelti naują dokumentą</DialogTitle>
@@ -295,8 +311,16 @@ export default function Documents() {
                 </div>
               </DialogContent>
             </Dialog>
+            </div>
           )}
         </div>
+
+        {/* Invoice Upload Wizard */}
+        <InvoiceUploadWizard
+          open={isInvoiceWizardOpen}
+          onOpenChange={setIsInvoiceWizardOpen}
+          onSuccess={() => queryClient.invalidateQueries({ queryKey: ["documents"] })}
+        />
 
         {/* Filter & Search */}
         <Card className="mb-6">
@@ -375,6 +399,28 @@ export default function Documents() {
                             <Badge variant="destructive" className="text-xs">
                               <Pen className="h-3 w-3 mr-1" />
                               Laukia parašo
+                            </Badge>
+                          )}
+                          {doc.is_invoice && (
+                            <Badge variant="default" className="text-xs bg-blue-500 hover:bg-blue-600">
+                              <Receipt className="h-3 w-3 mr-1" />
+                              SF
+                            </Badge>
+                          )}
+                          {doc.is_invoice && doc.invoice_status === "paid" && (
+                            <Badge variant="default" className="text-xs bg-green-500 hover:bg-green-600">
+                              Apmokėta
+                            </Badge>
+                          )}
+                          {doc.is_invoice && doc.invoice_status === "unpaid" && (
+                            <Badge variant="destructive" className="text-xs">
+                              Neapmokėta
+                            </Badge>
+                          )}
+                          {doc.ai_recognized && (
+                            <Badge variant="outline" className="text-xs">
+                              <Sparkles className="h-3 w-3 mr-1" />
+                              AI
                             </Badge>
                           )}
                         </div>
