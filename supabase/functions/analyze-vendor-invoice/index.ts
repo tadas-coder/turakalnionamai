@@ -35,10 +35,19 @@ serve(async (req) => {
     let suggestedCategoryId = null;
     let isRecurring = false;
 
-    // Try to match existing pattern
+    // Try to match existing pattern - use more precise matching
+    // Pattern should match the full vendor name, not just partial matches
     if (patterns && patterns.length > 0) {
       for (const pattern of patterns) {
-        if (cleanFileName.includes(pattern.vendor_name.toLowerCase())) {
+        const patternName = pattern.vendor_name.toLowerCase().replace(/\s+/g, "");
+        const fileNameNormalized = cleanFileName.replace(/\s+/g, "");
+        
+        // Require exact vendor name match (without spaces), not just partial
+        // e.g., "uabstalma" should only match patterns with "stalma", not "prologika"
+        const vendorWords = pattern.vendor_name.toLowerCase().split(/\s+/);
+        const significantWord = vendorWords.find((w: string) => w.length > 3 && w !== "uab" && w !== "ab" && w !== "mb" && w !== "vši");
+        
+        if (significantWord && fileNameNormalized.includes(significantWord)) {
           patternMatch = {
             vendor_id: pattern.vendor_id,
             cost_category_id: pattern.cost_category_id,
