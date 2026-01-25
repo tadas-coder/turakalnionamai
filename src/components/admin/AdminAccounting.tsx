@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, Building2, Receipt, FolderTree, BarChart3, Calendar, Landmark, Gauge, Tag, FileText, History } from "lucide-react";
+import { Package, ShoppingCart, FolderTree, BarChart3, Calendar, Landmark, Gauge, Tag, FileText, History } from "lucide-react";
 import { AdminAssets } from "./accounting/AdminAssets";
 import { AdminVendors } from "./accounting/AdminVendors";
 import { AdminVendorInvoices } from "./accounting/AdminVendorInvoices";
@@ -15,6 +15,7 @@ import { AdminAuditLog } from "./accounting/AdminAuditLog";
 
 export function AdminAccounting() {
   const [activeTab, setActiveTab] = useState("assets");
+  const [purchasesSubTab, setPurchasesSubTab] = useState("vendors");
 
   return (
     <div className="space-y-6">
@@ -24,13 +25,9 @@ export function AdminAccounting() {
             <Package className="h-4 w-4" />
             <span className="hidden sm:inline">Turtas</span>
           </TabsTrigger>
-          <TabsTrigger value="vendors" className="gap-2">
-            <Building2 className="h-4 w-4" />
-            <span className="hidden sm:inline">Tiekėjai</span>
-          </TabsTrigger>
-          <TabsTrigger value="invoices" className="gap-2">
-            <Receipt className="h-4 w-4" />
-            <span className="hidden sm:inline">Sąskaitos</span>
+          <TabsTrigger value="purchases" className="gap-2">
+            <ShoppingCart className="h-4 w-4" />
+            <span className="hidden sm:inline">Pirkimai</span>
           </TabsTrigger>
           <TabsTrigger value="resident-invoices" className="gap-2">
             <FileText className="h-4 w-4" />
@@ -67,8 +64,18 @@ export function AdminAccounting() {
         </TabsList>
 
         <TabsContent value="assets" className="mt-4"><AdminAssets /></TabsContent>
-        <TabsContent value="vendors" className="mt-4"><AdminVendors /></TabsContent>
-        <TabsContent value="invoices" className="mt-4"><AdminVendorInvoices /></TabsContent>
+        
+        <TabsContent value="purchases" className="mt-4">
+          <Tabs value={purchasesSubTab} onValueChange={setPurchasesSubTab} className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="vendors">Tiekėjai</TabsTrigger>
+              <TabsTrigger value="invoices">Sąskaitos faktūros</TabsTrigger>
+            </TabsList>
+            <TabsContent value="vendors"><AdminVendors /></TabsContent>
+            <TabsContent value="invoices"><AdminVendorInvoices /></TabsContent>
+          </Tabs>
+        </TabsContent>
+        
         <TabsContent value="resident-invoices" className="mt-4"><AdminResidentInvoices /></TabsContent>
         <TabsContent value="categories" className="mt-4"><AdminCostCategories /></TabsContent>
         <TabsContent value="periods" className="mt-4"><AdminPeriods /></TabsContent>
