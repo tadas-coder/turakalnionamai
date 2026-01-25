@@ -29,6 +29,10 @@ export function AdminAccounting() {
             <ShoppingCart className="h-4 w-4" />
             <span className="hidden sm:inline">Pirkimai</span>
           </TabsTrigger>
+          <TabsTrigger value="reports" className="gap-2">
+            <BarChart3 className="h-4 w-4" />
+            <span className="hidden sm:inline">Ataskaitos</span>
+          </TabsTrigger>
           <TabsTrigger value="resident-invoices" className="gap-2">
             <FileText className="h-4 w-4" />
             <span className="hidden sm:inline">Gyv. sąskaitos</span>
@@ -53,10 +57,6 @@ export function AdminAccounting() {
             <Tag className="h-4 w-4" />
             <span className="hidden sm:inline">Tarifai</span>
           </TabsTrigger>
-          <TabsTrigger value="reports" className="gap-2">
-            <BarChart3 className="h-4 w-4" />
-            <span className="hidden sm:inline">Ataskaitos</span>
-          </TabsTrigger>
           <TabsTrigger value="audit" className="gap-2">
             <History className="h-4 w-4" />
             <span className="hidden sm:inline">Auditas</span>
@@ -76,13 +76,13 @@ export function AdminAccounting() {
           </Tabs>
         </TabsContent>
         
+        <TabsContent value="reports" className="mt-4"><AdminAccountingReports /></TabsContent>
         <TabsContent value="resident-invoices" className="mt-4"><AdminResidentInvoices /></TabsContent>
         <TabsContent value="categories" className="mt-4"><AdminCostCategories /></TabsContent>
         <TabsContent value="periods" className="mt-4"><AdminPeriods /></TabsContent>
         <TabsContent value="bank" className="mt-4"><AdminBankStatements /></TabsContent>
         <TabsContent value="meters" className="mt-4"><AdminMeters /></TabsContent>
         <TabsContent value="tariffs" className="mt-4"><AdminTariffs /></TabsContent>
-        <TabsContent value="reports" className="mt-4"><AdminAccountingReports /></TabsContent>
         <TabsContent value="audit" className="mt-4"><AdminAuditLog /></TabsContent>
       </Tabs>
     </div>
