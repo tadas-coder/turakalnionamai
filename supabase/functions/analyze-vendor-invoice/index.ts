@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { fileName, fileType, vendors, categories } = await req.json();
+    const { fileName, fileType, vendors, categories, fileBase64 } = await req.json();
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -72,7 +72,7 @@ serve(async (req) => {
       }
     }
 
-    // Use AI for more detailed analysis
+    // Use AI for more detailed analysis with PDF content if available
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     let aiAnalysis: any = {};
@@ -82,6 +82,39 @@ serve(async (req) => {
         const vendorList = vendors?.map((v: any) => v.name).join(", ") || "";
         const categoryList = categories?.map((c: any) => `${c.code || ""} ${c.name}`.trim()).join(", ") || "";
 
+        // Build messages array - include PDF image if base64 is provided
+        const userContent: any[] = [];
+        
+        // If we have base64 PDF content, include it as an image for vision analysis
+        if (fileBase64 && (fileType === "application/pdf" || fileType?.includes("image"))) {
+          userContent.push({
+            type: "image_url",
+            image_url: {
+              url: `data:${fileType || "application/pdf"};base64,${fileBase64}`
+            }
+          });
+        }
+        
+        userContent.push({
+          type: "text",
+          text: `Analyze this invoice. Filename: "${fileName}"
+
+IMPORTANT: Extract ALL information from the invoice document/image:
+- vendor_name: string (full company name, e.g. "UAB Prologika")
+- vendor_company_code: string | null (įmonės kodas - 9 digit company code)
+- vendor_vat_code: string | null (PVM mokėtojo kodas - starts with LT)
+- vendor_category: string | null (vendor business category)
+- invoice_number: string | null (sąskaitos serija ir numeris)
+- invoice_date: string | null (YYYY-MM-DD format)
+- due_date: string | null (apmokėjimo terminas in YYYY-MM-DD format, if not specified assume 14 days from invoice_date)
+- description: string (what the invoice is for based on line items)
+- suggested_category: string | null (from available cost categories)
+- subtotal: number | null (suma be PVM)
+- vat_amount: number | null (PVM suma)
+- total_amount: number | null (bendra suma / apmokėti)
+- confidence: number (0-1)`
+        });
+
         const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: {
@@ -89,32 +122,20 @@ serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
+            model: "google/gemini-2.5-flash",
             messages: [
               {
                 role: "system",
-                content: `You are an invoice analyzer for Lithuanian companies. Analyze the filename and extract invoice and vendor details. Return JSON only.
+                content: `You are an invoice analyzer for Lithuanian companies. Analyze the invoice document/image and extract all financial details. Return JSON only.
 Available vendors: ${vendorList}
 Available categories: ${categoryList}
 
-IMPORTANT: Extract as much vendor information as possible from the filename. Lithuanian company codes are typically 9 digits, VAT codes start with "LT" followed by 9-12 digits.`
+CRITICAL: You must extract the TOTAL AMOUNT (Apmokėti/Iš viso/Suma) and DUE DATE from the document. If due date is not explicitly stated, calculate it as 14 days from invoice date.
+For Lithuanian invoices, look for: "Apmokėti:", "Iš viso:", "Suma:", "PVM:", "Apmokėti iki:", "Mokėti iki:"`
               },
               {
                 role: "user",
-                content: `Analyze this invoice filename: "${fileName}"
-
-Return a JSON object with these fields:
-- vendor_name: string (extracted full company name, e.g. "UAB Stalma")
-- vendor_company_code: string | null (įmonės kodas - 9 digit company code if found)
-- vendor_vat_code: string | null (PVM kodas - starts with LT)
-- vendor_category: string | null (vendor business category, e.g. "Paslaugos", "Statyba", "Valymas")
-- invoice_number: string | null (sąskaitos numeris if visible)
-- invoice_date: string | null (YYYY-MM-DD format if found)
-- due_date: string | null (YYYY-MM-DD format if found)
-- description: string (brief description of what the invoice is for)
-- suggested_category: string | null (from available cost categories)
-- total_amount: number | null (if visible in filename)
-- confidence: number (0-1)`
+                content: userContent
               }
             ],
             tools: [
@@ -122,7 +143,7 @@ Return a JSON object with these fields:
                 type: "function",
                 function: {
                   name: "analyze_invoice",
-                  description: "Analyze invoice and return structured data including vendor details",
+                  description: "Analyze invoice and return structured data including financial amounts",
                   parameters: {
                     type: "object",
                     properties: {
@@ -131,14 +152,16 @@ Return a JSON object with these fields:
                       vendor_vat_code: { type: "string", description: "VAT code starting with LT" },
                       vendor_category: { type: "string", description: "Business category of the vendor" },
                       invoice_number: { type: "string" },
-                      invoice_date: { type: "string" },
-                      due_date: { type: "string" },
+                      invoice_date: { type: "string", description: "Invoice date in YYYY-MM-DD format" },
+                      due_date: { type: "string", description: "Payment due date in YYYY-MM-DD format" },
                       description: { type: "string" },
                       suggested_category: { type: "string" },
-                      total_amount: { type: "number" },
+                      subtotal: { type: "number", description: "Amount without VAT" },
+                      vat_amount: { type: "number", description: "VAT amount" },
+                      total_amount: { type: "number", description: "Total amount to pay" },
                       confidence: { type: "number" }
                     },
-                    required: ["vendor_name", "confidence"]
+                    required: ["vendor_name", "total_amount", "confidence"]
                   }
                 }
               }
@@ -153,6 +176,8 @@ Return a JSON object with these fields:
           if (toolCall?.function?.arguments) {
             aiAnalysis = JSON.parse(toolCall.function.arguments);
           }
+        } else {
+          console.error("AI response error:", response.status, await response.text());
         }
       } catch (aiError) {
         console.error("AI analysis error:", aiError);
