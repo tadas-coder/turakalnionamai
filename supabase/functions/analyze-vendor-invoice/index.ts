@@ -35,17 +35,37 @@ serve(async (req) => {
     let suggestedCategoryId = null;
     let isRecurring = false;
 
+    // Helper function to normalize vendor name - remove quotes and common prefixes
+    const normalizeVendorName = (name: string): string => {
+      return name
+        .toLowerCase()
+        .replace(/["'„"]/g, "") // Remove all types of quotes
+        .replace(/\s+/g, " ")
+        .trim();
+    };
+    
+    // Extract significant word from vendor name (ignoring UAB, AB, etc.)
+    const getSignificantWord = (vendorName: string): string | null => {
+      const normalized = normalizeVendorName(vendorName);
+      const words = normalized.split(" ");
+      const prefixes = ["uab", "ab", "mb", "vši", "įį", "ją"];
+      
+      for (const word of words) {
+        if (word.length >= 4 && !prefixes.includes(word)) {
+          return word;
+        }
+      }
+      return null;
+    };
+
     // Try to match existing pattern - use more precise matching
-    // Pattern should match the full vendor name, not just partial matches
     if (patterns && patterns.length > 0) {
+      const fileNameNormalized = cleanFileName.replace(/["'„"]/g, "").replace(/\s+/g, "");
+      
       for (const pattern of patterns) {
-        const patternName = pattern.vendor_name.toLowerCase().replace(/\s+/g, "");
-        const fileNameNormalized = cleanFileName.replace(/\s+/g, "");
+        const significantWord = getSignificantWord(pattern.vendor_name);
         
-        // Require exact vendor name match (without spaces), not just partial
-        // e.g., "uabstalma" should only match patterns with "stalma", not "prologika"
-        const vendorWords = pattern.vendor_name.toLowerCase().split(/\s+/);
-        const significantWord = vendorWords.find((w: string) => w.length > 3 && w !== "uab" && w !== "ab" && w !== "mb" && w !== "vši");
+        console.log(`Pattern check: "${pattern.vendor_name}" -> significant word: "${significantWord}" in filename: "${fileNameNormalized}"`);
         
         if (significantWord && fileNameNormalized.includes(significantWord)) {
           patternMatch = {
@@ -65,17 +85,24 @@ serve(async (req) => {
             })
             .eq("id", pattern.id);
 
+          console.log(`Pattern matched! Vendor ID: ${suggestedVendorId}`);
           break;
         }
       }
     }
 
-    // If no pattern match, try to match vendor name
+    // If no pattern match, try to match vendor name from vendor list
     if (!suggestedVendorId && vendors && vendors.length > 0) {
+      const fileNameNormalized = cleanFileName.replace(/["'„"]/g, "").replace(/\s+/g, "");
+      
       for (const vendor of vendors) {
-        const vendorNameLower = vendor.name.toLowerCase();
-        if (cleanFileName.includes(vendorNameLower) || vendorNameLower.includes(cleanFileName.split(" ")[0])) {
+        const significantWord = getSignificantWord(vendor.name);
+        
+        console.log(`Vendor check: "${vendor.name}" -> significant word: "${significantWord}"`);
+        
+        if (significantWord && fileNameNormalized.includes(significantWord)) {
           suggestedVendorId = vendor.id;
+          console.log(`Vendor matched! ID: ${suggestedVendorId}`);
           break;
         }
       }
