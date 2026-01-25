@@ -4,15 +4,14 @@ import { Layout } from "@/components/layout/Layout";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { ClipboardCheck, Vote, Users, LayoutDashboard, ClipboardList, CalendarDays, FileSpreadsheet, Building2, Receipt, Calculator } from "lucide-react";
+import { ClipboardCheck, Vote, Users, LayoutDashboard, ClipboardList, CalendarDays, Building2, Receipt, Calculator } from "lucide-react";
 import { AdminTickets } from "@/components/admin/AdminTickets";
 import { AdminPolls } from "@/components/admin/AdminPolls";
 import { AdminOverview } from "@/components/admin/AdminOverview";
 import { AdminUsers } from "@/components/admin/AdminUsers";
 import { AdminResidents } from "@/components/admin/AdminResidents";
-import { AdminReports } from "@/components/admin/AdminReports";
+import { AdminCombinedReports } from "@/components/admin/AdminCombinedReports";
 import { AdminSchedules } from "@/components/admin/AdminSchedules";
-import { AdminMonthlyReports } from "@/components/admin/AdminMonthlyReports";
 import AdminPaymentSlips from "@/components/admin/AdminPaymentSlips";
 import { AdminAccounting } from "@/components/admin/AdminAccounting";
 import { toast } from "sonner";
@@ -117,10 +116,6 @@ export default function Admin() {
                 <ClipboardList className="h-4 w-4" />
                 <span className="hidden sm:inline font-medium">Ataskaitos</span>
               </TabsTrigger>
-              <TabsTrigger value="monthly-reports" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-3 py-2">
-                <FileSpreadsheet className="h-4 w-4" />
-                <span className="hidden sm:inline font-medium">Mėnesio</span>
-              </TabsTrigger>
               <TabsTrigger value="schedules" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-3 py-2">
                 <CalendarDays className="h-4 w-4" />
                 <span className="hidden sm:inline font-medium">Grafikai</span>
@@ -156,11 +151,7 @@ export default function Admin() {
             </TabsContent>
 
             <TabsContent value="reports" className="animate-fade-in">
-              <AdminReports />
-            </TabsContent>
-
-            <TabsContent value="monthly-reports" className="animate-fade-in">
-              <AdminMonthlyReports />
+              <AdminCombinedReports />
             </TabsContent>
 
             <TabsContent value="schedules" className="animate-fade-in">
