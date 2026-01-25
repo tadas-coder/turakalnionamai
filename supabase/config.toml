@@ -58,7 +58,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.analyze-invoice]
-verify_jwt = true
+verify_jwt = false
 
 [functions.analyze-vendor-invoice]
-verify_jwt = true
+verify_jwt = false
