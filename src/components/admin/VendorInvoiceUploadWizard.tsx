@@ -149,10 +149,24 @@ export function VendorInvoiceUploadWizard({ open, onOpenChange, onSuccess }: Pro
     setStep(2);
 
     try {
+      // Convert file to base64 for AI vision analysis
+      let fileBase64: string | null = null;
+      
+      if (file.type === "application/pdf" || file.type.startsWith("image/")) {
+        const arrayBuffer = await file.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuffer);
+        let binary = "";
+        for (let i = 0; i < bytes.length; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        fileBase64 = btoa(binary);
+      }
+
       const { data, error } = await supabase.functions.invoke("analyze-vendor-invoice", {
         body: { 
           fileName: file.name,
           fileType: file.type,
+          fileBase64,
           vendors: vendors.map(v => ({ id: v.id, name: v.name })),
           categories: costCategories.map(c => ({ id: c.id, name: c.name, code: c.code }))
         },
