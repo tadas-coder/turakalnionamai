@@ -21,16 +21,19 @@ const navItems = [
   { path: "/tickets", label: "Pranešimai", icon: Send },
 ];
 
-const moreItems = [
+const moreItems: Array<{ path: string; label: string; icon: React.ComponentType<{ className?: string }>; authRequired?: boolean; adminOnly?: boolean }> = [
   { path: "/news", label: "Naujienos", icon: Newspaper },
   { path: "/voting", label: "Balsavimai ir apklausos", icon: ClipboardList },
   { path: "/schedules", label: "Grafikai", icon: CalendarDays },
   { path: "/payment-slips", label: "Sąskaitos ir skolos", icon: CreditCard, authRequired: true },
   { path: "/documents", label: "Dokumentai", icon: FileText, authRequired: true },
-  { path: "/reports", label: "Ataskaitos", icon: ClipboardList },
+  { path: "/rules", label: "Taisyklės", icon: ScrollText },
+];
+
+const reportsItems: Array<{ path: string; label: string; icon: React.ComponentType<{ className?: string }>; adminOnly?: boolean }> = [
+  { path: "/reports", label: "Bendros ataskaitos", icon: ClipboardList },
   { path: "/financial-report", label: "Finansinė ataskaita", icon: PieChart },
   { path: "/ticket-statistics", label: "Problemų statistika", icon: BarChart3, adminOnly: true },
-  { path: "/rules", label: "Taisyklės", icon: ScrollText },
 ];
 
 export function Header() {
@@ -41,6 +44,7 @@ export function Header() {
   const { unreadCount: unreadTicketsCount } = useUnreadTickets();
 
   const isMoreActive = moreItems.some((item) => location.pathname === item.path);
+  const isReportsActive = reportsItems.some((item) => location.pathname === item.path);
 
   return (
     <header className="sticky top-0 z-50 glass-effect border-b border-border">
@@ -85,7 +89,43 @@ export function Header() {
                 })}
 
 
-                {/* More Dropdown */}
+                {/* Reports Dropdown */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant={isReportsActive ? "default" : "ghost"}
+                      size="sm"
+                      className={cn("gap-2", isReportsActive && "shadow-md")}
+                    >
+                      <BarChart3 className="h-4 w-4" />
+                      Ataskaitos
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 bg-background border z-50">
+                    {reportsItems
+                      .filter((item) => !item.adminOnly || isAdmin)
+                      .map((item) => {
+                        const Icon = item.icon;
+                        const isActive = location.pathname === item.path;
+                        return (
+                          <DropdownMenuItem key={item.path} asChild>
+                            <Link
+                              to={item.path}
+                              className={cn(
+                                "flex items-center gap-2 cursor-pointer",
+                                isActive && "bg-accent text-accent-foreground font-medium"
+                              )}
+                            >
+                              <Icon className="h-4 w-4" />
+                              {item.label}
+                            </Link>
+                          </DropdownMenuItem>
+                        );
+                      })}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -228,6 +268,32 @@ export function Header() {
                       </Link>
                     );
                   })}
+                  
+                  {/* Reports items in mobile */}
+                  <div className="border-t border-border pt-2 mt-2">
+                    <p className="text-xs text-muted-foreground px-4 mb-2">Ataskaitos</p>
+                    {reportsItems
+                      .filter((item) => !item.adminOnly || isAdmin)
+                      .map((item) => {
+                        const Icon = item.icon;
+                        const isActive = location.pathname === item.path;
+                        return (
+                          <Link
+                            key={item.path}
+                            to={item.path}
+                            onClick={() => setMobileMenuOpen(false)}
+                          >
+                            <Button
+                              variant={isActive ? "default" : "ghost"}
+                              className="w-full justify-start gap-3"
+                            >
+                              <Icon className="h-4 w-4" />
+                              {item.label}
+                            </Button>
+                          </Link>
+                        );
+                      })}
+                  </div>
                   
                   {/* More items in mobile */}
                   <div className="border-t border-border pt-2 mt-2">
