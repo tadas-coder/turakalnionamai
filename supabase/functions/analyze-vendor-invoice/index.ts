@@ -93,20 +93,27 @@ serve(async (req) => {
             messages: [
               {
                 role: "system",
-                content: `You are an invoice analyzer. Analyze the filename and extract invoice details. Return JSON only.
+                content: `You are an invoice analyzer for Lithuanian companies. Analyze the filename and extract invoice and vendor details. Return JSON only.
 Available vendors: ${vendorList}
-Available categories: ${categoryList}`
+Available categories: ${categoryList}
+
+IMPORTANT: Extract as much vendor information as possible from the filename. Lithuanian company codes are typically 9 digits, VAT codes start with "LT" followed by 9-12 digits.`
               },
               {
                 role: "user",
                 content: `Analyze this invoice filename: "${fileName}"
 
 Return a JSON object with these fields:
-- vendor_name: string (extracted vendor name)
-- invoice_number: string | null (if visible in filename)
+- vendor_name: string (extracted full company name, e.g. "UAB Stalma")
+- vendor_company_code: string | null (įmonės kodas - 9 digit company code if found)
+- vendor_vat_code: string | null (PVM kodas - starts with LT)
+- vendor_category: string | null (vendor business category, e.g. "Paslaugos", "Statyba", "Valymas")
+- invoice_number: string | null (sąskaitos numeris if visible)
 - invoice_date: string | null (YYYY-MM-DD format if found)
-- description: string (brief description)
-- suggested_category: string | null (from available categories)
+- due_date: string | null (YYYY-MM-DD format if found)
+- description: string (brief description of what the invoice is for)
+- suggested_category: string | null (from available cost categories)
+- total_amount: number | null (if visible in filename)
 - confidence: number (0-1)`
               }
             ],
@@ -115,15 +122,20 @@ Return a JSON object with these fields:
                 type: "function",
                 function: {
                   name: "analyze_invoice",
-                  description: "Analyze invoice and return structured data",
+                  description: "Analyze invoice and return structured data including vendor details",
                   parameters: {
                     type: "object",
                     properties: {
-                      vendor_name: { type: "string" },
+                      vendor_name: { type: "string", description: "Full company name" },
+                      vendor_company_code: { type: "string", description: "Lithuanian company code (9 digits)" },
+                      vendor_vat_code: { type: "string", description: "VAT code starting with LT" },
+                      vendor_category: { type: "string", description: "Business category of the vendor" },
                       invoice_number: { type: "string" },
                       invoice_date: { type: "string" },
+                      due_date: { type: "string" },
                       description: { type: "string" },
                       suggested_category: { type: "string" },
+                      total_amount: { type: "number" },
                       confidence: { type: "number" }
                     },
                     required: ["vendor_name", "confidence"]
@@ -160,13 +172,16 @@ Return a JSON object with these fields:
 
     const result = {
       vendor_name: aiAnalysis.vendor_name || extractVendorFromFilename(fileName),
+      vendor_company_code: aiAnalysis.vendor_company_code || null,
+      vendor_vat_code: aiAnalysis.vendor_vat_code || null,
+      vendor_category: aiAnalysis.vendor_category || null,
       suggested_vendor_id: suggestedVendorId,
       invoice_number: aiAnalysis.invoice_number || extractInvoiceNumber(fileName),
       invoice_date: aiAnalysis.invoice_date || extractDate(fileName),
-      due_date: null,
+      due_date: aiAnalysis.due_date || null,
       subtotal: null,
       vat_amount: null,
-      total_amount: extractAmount(fileName),
+      total_amount: aiAnalysis.total_amount || extractAmount(fileName),
       description: aiAnalysis.description || `Sąskaita: ${fileName}`,
       suggested_category_id: suggestedCategoryId,
       confidence: aiAnalysis.confidence || 0.5,

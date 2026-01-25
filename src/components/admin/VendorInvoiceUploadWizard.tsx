@@ -37,6 +37,9 @@ type CostCategory = {
 
 type AnalysisResult = {
   vendor_name: string | null;
+  vendor_company_code: string | null;
+  vendor_vat_code: string | null;
+  vendor_category: string | null;
   suggested_vendor_id: string | null;
   invoice_number: string | null;
   invoice_date: string | null;
@@ -232,18 +235,25 @@ export function VendorInvoiceUploadWizard({ open, onOpenChange, onSuccess }: Pro
         .from("vendor-invoices")
         .getPublicUrl(filePath);
 
-      // 2. Create vendor if new
+      // 2. Create vendor if new - with all extracted details
       let vendorId = selectedVendorId;
       if (!vendorId && newVendorName.trim()) {
         const { data: newVendor, error: vendorError } = await supabase
           .from("vendors")
-          .insert({ name: newVendorName.trim(), is_active: true })
+          .insert({ 
+            name: newVendorName.trim(), 
+            is_active: true,
+            company_code: analysisResult?.vendor_company_code || null,
+            vat_code: analysisResult?.vendor_vat_code || null,
+            category: analysisResult?.vendor_category || null,
+          })
           .select()
           .single();
 
         if (vendorError) throw vendorError;
         vendorId = newVendor.id;
         queryClient.invalidateQueries({ queryKey: ["admin-vendors-list"] });
+        queryClient.invalidateQueries({ queryKey: ["admin-vendors"] });
       }
 
       // 3. Create invoice record
