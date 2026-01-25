@@ -79,6 +79,7 @@ export function VendorInvoiceUploadWizard({ open, onOpenChange, onSuccess }: Pro
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
 
   // Form data
   const [selectedVendorId, setSelectedVendorId] = useState<string>("");
@@ -134,6 +135,27 @@ export function VendorInvoiceUploadWizard({ open, onOpenChange, onSuccess }: Pro
     setTotalAmount("");
     setDescription("");
     setInvoiceStatus("pending");
+    setDuplicateWarning(null);
+  }, []);
+
+  // Check for duplicate invoice number
+  const checkDuplicate = useCallback(async (number: string) => {
+    if (!number.trim()) {
+      setDuplicateWarning(null);
+      return;
+    }
+    
+    const { data } = await supabase
+      .from("vendor_invoices")
+      .select("id, invoice_date")
+      .eq("invoice_number", number.trim())
+      .maybeSingle();
+    
+    if (data) {
+      setDuplicateWarning(`Sąskaita "${number}" jau egzistuoja (${data.invoice_date})`);
+    } else {
+      setDuplicateWarning(null);
+    }
   }, []);
 
   const handleFileSelect = useCallback((files: File[]) => {
@@ -233,6 +255,36 @@ export function VendorInvoiceUploadWizard({ open, onOpenChange, onSuccess }: Pro
     }
 
     setIsSubmitting(true);
+
+    try {
+      // Check for duplicate invoice number
+      const { data: existingInvoice, error: checkError } = await supabase
+        .from("vendor_invoices")
+        .select("id, invoice_number, invoice_date, vendor_id")
+        .eq("invoice_number", invoiceNumber.trim())
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+
+      if (existingInvoice) {
+        setIsSubmitting(false);
+        toast({
+          title: "Sąskaita jau egzistuoja",
+          description: `Sąskaita su numeriu "${invoiceNumber}" jau yra sistemoje (data: ${existingInvoice.invoice_date})`,
+          variant: "destructive",
+        });
+        return;
+      }
+    } catch (error) {
+      console.error("Duplicate check error:", error);
+      setIsSubmitting(false);
+      toast({
+        title: "Klaida",
+        description: "Nepavyko patikrinti dublikatų",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       // 1. Upload file to storage
@@ -476,9 +528,19 @@ export function VendorInvoiceUploadWizard({ open, onOpenChange, onSuccess }: Pro
                 <Label>Sąskaitos Nr. *</Label>
                 <Input
                   value={invoiceNumber}
-                  onChange={(e) => setInvoiceNumber(e.target.value)}
+                  onChange={(e) => {
+                    setInvoiceNumber(e.target.value);
+                    checkDuplicate(e.target.value);
+                  }}
                   placeholder="SF-001"
+                  className={duplicateWarning ? "border-destructive" : ""}
                 />
+                {duplicateWarning && (
+                  <p className="text-sm text-destructive flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {duplicateWarning}
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Būsena</Label>
