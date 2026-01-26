@@ -78,8 +78,9 @@ export function AdminCostCategories() {
   const [categoryToDelete, setCategoryToDelete] = useState<CostCategory | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [importDialogOpen, setImportDialogOpen] = useState(false);
-  const [importPreview, setImportPreview] = useState<Array<{ code: string; name: string; budget: number | null }>>([]);
+  const [importPreview, setImportPreview] = useState<Array<{ code: string; name: string; budget: number | null; parentCode?: string }>>([]);
   const [isImporting, setIsImporting] = useState(false);
+  const [replaceExisting, setReplaceExisting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
@@ -306,7 +307,7 @@ export function AdminCostCategories() {
       const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as (string | number | null)[][];
 
       // Parse the data - look for columns with code, name, budget
-      const parsed: Array<{ code: string; name: string; budget: number | null }> = [];
+      const parsed: Array<{ code: string; name: string; budget: number | null; parentCode?: string }> = [];
       
       // Skip header row if exists
       const startRow = jsonData[0]?.some(cell => 
@@ -352,7 +353,12 @@ export function AdminCostCategories() {
         }
 
         if (name) {
-          parsed.push({ code, name, budget });
+          // Determine parent code from code pattern (e.g., T1-1 -> T1)
+          let parentCode: string | undefined;
+          if (code && code.includes('-')) {
+            parentCode = code.split('-')[0];
+          }
+          parsed.push({ code, name, budget, parentCode });
         }
       }
 
@@ -379,23 +385,84 @@ export function AdminCostCategories() {
 
     setIsImporting(true);
     try {
-      const categoriesToInsert = importPreview.map(item => ({
-        name: item.name,
-        code: item.code || null,
-        budget_monthly: item.budget,
-        is_active: true,
-      }));
+      // If replacing, delete existing categories that aren't referenced
+      if (replaceExisting) {
+        // Get categories that can be safely deleted (not referenced by invoices)
+        const { data: referencedCategories } = await supabase
+          .from("vendor_invoices")
+          .select("cost_category_id")
+          .not("cost_category_id", "is", null);
+        
+        const referencedIds = new Set((referencedCategories || []).map(r => r.cost_category_id));
+        
+        // Delete non-referenced categories
+        const { data: allCategories } = await supabase
+          .from("cost_categories")
+          .select("id");
+        
+        const toDelete = (allCategories || [])
+          .filter(c => !referencedIds.has(c.id))
+          .map(c => c.id);
+        
+        if (toDelete.length > 0) {
+          await supabase.from("cost_categories").delete().in("id", toDelete);
+        }
+      }
 
-      const { error } = await supabase
+      // First, insert parent categories (those without parentCode)
+      const parentCategories = importPreview.filter(item => !item.parentCode);
+      const childCategories = importPreview.filter(item => item.parentCode);
+
+      // Insert parents first
+      if (parentCategories.length > 0) {
+        const { error: parentError } = await supabase
+          .from("cost_categories")
+          .upsert(
+            parentCategories.map(item => ({
+              name: item.name,
+              code: item.code || null,
+              budget_monthly: item.budget,
+              is_active: true,
+            })),
+            { onConflict: 'code', ignoreDuplicates: false }
+          );
+        if (parentError && !parentError.message.includes('duplicate')) {
+          throw parentError;
+        }
+      }
+
+      // Get parent IDs for children
+      const { data: parentData } = await supabase
         .from("cost_categories")
-        .insert(categoriesToInsert);
+        .select("id, code")
+        .in("code", [...new Set(childCategories.map(c => c.parentCode).filter(Boolean))]);
 
-      if (error) throw error;
+      const parentIdMap = new Map((parentData || []).map(p => [p.code, p.id]));
+
+      // Insert children with parent_id
+      if (childCategories.length > 0) {
+        const childrenToInsert = childCategories.map(item => ({
+          name: item.name,
+          code: item.code || null,
+          budget_monthly: item.budget,
+          parent_id: item.parentCode ? parentIdMap.get(item.parentCode) : null,
+          is_active: true,
+        }));
+
+        const { error: childError } = await supabase
+          .from("cost_categories")
+          .upsert(childrenToInsert, { onConflict: 'code', ignoreDuplicates: false });
+        
+        if (childError && !childError.message.includes('duplicate')) {
+          throw childError;
+        }
+      }
 
       queryClient.invalidateQueries({ queryKey: ["cost-categories"] });
       toast.success(`Importuota ${importPreview.length} kategorijų`);
       setImportDialogOpen(false);
       setImportPreview([]);
+      setReplaceExisting(false);
     } catch (error: any) {
       toast.error("Klaida importuojant: " + error.message);
     } finally {
@@ -753,7 +820,17 @@ export function AdminCostCategories() {
               Peržiūrėkite ir patvirtinkite importuojamas kategorijas
             </DialogDescription>
           </DialogHeader>
-          <div className="flex-1 overflow-auto">
+          <div className="flex items-center space-x-2 py-2 px-1 bg-muted/50 rounded-md">
+            <Switch
+              id="replaceExisting"
+              checked={replaceExisting}
+              onCheckedChange={setReplaceExisting}
+            />
+            <Label htmlFor="replaceExisting" className="text-sm">
+              Išvalyti esamas kategorijas ir importuoti iš naujo
+            </Label>
+          </div>
+          <div className="flex-1 overflow-auto max-h-[400px]">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -764,10 +841,12 @@ export function AdminCostCategories() {
               </TableHeader>
               <TableBody>
                 {importPreview.map((item, index) => (
-                  <TableRow key={index}>
+                  <TableRow key={index} className={item.parentCode ? "bg-muted/30" : ""}>
                     <TableCell>
                       {item.code ? (
-                        <Badge variant="outline">{item.code}</Badge>
+                        <Badge variant={item.parentCode ? "secondary" : "outline"}>
+                          {item.parentCode ? "↳ " : ""}{item.code}
+                        </Badge>
                       ) : (
                         <span className="text-muted-foreground">-</span>
                       )}
@@ -784,14 +863,15 @@ export function AdminCostCategories() {
           <DialogFooter>
             <div className="flex items-center justify-between w-full">
               <span className="text-sm text-muted-foreground">
-                Rasta {importPreview.length} kategorijų
+                Rasta {importPreview.length} kategorijų 
+                ({importPreview.filter(i => !i.parentCode).length} pagr. + {importPreview.filter(i => i.parentCode).length} sub.)
               </span>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setImportDialogOpen(false)}>
+                <Button variant="outline" onClick={() => { setImportDialogOpen(false); setReplaceExisting(false); }}>
                   Atšaukti
                 </Button>
                 <Button onClick={handleImportConfirm} disabled={isImporting}>
-                  {isImporting ? "Importuojama..." : "Importuoti"}
+                  {isImporting ? "Importuojama..." : replaceExisting ? "Išvalyti ir importuoti" : "Importuoti"}
                 </Button>
               </div>
             </div>
