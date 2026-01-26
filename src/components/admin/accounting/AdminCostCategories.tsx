@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -51,9 +53,13 @@ import {
   TrendingUp,
   ChevronRight,
   ChevronDown,
+  Upload,
+  FileSpreadsheet,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Tables } from "@/integrations/supabase/types";
+import * as XLSX from "xlsx";
 
 type CostCategory = Tables<"cost_categories">;
 
@@ -71,6 +77,10 @@ export function AdminCostCategories() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<CostCategory | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importPreview, setImportPreview] = useState<Array<{ code: string; name: string; budget: number | null }>>([]);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -284,6 +294,133 @@ export function AdminCostCategories() {
     saveMutation.mutate(formData);
   };
 
+  // Excel/File import handlers
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as (string | number | null)[][];
+
+      // Parse the data - look for columns with code, name, budget
+      const parsed: Array<{ code: string; name: string; budget: number | null }> = [];
+      
+      // Skip header row if exists
+      const startRow = jsonData[0]?.some(cell => 
+        typeof cell === 'string' && (
+          cell.toLowerCase().includes('kodas') || 
+          cell.toLowerCase().includes('pavadinimas') ||
+          cell.toLowerCase().includes('code') ||
+          cell.toLowerCase().includes('name')
+        )
+      ) ? 1 : 0;
+
+      for (let i = startRow; i < jsonData.length; i++) {
+        const row = jsonData[i];
+        if (!row || row.length === 0) continue;
+
+        // Try to find code (T1, T2, etc.) and name
+        let code = '';
+        let name = '';
+        let budget: number | null = null;
+
+        for (let j = 0; j < row.length; j++) {
+          const cell = row[j];
+          if (cell === null || cell === undefined || cell === '') continue;
+
+          const cellStr = String(cell).trim();
+          
+          // Check if it's a code like T1, T2, T1-1, etc.
+          if (/^T\d+(-\d+)?$/i.test(cellStr)) {
+            code = cellStr.toUpperCase();
+          }
+          // Check if it's a budget number
+          else if (typeof cell === 'number' || /^\d+([.,]\d+)?(\s*€)?$/.test(cellStr.replace(/\s/g, ''))) {
+            const numStr = cellStr.replace(/[€\s]/g, '').replace(',', '.');
+            const num = parseFloat(numStr);
+            if (!isNaN(num) && num > 0) {
+              budget = num;
+            }
+          }
+          // Otherwise it's likely the name
+          else if (cellStr.length > 2 && !name) {
+            name = cellStr;
+          }
+        }
+
+        if (name) {
+          parsed.push({ code, name, budget });
+        }
+      }
+
+      if (parsed.length === 0) {
+        toast.error("Nepavyko rasti kategorijų duomenų faile");
+        return;
+      }
+
+      setImportPreview(parsed);
+      setImportDialogOpen(true);
+    } catch (error) {
+      console.error("Error parsing file:", error);
+      toast.error("Klaida skaitant failą");
+    }
+
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleImportConfirm = async () => {
+    if (importPreview.length === 0) return;
+
+    setIsImporting(true);
+    try {
+      const categoriesToInsert = importPreview.map(item => ({
+        name: item.name,
+        code: item.code || null,
+        budget_monthly: item.budget,
+        is_active: true,
+      }));
+
+      const { error } = await supabase
+        .from("cost_categories")
+        .insert(categoriesToInsert);
+
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ["cost-categories"] });
+      toast.success(`Importuota ${importPreview.length} kategorijų`);
+      setImportDialogOpen(false);
+      setImportPreview([]);
+    } catch (error: any) {
+      toast.error("Klaida importuojant: " + error.message);
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const downloadTemplate = () => {
+    const templateData = [
+      ["Kodas", "Pavadinimas", "Mėnesinis biudžetas (€)"],
+      ["T1", "Bendrųjų patalpų, teritorijos ir aplinkos priež.", "27360"],
+      ["T2", "Apskaita ir kiti namo priežiūros darbai", "24447"],
+      ["T3", "Valymo/plovimo paslaugos", "24261"],
+      ["T4", "Kaupiamos lėšos remontams", "5434"],
+      ["T5", "Tikslinės kaupiamosios lėšos remontams", "20000"],
+      ["T6", "Bendrų įrenginių, patalpų elektra ir apšvietimas", "15000"],
+      ["T7", "Vanduo (pagal faktą)", "2783"],
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Kategorijos");
+    XLSX.writeFile(wb, "kategoriju_sablonas.xlsx");
+  };
+
   return (
     <div className="space-y-6">
       {/* Statistics */}
@@ -353,13 +490,30 @@ export function AdminCostCategories() {
             className="pl-9"
           />
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => handleCloseDialog()}>
-              <Plus className="mr-2 h-4 w-4" />
-              Nauja kategorija
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          {/* Import from Excel */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileSelect}
+            accept=".xlsx,.xls,.csv"
+            className="hidden"
+          />
+          <Button variant="outline" onClick={downloadTemplate}>
+            <Download className="mr-2 h-4 w-4" />
+            Šablonas
+          </Button>
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+            <Upload className="mr-2 h-4 w-4" />
+            Importuoti
+          </Button>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={() => handleCloseDialog()}>
+                <Plus className="mr-2 h-4 w-4" />
+                Nauja kategorija
+              </Button>
+            </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>
@@ -455,6 +609,7 @@ export function AdminCostCategories() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Categories table */}
@@ -585,6 +740,64 @@ export function AdminCostCategories() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Import preview dialog */}
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5" />
+              Importuoti kategorijas
+            </DialogTitle>
+            <DialogDescription>
+              Peržiūrėkite ir patvirtinkite importuojamas kategorijas
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Kodas</TableHead>
+                  <TableHead>Pavadinimas</TableHead>
+                  <TableHead className="text-right">Biudžetas</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {importPreview.map((item, index) => (
+                  <TableRow key={index}>
+                    <TableCell>
+                      {item.code ? (
+                        <Badge variant="outline">{item.code}</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-medium">{item.name}</TableCell>
+                    <TableCell className="text-right">
+                      {item.budget ? `€${item.budget.toFixed(2)}` : "-"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <DialogFooter>
+            <div className="flex items-center justify-between w-full">
+              <span className="text-sm text-muted-foreground">
+                Rasta {importPreview.length} kategorijų
+              </span>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setImportDialogOpen(false)}>
+                  Atšaukti
+                </Button>
+                <Button onClick={handleImportConfirm} disabled={isImporting}>
+                  {isImporting ? "Importuojama..." : "Importuoti"}
+                </Button>
+              </div>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
