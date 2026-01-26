@@ -42,6 +42,7 @@ const TARIFF_TYPES = [
   { value: "per_m2", label: "Už m²", unit: "EUR/m²" },
   { value: "per_m3", label: "Už m³", unit: "EUR/m³" },
   { value: "per_kwh", label: "Už kWh", unit: "EUR/kWh" },
+  { value: "per_invoice", label: "Pagal SF", unit: "%" },
 ];
 
 export function AdminTariffs() {
