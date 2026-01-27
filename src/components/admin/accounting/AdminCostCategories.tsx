@@ -494,25 +494,56 @@ export function AdminCostCategories() {
       return;
     }
 
-    // Build hierarchical export data
+    // Build hierarchical export - parent categories first, then their children
     const getParentCode = (parentId: string | null): string => {
       if (!parentId) return "";
       const parent = categories.find(c => c.id === parentId);
       return parent?.code || "";
     };
 
-    const exportData = [
+    const exportData: string[][] = [
       ["Kodas", "Pavadinimas", "Tėvinė kategorija", "Mėnesinis biudžetas (€)", "Aprašymas", "Aktyvi"]
     ];
 
-    // Sort by code for consistent export
-    const sortedCategories = [...categories].sort((a, b) => {
-      const codeA = a.code || "";
-      const codeB = b.code || "";
-      return codeA.localeCompare(codeB, undefined, { numeric: true });
+    // Get parent categories sorted by code
+    const parentCategories = categories
+      .filter(c => !c.parent_id)
+      .sort((a, b) => (a.code || "").localeCompare(b.code || "", undefined, { numeric: true }));
+
+    // For each parent, add it and then its children
+    parentCategories.forEach(parent => {
+      // Add parent category
+      exportData.push([
+        parent.code || "",
+        parent.name,
+        "",
+        parent.budget_monthly?.toString() || "",
+        parent.description || "",
+        parent.is_active ? "Taip" : "Ne"
+      ]);
+
+      // Get and add children sorted by code
+      const children = categories
+        .filter(c => c.parent_id === parent.id)
+        .sort((a, b) => (a.code || "").localeCompare(b.code || "", undefined, { numeric: true }));
+
+      children.forEach(child => {
+        exportData.push([
+          child.code || "",
+          child.name,
+          parent.code || "",
+          child.budget_monthly?.toString() || "",
+          child.description || "",
+          child.is_active ? "Taip" : "Ne"
+        ]);
+      });
     });
 
-    sortedCategories.forEach(cat => {
+    // Add orphan categories (have parent_id but parent doesn't exist)
+    const orphans = categories.filter(c => 
+      c.parent_id && !categories.find(p => p.id === c.parent_id)
+    );
+    orphans.forEach(cat => {
       exportData.push([
         cat.code || "",
         cat.name,
@@ -528,9 +559,9 @@ export function AdminCostCategories() {
     // Set column widths
     ws["!cols"] = [
       { wch: 10 },  // Kodas
-      { wch: 50 },  // Pavadinimas
-      { wch: 15 },  // Tėvinė kategorija
-      { wch: 20 },  // Biudžetas
+      { wch: 55 },  // Pavadinimas
+      { wch: 18 },  // Tėvinė kategorija
+      { wch: 22 },  // Biudžetas
       { wch: 40 },  // Aprašymas
       { wch: 8 },   // Aktyvi
     ];
@@ -541,7 +572,9 @@ export function AdminCostCategories() {
     const date = new Date().toISOString().split('T')[0];
     XLSX.writeFile(wb, `kategorijos_${date}.xlsx`);
     
-    toast.success(`Eksportuota ${categories.length} kategorijų`);
+    const parentCount = parentCategories.length;
+    const childCount = categories.filter(c => c.parent_id).length;
+    toast.success(`Eksportuota ${parentCount} kategorijų ir ${childCount} subkategorijų`);
   };
 
   return (
