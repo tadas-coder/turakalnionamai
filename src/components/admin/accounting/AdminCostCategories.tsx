@@ -488,6 +488,62 @@ export function AdminCostCategories() {
     XLSX.writeFile(wb, "kategoriju_sablonas.xlsx");
   };
 
+  const handleExportCategories = () => {
+    if (categories.length === 0) {
+      toast.error("Nėra kategorijų eksportui");
+      return;
+    }
+
+    // Build hierarchical export data
+    const getParentCode = (parentId: string | null): string => {
+      if (!parentId) return "";
+      const parent = categories.find(c => c.id === parentId);
+      return parent?.code || "";
+    };
+
+    const exportData = [
+      ["Kodas", "Pavadinimas", "Tėvinė kategorija", "Mėnesinis biudžetas (€)", "Aprašymas", "Aktyvi"]
+    ];
+
+    // Sort by code for consistent export
+    const sortedCategories = [...categories].sort((a, b) => {
+      const codeA = a.code || "";
+      const codeB = b.code || "";
+      return codeA.localeCompare(codeB, undefined, { numeric: true });
+    });
+
+    sortedCategories.forEach(cat => {
+      exportData.push([
+        cat.code || "",
+        cat.name,
+        getParentCode(cat.parent_id),
+        cat.budget_monthly?.toString() || "",
+        cat.description || "",
+        cat.is_active ? "Taip" : "Ne"
+      ]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(exportData);
+    
+    // Set column widths
+    ws["!cols"] = [
+      { wch: 10 },  // Kodas
+      { wch: 50 },  // Pavadinimas
+      { wch: 15 },  // Tėvinė kategorija
+      { wch: 20 },  // Biudžetas
+      { wch: 40 },  // Aprašymas
+      { wch: 8 },   // Aktyvi
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Kategorijos");
+    
+    const date = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(wb, `kategorijos_${date}.xlsx`);
+    
+    toast.success(`Eksportuota ${categories.length} kategorijų`);
+  };
+
   return (
     <div className="space-y-6">
       {/* Statistics */}
@@ -557,7 +613,7 @@ export function AdminCostCategories() {
             className="pl-9"
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {/* Import from Excel */}
           <input
             type="file"
@@ -566,6 +622,10 @@ export function AdminCostCategories() {
             accept=".xlsx,.xls,.csv"
             className="hidden"
           />
+          <Button variant="outline" onClick={handleExportCategories}>
+            <FileSpreadsheet className="mr-2 h-4 w-4" />
+            Eksportuoti
+          </Button>
           <Button variant="outline" onClick={downloadTemplate}>
             <Download className="mr-2 h-4 w-4" />
             Šablonas
