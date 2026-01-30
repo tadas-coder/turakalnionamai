@@ -24,18 +24,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
+    let isMounted = true;
+
+    const fetchUserRole = async (userId: string) => {
+      try {
+        const { data, error } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userId)
+          .eq("role", "admin")
+          .maybeSingle();
+        
+        if (!isMounted) return;
+        
+        const isAdminUser = !!data && !error;
+        setIsAdmin(isAdminUser);
+        
+        // Admins are always approved
+        if (isAdminUser) {
+          setIsApproved(true);
+        }
+      } catch (error) {
+        console.error("Error checking admin role:", error);
+      }
+    };
+
+    const fetchApprovalStatus = async (userId: string) => {
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("approved")
+          .eq("id", userId)
+          .single();
+        
+        if (!isMounted) return;
+        
+        if (!error && data) {
+          setIsApproved(data.approved);
+        }
+      } catch (error) {
+        console.error("Error checking approval status:", error);
+      }
+    };
+
+    // Listener for ONGOING auth changes (does NOT control loading state)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        if (!isMounted) return;
+        
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Defer admin and approval check with setTimeout to prevent deadlock
         if (session?.user) {
-          setTimeout(() => {
-            checkAdminRole(session.user.id);
-            checkApproval(session.user.id);
-          }, 0);
+          // Fire and forget for ongoing changes
+          fetchUserRole(session.user.id);
+          fetchApprovalStatus(session.user.id);
         } else {
           setIsAdmin(false);
           setIsApproved(false);
@@ -43,18 +86,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        checkAdminRole(session.user.id);
-        checkApproval(session.user.id);
+    // INITIAL load - controls loading state
+    const initializeAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!isMounted) return;
+        
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        // Fetch roles BEFORE setting loading to false
+        if (session?.user) {
+          await Promise.all([
+            fetchUserRole(session.user.id),
+            fetchApprovalStatus(session.user.id)
+          ]);
+        }
+      } catch (error) {
+        console.error("Error initializing auth:", error);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
-      setLoading(false);
-    });
+    };
 
-    return () => subscription.unsubscribe();
+    initializeAuth();
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const checkAdminRole = async (userId: string) => {
