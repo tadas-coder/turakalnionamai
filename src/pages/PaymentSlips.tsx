@@ -4,17 +4,17 @@ import { useAuth } from "@/hooks/useAuth";
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { FileText, Download, TrendingUp, TrendingDown, Minus, BarChart3, X } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { FileText, TrendingUp, TrendingDown, BarChart3, ChevronDown, Receipt, Wallet, CalendarDays, CreditCard } from "lucide-react";
 import { format } from "date-fns";
 import { lt } from "date-fns/locale";
 import { useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line } from "recharts";
+import { cn } from "@/lib/utils";
 
 interface PaymentSlip {
   id: string;
@@ -39,14 +39,135 @@ interface PaymentSlip {
   created_at: string;
 }
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))', '#ec4899', '#06b6d4', '#84cc16'];
+
+function PaymentSlipCard({ slip, formatCurrency }: { slip: PaymentSlip; formatCurrency: (n: number) => string }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const hasDebt = slip.balance > 0;
+  const hasOverpayment = slip.balance < 0;
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <CollapsibleTrigger asChild>
+        <button className={cn(
+          "w-full text-left rounded-xl border bg-card transition-all duration-200",
+          "hover:shadow-md hover:border-primary/30",
+          isOpen && "shadow-md border-primary/30",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        )}>
+          <div className="p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={cn(
+                  "flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center",
+                  hasDebt ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"
+                )}>
+                  <Receipt className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm truncate">
+                    {format(new Date(slip.period_month), "yyyy m. MMMM", { locale: lt })}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    Nr. {slip.invoice_number}
+                    {slip.apartment_number && ` • But. ${slip.apartment_number}`}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 flex-shrink-0">
+                <div className="text-right">
+                  <p className="font-bold text-base">{formatCurrency(slip.total_due)}</p>
+                  {hasDebt && (
+                    <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                      Skola {formatCurrency(slip.balance)}
+                    </Badge>
+                  )}
+                  {hasOverpayment && (
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                      Permoka {formatCurrency(Math.abs(slip.balance))}
+                    </Badge>
+                  )}
+                </div>
+                <ChevronDown className={cn(
+                  "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                  isOpen && "rotate-180"
+                )} />
+              </div>
+            </div>
+          </div>
+        </button>
+      </CollapsibleTrigger>
+
+      <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+        <div className="px-4 pb-4 -mt-2 pt-3 border border-t-0 rounded-b-xl bg-card border-primary/30">
+          {/* Summary row */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+            <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
+              <Wallet className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Ankstesnė</p>
+                <p className="text-sm font-medium">{formatCurrency(slip.previous_amount)}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 p-2 rounded-lg bg-green-50 dark:bg-green-900/20">
+              <CreditCard className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Įmokos</p>
+                <p className="text-sm font-medium text-green-600 dark:text-green-400">-{formatCurrency(slip.payments_received)}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
+              <Receipt className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Priskaityta</p>
+                <p className="text-sm font-medium">{formatCurrency(slip.accrued_amount)}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 p-2 rounded-lg bg-primary/5">
+              <CalendarDays className="h-4 w-4 text-primary flex-shrink-0" />
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Terminas</p>
+                <p className="text-sm font-medium">{format(new Date(slip.due_date), "MM-dd")}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Line items */}
+          {slip.line_items?.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Paslaugos</p>
+              <div className="space-y-1.5">
+                {slip.line_items.map((item: any, idx: number) => (
+                  <div key={idx} className="flex justify-between items-center py-1.5 px-2 rounded-md hover:bg-muted/50 transition-colors text-sm">
+                    <span className="text-foreground truncate mr-3">{item.name}</span>
+                    <span className="font-medium whitespace-nowrap tabular-nums">{formatCurrency(item.amount)}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between items-center pt-2 mt-1 border-t font-bold text-sm px-2">
+                  <span>Mokėtina suma</span>
+                  <span className="tabular-nums">{formatCurrency(slip.total_due)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Payment code */}
+          {slip.payment_code && (
+            <div className="mt-3 p-2.5 rounded-lg bg-muted/70 flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Mokėtojo kodas:</span>
+              <code className="text-xs font-mono font-semibold text-foreground bg-background px-2 py-0.5 rounded">{slip.payment_code}</code>
+            </div>
+          )}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
 
 export default function PaymentSlips() {
   const { user, isApproved, isAdmin } = useAuth();
   const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
-  const [selectedSlip, setSelectedSlip] = useState<PaymentSlip | null>(null);
 
-  // Fetch user's payment slips
   const { data: paymentSlips, isLoading } = useQuery({
     queryKey: ["user-payment-slips", user?.id],
     queryFn: async () => {
@@ -80,27 +201,23 @@ export default function PaymentSlips() {
     return new Intl.NumberFormat('lt-LT', { style: 'currency', currency: 'EUR' }).format(amount);
   };
 
-  // Get unique periods
-  const periods = paymentSlips 
+  const periods = paymentSlips
     ? [...new Set(paymentSlips.map(s => s.period_month))].sort().reverse()
     : [];
 
-  // Filter by period
-  const filteredSlips = paymentSlips?.filter(slip => 
+  const filteredSlips = paymentSlips?.filter(slip =>
     selectedPeriod === "all" || slip.period_month === selectedPeriod
   );
 
-  // Calculate stats
   const stats = {
     totalSlips: filteredSlips?.length || 0,
     totalAmount: filteredSlips?.reduce((sum, s) => sum + (s.total_due || 0), 0) || 0,
     totalPaid: filteredSlips?.reduce((sum, s) => sum + (s.payments_received || 0), 0) || 0,
-    avgMonthly: paymentSlips && paymentSlips.length > 0 
+    avgMonthly: paymentSlips && paymentSlips.length > 0
       ? paymentSlips.reduce((sum, s) => sum + (s.total_due || 0), 0) / new Set(paymentSlips.map(s => s.period_month)).size
       : 0
   };
 
-  // Prepare chart data - monthly totals
   const monthlyData = paymentSlips?.reduce((acc, slip) => {
     const month = format(new Date(slip.period_month), "yyyy-MM");
     const existing = acc.find(item => item.month === month);
@@ -112,7 +229,6 @@ export default function PaymentSlips() {
     return acc;
   }, [] as Array<{ month: string; amount: number; label: string }>).sort((a, b) => a.month.localeCompare(b.month)) || [];
 
-  // Prepare expense breakdown from latest slip
   const latestSlip = paymentSlips?.[0];
   const expenseBreakdown = latestSlip?.line_items?.map((item: any, idx: number) => ({
     name: item.name?.length > 25 ? item.name.substring(0, 25) + '...' : item.name,
@@ -121,14 +237,13 @@ export default function PaymentSlips() {
     color: COLORS[idx % COLORS.length]
   })) || [];
 
-  // Compare with previous period
   const currentPeriodSlip = filteredSlips?.[0];
   const previousPeriodIndex = paymentSlips?.findIndex(s => s.period_month === currentPeriodSlip?.period_month);
-  const previousPeriodSlip = previousPeriodIndex !== undefined && previousPeriodIndex >= 0 
-    ? paymentSlips?.[previousPeriodIndex + 1] 
+  const previousPeriodSlip = previousPeriodIndex !== undefined && previousPeriodIndex >= 0
+    ? paymentSlips?.[previousPeriodIndex + 1]
     : null;
-  
-  const changePercent = currentPeriodSlip && previousPeriodSlip 
+
+  const changePercent = currentPeriodSlip && previousPeriodSlip
     ? ((currentPeriodSlip.total_due - previousPeriodSlip.total_due) / previousPeriodSlip.total_due * 100)
     : 0;
 
@@ -138,8 +253,8 @@ export default function PaymentSlips() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-bold">Sąskaitos ir skolos</h1>
-            <p className="text-muted-foreground">Jūsų mėnesiniai mokėjimai ir statistika</p>
+            <h1 className="text-2xl font-bold">Sąskaitos ir mokėjimai</h1>
+            <p className="text-muted-foreground text-sm">Paspauskite lapelį, kad matytumėte detalią informaciją</p>
           </div>
           <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
             <SelectTrigger className="w-[180px]">
@@ -157,45 +272,35 @@ export default function PaymentSlips() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {selectedPeriod === "all" ? "Viso lapelių" : "Šio periodo"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalSlips}</div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <Card className="border-0 shadow-sm bg-gradient-to-br from-primary/5 to-transparent">
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground font-medium">{selectedPeriod === "all" ? "Viso lapelių" : "Šio periodo"}</p>
+              <p className="text-2xl font-bold mt-1">{stats.totalSlips}</p>
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Mokėtina suma</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(stats.totalAmount)}</div>
+          <Card className="border-0 shadow-sm bg-gradient-to-br from-orange-500/5 to-transparent">
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground font-medium">Mokėtina</p>
+              <p className="text-2xl font-bold mt-1">{formatCurrency(stats.totalAmount)}</p>
               {changePercent !== 0 && selectedPeriod !== "all" && (
-                <div className={`flex items-center text-sm ${changePercent > 0 ? 'text-red-500' : 'text-green-500'}`}>
-                  {changePercent > 0 ? <TrendingUp className="h-4 w-4 mr-1" /> : <TrendingDown className="h-4 w-4 mr-1" />}
-                  {Math.abs(changePercent).toFixed(1)}% nuo praeito mėn.
+                <div className={cn("flex items-center text-xs mt-0.5", changePercent > 0 ? 'text-destructive' : 'text-green-600')}>
+                  {changePercent > 0 ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
+                  {Math.abs(changePercent).toFixed(1)}%
                 </div>
               )}
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Sumokėta</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">{formatCurrency(stats.totalPaid)}</div>
+          <Card className="border-0 shadow-sm bg-gradient-to-br from-green-500/5 to-transparent">
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground font-medium">Sumokėta</p>
+              <p className="text-2xl font-bold mt-1 text-green-600 dark:text-green-400">{formatCurrency(stats.totalPaid)}</p>
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Mėn. vidurkis</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(stats.avgMonthly)}</div>
+          <Card className="border-0 shadow-sm bg-gradient-to-br from-blue-500/5 to-transparent">
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground font-medium">Mėn. vidurkis</p>
+              <p className="text-2xl font-bold mt-1">{formatCurrency(stats.avgMonthly)}</p>
             </CardContent>
           </Card>
         </div>
@@ -213,117 +318,34 @@ export default function PaymentSlips() {
             </TabsTrigger>
           </TabsList>
 
-          {/* List View */}
-          <TabsContent value="list" className="space-y-4">
+          <TabsContent value="list" className="space-y-3">
             {isLoading ? (
-              <Card>
-                <CardContent className="py-8 text-center">
-                  Kraunama...
-                </CardContent>
-              </Card>
+              <div className="space-y-3">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="h-[72px] rounded-xl bg-muted animate-pulse" />
+                ))}
+              </div>
             ) : filteredSlips?.length === 0 ? (
               <Card>
-                <CardContent className="py-8 text-center text-muted-foreground">
+                <CardContent className="py-12 text-center text-muted-foreground">
+                  <Receipt className="h-10 w-10 mx-auto mb-3 opacity-40" />
                   Mokėjimo lapelių nerasta
                 </CardContent>
               </Card>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-2">
                 {filteredSlips?.map((slip) => (
-                  <Card key={slip.id} className="overflow-hidden">
-                    <CardHeader className="pb-2 bg-muted/30">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle className="text-lg">
-                            {format(new Date(slip.period_month), "yyyy m. MMMM", { locale: lt })}
-                          </CardTitle>
-                          <p className="text-sm font-medium">
-                            {slip.apartment_number && `Butas ${slip.apartment_number}`}
-                            {slip.apartment_number && slip.buyer_name && " • "}
-                            {slip.buyer_name}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Sąskaita: {slip.invoice_number} | Terminas: {format(new Date(slip.due_date), "yyyy-MM-dd")}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-2xl font-bold">{formatCurrency(slip.total_due)}</div>
-                          {slip.balance !== 0 && (
-                            <Badge variant={slip.balance > 0 ? "destructive" : "secondary"}>
-                              {slip.balance > 0 ? "Skola" : "Permoka"}: {formatCurrency(Math.abs(slip.balance))}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="pt-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Line Items */}
-                        <div>
-                          <h4 className="font-medium mb-2 text-sm text-muted-foreground">Paslaugos</h4>
-                          <div className="space-y-1">
-                            {slip.line_items?.slice(0, 5).map((item: any, idx: number) => (
-                              <div key={idx} className="flex justify-between text-sm">
-                                <span className="truncate mr-2">{item.name}</span>
-                                <span className="font-medium whitespace-nowrap">{formatCurrency(item.amount)}</span>
-                              </div>
-                            ))}
-                            {slip.line_items?.length > 5 && (
-                              <Button
-                                variant="link"
-                                size="sm"
-                                className="p-0 h-auto"
-                                onClick={() => setSelectedSlip(slip)}
-                              >
-                                Rodyti visas ({slip.line_items.length})
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Summary */}
-                        <div className="space-y-2">
-                          <h4 className="font-medium mb-2 text-sm text-muted-foreground">Suvestinė</h4>
-                          <div className="space-y-1 text-sm">
-                            <div className="flex justify-between">
-                              <span>Ankstesnė suma:</span>
-                              <span>{formatCurrency(slip.previous_amount)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>Gautos įmokos:</span>
-                              <span className="text-green-600">-{formatCurrency(slip.payments_received)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>Priskaityta:</span>
-                              <span>{formatCurrency(slip.accrued_amount)}</span>
-                            </div>
-                            <div className="flex justify-between font-bold pt-1 border-t">
-                              <span>Mokėtina:</span>
-                              <span>{formatCurrency(slip.total_due)}</span>
-                            </div>
-                          </div>
-                          {slip.payment_code && (
-                            <div className="mt-3 p-2 bg-muted rounded text-xs">
-                              <span className="text-muted-foreground">Mokėtojo kodas: </span>
-                              <span className="font-mono font-medium">{slip.payment_code}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <PaymentSlipCard key={slip.id} slip={slip} formatCurrency={formatCurrency} />
                 ))}
               </div>
             )}
           </TabsContent>
 
-          {/* Charts View */}
           <TabsContent value="charts" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Monthly Trend */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Mėnesinė mokėjimų tendencija</CardTitle>
+                  <CardTitle className="text-lg">Mėnesinė tendencija</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {monthlyData.length > 0 ? (
@@ -332,14 +354,14 @@ export default function PaymentSlips() {
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="label" />
                         <YAxis tickFormatter={(value) => `${value}€`} />
-                        <Tooltip 
+                        <Tooltip
                           formatter={(value: number) => [formatCurrency(value), "Suma"]}
                           labelFormatter={(label) => `Periodas: ${label}`}
                         />
-                        <Line 
-                          type="monotone" 
-                          dataKey="amount" 
-                          stroke="hsl(var(--primary))" 
+                        <Line
+                          type="monotone"
+                          dataKey="amount"
+                          stroke="hsl(var(--primary))"
                           strokeWidth={2}
                           dot={{ r: 4 }}
                           activeDot={{ r: 6 }}
@@ -347,14 +369,11 @@ export default function PaymentSlips() {
                       </LineChart>
                     </ResponsiveContainer>
                   ) : (
-                    <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                      Nėra duomenų
-                    </div>
+                    <div className="h-[300px] flex items-center justify-center text-muted-foreground">Nėra duomenų</div>
                   )}
                 </CardContent>
               </Card>
 
-              {/* Expense Breakdown */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Išlaidų pasiskirstymas</CardTitle>
@@ -376,33 +395,30 @@ export default function PaymentSlips() {
                           outerRadius={100}
                           paddingAngle={2}
                           dataKey="value"
-                          label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
+                          label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
                         >
                           {expenseBreakdown.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />
                           ))}
                         </Pie>
-                        <Tooltip 
+                        <Tooltip
                           formatter={(value: number, name, props) => [
-                            formatCurrency(value), 
+                            formatCurrency(value),
                             props.payload.fullName
                           ]}
                         />
-                        <Legend 
+                        <Legend
                           formatter={(value, entry: any) => entry.payload.name}
                           wrapperStyle={{ fontSize: '12px' }}
                         />
                       </PieChart>
                     </ResponsiveContainer>
                   ) : (
-                    <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                      Nėra duomenų
-                    </div>
+                    <div className="h-[300px] flex items-center justify-center text-muted-foreground">Nėra duomenų</div>
                   )}
                 </CardContent>
               </Card>
 
-              {/* Monthly Comparison Bar Chart */}
               <Card className="lg:col-span-2">
                 <CardHeader>
                   <CardTitle className="text-lg">Mėnesių palyginimas</CardTitle>
@@ -414,61 +430,25 @@ export default function PaymentSlips() {
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="label" />
                         <YAxis tickFormatter={(value) => `${value}€`} />
-                        <Tooltip 
+                        <Tooltip
                           formatter={(value: number) => [formatCurrency(value), "Suma"]}
                           labelFormatter={(label) => `Periodas: ${label}`}
                         />
-                        <Bar 
-                          dataKey="amount" 
+                        <Bar
+                          dataKey="amount"
                           fill="hsl(var(--primary))"
                           radius={[4, 4, 0, 0]}
                         />
                       </BarChart>
                     </ResponsiveContainer>
                   ) : (
-                    <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                      Nėra duomenų
-                    </div>
+                    <div className="h-[300px] flex items-center justify-center text-muted-foreground">Nėra duomenų</div>
                   )}
                 </CardContent>
               </Card>
             </div>
           </TabsContent>
         </Tabs>
-
-        {/* Line Items Detail Dialog */}
-        <Dialog open={!!selectedSlip} onOpenChange={(open) => !open && setSelectedSlip(null)}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>
-                Visos paslaugos
-              </DialogTitle>
-              {selectedSlip && (
-                <DialogDescription>
-                  {format(new Date(selectedSlip.period_month), "yyyy m. MMMM", { locale: lt })} • Sąskaita: {selectedSlip.invoice_number}
-                </DialogDescription>
-              )}
-            </DialogHeader>
-            {selectedSlip && (
-              <ScrollArea className="max-h-[60vh]">
-                <div className="space-y-2 pr-4">
-                  {selectedSlip.line_items?.map((item: any, idx: number) => (
-                    <div key={idx} className="flex justify-between py-2 border-b last:border-0">
-                      <span className="text-sm">{item.name}</span>
-                      <span className="font-medium text-sm whitespace-nowrap ml-4">
-                        {formatCurrency(item.amount)}
-                      </span>
-                    </div>
-                  ))}
-                  <div className="flex justify-between pt-3 font-bold border-t">
-                    <span>Viso priskaityta:</span>
-                    <span>{formatCurrency(selectedSlip.accrued_amount)}</span>
-                  </div>
-                </div>
-              </ScrollArea>
-            )}
-          </DialogContent>
-        </Dialog>
       </div>
     </Layout>
   );
